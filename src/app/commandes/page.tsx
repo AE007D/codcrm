@@ -48,12 +48,23 @@ const STATUS_CONFIG: Record<OrderStatus, { label: string; color: string; bg: str
 const PIPELINE: OrderStatus[] = ["nouveau", "confirmé", "annulé", "expédié", "livré", "retourné"];
 const emptyForm = { customer: "", city: "", phone: "", address: "", product: "", amount: "", notes: "", source: "manuel" as Order["source"] };
 
+function LightfunnelsIcon() {
+  return (
+    <svg viewBox="0 0 100 100" className="w-4 h-4 shrink-0" fill="none">
+      {/* Blue pill - top diagonal */}
+      <rect x="8" y="18" width="52" height="22" rx="11" fill="#4A90E2" transform="rotate(-38 34 29)"/>
+      {/* Yellow semicircle - middle right */}
+      <circle cx="63" cy="47" r="16" fill="#F5C518"/>
+      {/* Pink pill - bottom diagonal */}
+      <rect x="22" y="58" width="55" height="22" rx="11" fill="#E8185A" transform="rotate(-38 49 69)"/>
+    </svg>
+  );
+}
+
 function SourceBadge({ source }: { source: Order["source"] }) {
   if (source === "lightfunnels") return (
-    <span className="inline-flex items-center gap-1.5 bg-orange-50 text-orange-700 text-xs font-semibold px-2.5 py-1 rounded-lg">
-      <svg viewBox="0 0 24 24" fill="currentColor" className="w-3.5 h-3.5">
-        <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/>
-      </svg>
+    <span className="inline-flex items-center gap-1.5 bg-slate-50 border border-slate-200 text-slate-700 text-xs font-semibold px-2.5 py-1 rounded-lg">
+      <LightfunnelsIcon />
       Lightfunnels
     </span>
   );
