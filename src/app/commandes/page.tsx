@@ -48,6 +48,33 @@ const STATUS_CONFIG: Record<OrderStatus, { label: string; color: string; bg: str
 const PIPELINE: OrderStatus[] = ["nouveau", "confirmé", "annulé", "expédié", "livré", "retourné"];
 const emptyForm = { customer: "", city: "", phone: "", address: "", product: "", amount: "", notes: "", source: "manuel" as Order["source"] };
 
+function SourceBadge({ source }: { source: Order["source"] }) {
+  if (source === "lightfunnels") return (
+    <span className="inline-flex items-center gap-1.5 bg-orange-50 text-orange-700 text-xs font-semibold px-2.5 py-1 rounded-lg">
+      <svg viewBox="0 0 24 24" fill="currentColor" className="w-3.5 h-3.5">
+        <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/>
+      </svg>
+      Lightfunnels
+    </span>
+  );
+  if (source === "shopify") return (
+    <span className="inline-flex items-center gap-1.5 bg-emerald-50 text-emerald-700 text-xs font-semibold px-2.5 py-1 rounded-lg">
+      <svg viewBox="0 0 24 24" fill="currentColor" className="w-3.5 h-3.5">
+        <path d="M15.337 3.47c-.015-.08-.083-.13-.162-.13-.08 0-1.494-.03-1.494-.03s-1.19-1.156-1.306-1.272a.37.37 0 00-.22-.1L11 18l5.4-1.166S15.352 3.55 15.337 3.47zM12.5 4.2l-.7 2.1c-.4-.2-.9-.3-1.4-.3-1.1 0-1.2.7-1.2 1 0 1.1 2.9 1.5 2.9 4 0 2-1.2 3.2-2.9 3.2-.7 0-2-.4-2-.4l.5-1.7s.9.5 1.6.5c.5 0 .7-.4.7-.7 0-1.4-2.4-1.5-2.4-3.8 0-1.9 1.4-3.8 4.1-3.8.4.1.7.2.8.2z"/>
+      </svg>
+      Shopify
+    </span>
+  );
+  return (
+    <span className="inline-flex items-center gap-1.5 bg-slate-100 text-slate-600 text-xs font-semibold px-2.5 py-1 rounded-lg">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="w-3.5 h-3.5">
+        <path d="M12 20h9M16.5 3.5a2.121 2.121 0 013 3L7 19l-4 1 1-4L16.5 3.5z"/>
+      </svg>
+      Manuel
+    </span>
+  );
+}
+
 type ShipCarrier = "ameex" | "eagle";
 
 export default function CommandesPage() {
@@ -420,7 +447,7 @@ export default function CommandesPage() {
                         <td className="px-5 py-3.5 text-slate-600 max-w-[130px] truncate" onClick={() => setDrawer(o)}>{o.product}</td>
                         <td className="px-5 py-3.5 font-bold text-slate-800 whitespace-nowrap" onClick={() => setDrawer(o)}>{o.amount} {o.currency}</td>
                         <td className="px-5 py-3.5" onClick={() => setDrawer(o)}>
-                          <span className={`text-xs font-semibold px-2 py-0.5 rounded-lg ${o.source === "lightfunnels" ? "bg-orange-50 text-orange-600" : o.source === "shopify" ? "bg-emerald-50 text-emerald-600" : "bg-slate-100 text-slate-500"}`}>{o.source}</span>
+                          <SourceBadge source={o.source} />
                         </td>
                         <td className="px-5 py-3.5" onClick={() => setDrawer(o)}>
                           <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-semibold ${cfg.bg} ${cfg.color}`}>{cfg.icon} {cfg.label}</span>
@@ -592,7 +619,7 @@ export default function CommandesPage() {
             <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 shrink-0">
               <div className="flex items-center gap-3">
                 <span className="font-mono text-sm text-slate-400">{drawer.orderNumber}</span>
-                <span className={`text-xs font-semibold px-2.5 py-1 rounded-lg ${drawer.source === "lightfunnels" ? "bg-orange-50 text-orange-600" : drawer.source === "shopify" ? "bg-emerald-50 text-emerald-600" : "bg-slate-100 text-slate-500"}`}>{drawer.source}</span>
+                <SourceBadge source={drawer.source} />
                 <span className="text-xs text-slate-400">{drawer.date}</span>
               </div>
               <button onClick={() => setDrawer(null)} className="w-8 h-8 rounded-xl hover:bg-slate-100 flex items-center justify-center text-slate-400">
