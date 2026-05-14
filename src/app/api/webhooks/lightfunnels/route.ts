@@ -10,7 +10,15 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
   }
 
+  // Log raw payload so we can see the real Lightfunnels structure
+  console.log("LF_WEBHOOK_RAW:", JSON.stringify(body, null, 2));
+
   const eventType = String(body.event ?? body.type ?? "order/created");
+
+  // Lightfunnels v2 wraps data under body.order or body.data.order
+  const orderRoot = (
+    (body.order ?? (body.data as Record<string,unknown>)?.order ?? body)
+  ) as Record<string, unknown>;
 
   // ── Abandoned checkout ──────────────────────────────────────────────────
   if (
@@ -56,31 +64,32 @@ export async function POST(request: NextRequest) {
   }
 
   // ── Completed order (order/created) ────────────────────────────────────
-  const order = body as Record<string, unknown>;
+  const order = orderRoot;
   const customer = (order.customer ?? order.billing_address ?? {}) as Record<string, unknown>;
-  const shipping = (order.shipping_address ?? customer) as Record<string, unknown>;
-  const lineItems = (order.line_items ?? []) as Record<string, unknown>[];
-  const funnel = (order.funnel ?? {}) as Record<string, unknown>;
+  const shipping = (order.shipping_address ?? order.address ?? customer) as Record<string, unknown>;
+  const lineItems = (order.line_items ?? order.items ?? []) as Record<string, unknown>[];
+  const funnel = (order.funnel ?? body.funnel ?? {}) as Record<string, unknown>;
 
-  const firstName = String(customer.first_name ?? shipping.first_name ?? "");
-  const lastName = String(customer.last_name ?? shipping.last_name ?? "");
+  const firstName = String(customer.first_name ?? customer.firstName ?? shipping.first_name ?? "");
+  const lastName = String(customer.last_name ?? customer.lastName ?? shipping.last_name ?? "");
+  const fullName = String(customer.name ?? order.customer_name ?? "");
   const productTitle = lineItems.length > 0
-    ? String(lineItems[0].title ?? lineItems[0].name ?? "Produit")
-    : "Produit";
-  const totalQty = lineItems.reduce((s, i) => s + (Number(i.quantity) || 1), 0);
+    ? String(lineItems[0].title ?? lineItems[0].name ?? lineItems[0].product_title ?? "Produit")
+    : String(order.product ?? "Produit");
+  const totalQty = lineItems.reduce((s, i) => s + (Number(i.quantity) || 1), 0) || 1;
 
   const parsed: LFOrder = {
-    id: String(order.id ?? order._id ?? Date.now()),
-    order_number: Number(order.order_number ?? order.number ?? 0),
+    id: String(order.id ?? order._id ?? body.id ?? Date.now()),
+    order_number: Number(order.order_number ?? order.number ?? body.order_number ?? 0),
     status: String(order.status ?? order.fulfillment_status ?? "pending"),
-    financial_status: String(order.financial_status ?? order.payment_status ?? "pending"),
-    total_price: String(order.total_price ?? order.total ?? "0"),
-    currency: String(order.currency ?? "MAD"),
-    customer_name: `${firstName} ${lastName}`.trim() || "Client",
-    customer_phone: String(customer.phone ?? shipping.phone ?? ""),
-    customer_email: String(customer.email ?? ""),
-    city: String(shipping.city ?? shipping.province ?? ""),
-    address: String(shipping.address1 ?? shipping.address ?? ""),
+    financial_status: String(order.financial_status ?? order.payment_status ?? "cod"),
+    total_price: String(order.total_price ?? order.total ?? order.amount ?? body.total_price ?? "0"),
+    currency: String(order.currency ?? body.currency ?? "MAD"),
+    customer_name: fullName || `${firstName} ${lastName}`.trim() || "Client",
+    customer_phone: String(customer.phone ?? customer.telephone ?? shipping.phone ?? order.phone ?? ""),
+    customer_email: String(customer.email ?? order.email ?? ""),
+    city: String(shipping.city ?? shipping.ville ?? shipping.province ?? order.city ?? ""),
+    address: String(shipping.address1 ?? shipping.address ?? shipping.adresse ?? order.address ?? ""),
     product: productTitle,
     quantity: totalQty,
     funnel: String(funnel.name ?? funnel.title ?? ""),
