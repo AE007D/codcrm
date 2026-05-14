@@ -5,7 +5,7 @@ import Sidebar from "@/components/Sidebar";
 
 type Creds = { tk: string; sk: string };
 type City = { ville: string; tarif: string | number; [k: string]: unknown };
-type Colis = { code?: string; fullname?: string; phone?: string; city?: string; price?: string | number; product?: string; state?: string; date?: string; [k: string]: unknown };
+type Colis = { code?: string; fullname?: string; nom?: string; phone?: string; telephone?: string; city?: string; ville?: string; price?: string | number; prix?: string | number; product?: string; produit?: string; state?: string; date?: string; [k: string]: unknown };
 
 const CREDS_KEY = "eagle_creds";
 
