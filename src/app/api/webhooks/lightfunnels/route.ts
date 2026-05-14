@@ -85,17 +85,19 @@ export async function POST(request: NextRequest) {
 
   // ── Completed order (order/created) ────────────────────────────────────
   const order = findOrderRoot(body);
-  const cust = (order.customer ?? order.billing_address ?? {}) as Record<string, unknown>;
-  const ship = (order.shipping_address ?? order.billing_address ?? cust) as Record<string, unknown>;
-  const items = (order.line_items ?? order.items ?? []) as Record<string, unknown>[];
+  // LF v2: customer info at root node level + shipping_address object
+  const cust = (order.customer ?? {}) as Record<string, unknown>;
+  const ship = (order.shipping_address ?? order.billing_address ?? {}) as Record<string, unknown>;
+  // LF v2 uses "items" array (not "line_items")
+  const items = (order.items ?? order.line_items ?? []) as Record<string, unknown>[];
   const funnel = (order.funnel ?? body.funnel ?? {}) as Record<string, unknown>;
 
   const customerName = pick(
-    cust.name,
-    `${cust.first_name ?? ""} ${cust.last_name ?? ""}`.trim(),
-    ship.name,
+    order.name,                // LF v2: full name at node root ✓
+    cust.full_name,            // LF v2: customer.full_name
     `${ship.first_name ?? ""} ${ship.last_name ?? ""}`.trim(),
-    order.name, order.customer_name,
+    cust.name,
+    order.customer_name,
   );
 
   const product = items.length > 0
@@ -104,19 +106,21 @@ export async function POST(request: NextRequest) {
 
   const parsed: LFOrder = {
     id: pick(order._id, order.id, body.id) || String(Date.now()),
-    order_number: Number(order._id ?? order.order_number ?? order.number ?? body.order_number ?? 0),
+    order_number: Number(order._id ?? order.order_number ?? order.number ?? 0),
     status: pick(order.fulfillment_status, order.status) || "pending",
     financial_status: pick(order.financial_status, order.payment_status) || "cod",
-    total_price: pick(order.total_price, order.total, order.subtotal, order.amount, body.total_price) || "0",
+    total_price: pick(order.total_price, order.total, order.subtotal, order.amount) || "0",
     currency: pick(order.currency, body.currency) || "MAD",
     customer_name: customerName || "Client",
-    customer_phone: pick(cust.phone, cust.telephone, ship.phone, order.phone, body.phone),
-    customer_email: pick(cust.email, order.email, body.email),
-    city: pick(ship.city, ship.province, cust.city, order.city, body.city),
-    address: pick(ship.address1, ship.address, cust.address1, order.address, body.address),
+    // LF v2: phone/email at node root
+    customer_phone: pick(order.phone, ship.phone, cust.phone),
+    customer_email: pick(order.email, ship.email, cust.email),
+    // LF v2: shipping_address uses "city" and "line1"
+    city: pick(ship.city, ship.state, ship.area, order.city),
+    address: pick(ship.line1, ship.address1, ship.address, order.address),
     product,
     quantity: items.reduce((s, i) => s + (Number(i.quantity) || 1), 0) || 1,
-    funnel: pick(funnel.name, funnel.title),
+    funnel: pick(funnel.name, funnel.title, order.funnel_id),
     created_at: pick(order.created_at, body.created_at) || new Date().toISOString(),
     received_at: new Date().toISOString(),
   };
