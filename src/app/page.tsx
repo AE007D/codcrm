@@ -166,7 +166,7 @@ export default function Home() {
                   <CartesianGrid strokeDasharray="3 3" stroke="#F1F5F9" />
                   <XAxis dataKey="month" tick={{ fontSize: 12, fill: "#94A3B8" }} axisLine={false} tickLine={false} />
                   <YAxis tick={{ fontSize: 11, fill: "#94A3B8" }} axisLine={false} tickLine={false} tickFormatter={(v) => `${(v/1000).toFixed(0)}k`} />
-                  <Tooltip contentStyle={{ background: "#fff", border: "1px solid #E2E8F0", borderRadius: "12px", fontSize: 12 }} formatter={(v: number) => [`${v.toLocaleString()} MAD`, "Revenue"]} />
+                  <Tooltip contentStyle={{ background: "#fff", border: "1px solid #E2E8F0", borderRadius: "12px", fontSize: 12 }} formatter={(v) => [`${Number(v).toLocaleString()} MAD`, "Revenue"]} />
                   <Area type="monotone" dataKey="value" stroke="#2563EB" strokeWidth={2.5} fill="url(#colorRevenue)" dot={false} activeDot={{ r: 5, fill: "#2563EB" }} />
                 </AreaChart>
               </ResponsiveContainer>
