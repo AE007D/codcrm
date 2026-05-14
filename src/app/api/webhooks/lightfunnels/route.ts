@@ -124,7 +124,7 @@ export async function POST(request: NextRequest) {
   };
   addLead(purchaseLead);
 
-  return NextResponse.json({ ok: true, type: "purchase", order_id: parsed.id });
+  return NextResponse.json({ ok: true, type: "purchase", order_id: parsed.id, _debug: { raw_keys: Object.keys(body), customer_keys: Object.keys((body.customer ?? body.order ?? {}) as object), parsed_name: parsed.customer_name, parsed_phone: parsed.customer_phone, parsed_city: parsed.city, parsed_total: parsed.total_price } });
 }
 
 export async function GET() {
