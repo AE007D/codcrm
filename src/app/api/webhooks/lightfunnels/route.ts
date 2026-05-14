@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { addOrder, LFOrder } from "@/lib/orderStore";
 import { addLead, FunnelLead } from "@/lib/leadStore";
 
-// Helper: pick first non-empty string from a list of candidates
+// Pick first non-empty string value
 function pick(...vals: unknown[]): string {
   for (const v of vals) {
     const s = String(v ?? "").trim();
@@ -17,6 +17,23 @@ function num(...vals: unknown[]): number {
     if (!isNaN(n) && n > 0) return n;
   }
   return 0;
+}
+
+// Find order root — LF v2 may nest under body.order, body.data, body.data.order, or send at root
+function findOrderRoot(body: Record<string, unknown>): Record<string, unknown> {
+  const data = (body.data ?? {}) as Record<string, unknown>;
+  // If body.order exists and has an id, use it
+  if (body.order && typeof body.order === "object" && (body.order as Record<string,unknown>).id) {
+    return body.order as Record<string, unknown>;
+  }
+  // If body.data.order exists
+  if (data.order && typeof data.order === "object") {
+    return data.order as Record<string, unknown>;
+  }
+  // If body.data has an id field
+  if (data.id) return data;
+  // Default: body is the order root
+  return body;
 }
 
 export async function POST(request: NextRequest) {
@@ -37,7 +54,7 @@ export async function POST(request: NextRequest) {
     eventType === "checkout_abandoned" ||
     body.abandoned_checkout
   ) {
-    const raw = (body.checkout ?? body.abandoned_checkout ?? body) as Record<string, unknown>;
+    const raw = (body.checkout ?? body.abandoned_checkout ?? findOrderRoot(body)) as Record<string, unknown>;
     const cust = (raw.customer ?? raw.billing_address ?? {}) as Record<string, unknown>;
     const ship = (raw.shipping_address ?? raw.billing_address ?? cust) as Record<string, unknown>;
     const items = (raw.line_items ?? raw.items ?? []) as Record<string, unknown>[];
@@ -47,13 +64,13 @@ export async function POST(request: NextRequest) {
       id: `abandoned_${pick(raw.id, raw.token) || Date.now()}`,
       type: "abandoned",
       customer: pick(cust.name, `${cust.first_name ?? ""} ${cust.last_name ?? ""}`.trim(), ship.name, raw.name, raw.customer_name) || "Prospect",
-      phone: pick(cust.phone, ship.phone, raw.phone, raw.customer_phone),
+      phone: pick(cust.phone, cust.telephone, ship.phone, raw.phone, raw.customer_phone),
       email: pick(cust.email, raw.email),
-      city: pick(ship.city, ship.province, raw.city),
-      address: pick(ship.address1, ship.address, raw.address),
+      city: pick(ship.city, ship.province, cust.city, raw.city),
+      address: pick(ship.address1, ship.address, cust.address1, raw.address),
       product: items.length > 0 ? pick(items[0].title, items[0].name) || "Produit" : "Produit",
       amount: num(raw.total_price, raw.subtotal_price),
-      currency: pick(raw.currency, "MAD"),
+      currency: pick(raw.currency) || "MAD",
       funnel: pick(funnel.name, funnel.title, raw.funnel_name),
       funnelUrl: pick(funnel.url, funnel.domain, raw.funnel_url),
       quantity: items.reduce((s, i) => s + (Number(i.quantity) || 1), 0) || 1,
@@ -67,65 +84,40 @@ export async function POST(request: NextRequest) {
   }
 
   // ── Completed order (order/created) ────────────────────────────────────
-  // Lightfunnels v2 sends order fields at root level (not nested under "order")
-  const order = body;
+  const order = findOrderRoot(body);
   const cust = (order.customer ?? order.billing_address ?? {}) as Record<string, unknown>;
   const ship = (order.shipping_address ?? order.billing_address ?? cust) as Record<string, unknown>;
   const items = (order.line_items ?? order.items ?? []) as Record<string, unknown>[];
-  const funnel = (order.funnel ?? {}) as Record<string, unknown>;
+  const funnel = (order.funnel ?? body.funnel ?? {}) as Record<string, unknown>;
 
-  // Customer name: try customer.name, first+last, root name, root customer_name
   const customerName = pick(
     cust.name,
     `${cust.first_name ?? ""} ${cust.last_name ?? ""}`.trim(),
     ship.name,
     `${ship.first_name ?? ""} ${ship.last_name ?? ""}`.trim(),
-    order.name,
-    order.customer_name,
+    order.name, order.customer_name,
   );
 
-  // Phone: customer > shipping > root
-  const customerPhone = pick(
-    cust.phone, cust.telephone,
-    ship.phone, ship.telephone,
-    order.phone, order.customer_phone,
-  );
-
-  // City: shipping > billing > root
-  const city = pick(
-    ship.city, ship.province, ship.region,
-    cust.city,
-    order.city,
-  );
-
-  // Address
-  const address = pick(
-    ship.address1, ship.address, ship.adresse,
-    cust.address1, cust.address,
-    order.address,
-  );
-
-  // Product
   const product = items.length > 0
     ? pick(items[0].title, items[0].name, items[0].product_title) || "Produit"
     : pick(order.product_title, order.product) || "Produit";
 
   const parsed: LFOrder = {
-    id: pick(order.id, order._id) || String(Date.now()),
-    order_number: Number(order.order_number ?? order.number ?? 0),
+    id: pick(order.id, order._id, body.id) || String(Date.now()),
+    order_number: Number(order.order_number ?? order.number ?? body.order_number ?? 0),
     status: pick(order.fulfillment_status, order.status) || "pending",
     financial_status: pick(order.financial_status, order.payment_status) || "cod",
-    total_price: pick(order.total_price, order.total, order.amount) || "0",
-    currency: pick(order.currency) || "MAD",
+    total_price: pick(order.total_price, order.total, order.amount, body.total_price) || "0",
+    currency: pick(order.currency, body.currency) || "MAD",
     customer_name: customerName || "Client",
-    customer_phone: customerPhone,
-    customer_email: pick(cust.email, order.email),
-    city,
-    address,
+    customer_phone: pick(cust.phone, cust.telephone, ship.phone, order.phone, body.phone),
+    customer_email: pick(cust.email, order.email, body.email),
+    city: pick(ship.city, ship.province, cust.city, order.city, body.city),
+    address: pick(ship.address1, ship.address, cust.address1, order.address, body.address),
     product,
     quantity: items.reduce((s, i) => s + (Number(i.quantity) || 1), 0) || 1,
     funnel: pick(funnel.name, funnel.title),
-    created_at: pick(order.created_at) || new Date().toISOString(),
+    created_at: pick(order.created_at, body.created_at) || new Date().toISOString(),
     received_at: new Date().toISOString(),
   };
 
