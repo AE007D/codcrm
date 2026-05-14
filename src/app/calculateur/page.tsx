@@ -219,7 +219,7 @@ export default function CalculateurPage() {
   const lastSyncStr = lastSync ? new Date(lastSync).toLocaleTimeString("fr-MA", { hour: "2-digit", minute: "2-digit" }) : null;
 
   const previewProfit = form.sellPrice && form.purchasePrice && form.shippingCost && form.cpd
-    ? calcMetrics({ id: 0, name: "", purchasePrice: Number(form.purchasePrice), sellPrice: Number(form.sellPrice), shippingCost: Number(form.shippingCost), cpd: Number(form.cpd), platform: form.platform }, fallbackRate)
+    ? calcMetrics({ id: 0, name: "", purchasePrice: Number(form.purchasePrice), sellPrice: Number(form.sellPrice), shippingCost: Number(form.shippingCost), cpd: Number(form.cpd), platform: form.platform }, FALLBACK_RATE)
     : null;
 
   const sourceLabel: Record<NonNullable<Product["rateSource"]>, string> = { ameex: "Ameex", eagle: "Eagle", both: "Ameex + Eagle", manual: "Manuel" };
