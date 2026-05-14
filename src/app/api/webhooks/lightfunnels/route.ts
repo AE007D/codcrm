@@ -19,20 +19,20 @@ function num(...vals: unknown[]): number {
   return 0;
 }
 
-// Find order root — LF v2 may nest under body.order, body.data, body.data.order, or send at root
+// Find order root — LF v2 GraphQL format wraps under "node"
 function findOrderRoot(body: Record<string, unknown>): Record<string, unknown> {
+  // LF v2: {"node": {"__typename": "Order", "_id": 12345, ...}}
+  if (body.node && typeof body.node === "object") {
+    return body.node as Record<string, unknown>;
+  }
   const data = (body.data ?? {}) as Record<string, unknown>;
-  // If body.order exists and has an id, use it
-  if (body.order && typeof body.order === "object" && (body.order as Record<string,unknown>).id) {
+  if (body.order && typeof body.order === "object") {
     return body.order as Record<string, unknown>;
   }
-  // If body.data.order exists
   if (data.order && typeof data.order === "object") {
     return data.order as Record<string, unknown>;
   }
-  // If body.data has an id field
-  if (data.id) return data;
-  // Default: body is the order root
+  if (data._id ?? data.id) return data;
   return body;
 }
 
@@ -69,7 +69,7 @@ export async function POST(request: NextRequest) {
       city: pick(ship.city, ship.province, cust.city, raw.city),
       address: pick(ship.address1, ship.address, cust.address1, raw.address),
       product: items.length > 0 ? pick(items[0].title, items[0].name) || "Produit" : "Produit",
-      amount: num(raw.total_price, raw.subtotal_price),
+      amount: num(raw.total_price, raw.total, raw.subtotal, raw.subtotal_price),
       currency: pick(raw.currency) || "MAD",
       funnel: pick(funnel.name, funnel.title, raw.funnel_name),
       funnelUrl: pick(funnel.url, funnel.domain, raw.funnel_url),
@@ -103,11 +103,11 @@ export async function POST(request: NextRequest) {
     : pick(order.product_title, order.product) || "Produit";
 
   const parsed: LFOrder = {
-    id: pick(order.id, order._id, body.id) || String(Date.now()),
-    order_number: Number(order.order_number ?? order.number ?? body.order_number ?? 0),
+    id: pick(order._id, order.id, body.id) || String(Date.now()),
+    order_number: Number(order._id ?? order.order_number ?? order.number ?? body.order_number ?? 0),
     status: pick(order.fulfillment_status, order.status) || "pending",
     financial_status: pick(order.financial_status, order.payment_status) || "cod",
-    total_price: pick(order.total_price, order.total, order.amount, body.total_price) || "0",
+    total_price: pick(order.total_price, order.total, order.subtotal, order.amount, body.total_price) || "0",
     currency: pick(order.currency, body.currency) || "MAD",
     customer_name: customerName || "Client",
     customer_phone: pick(cust.phone, cust.telephone, ship.phone, order.phone, body.phone),
