@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { addOrder, LFOrder } from "@/lib/orderStore";
 import { addLead, FunnelLead } from "@/lib/leadStore";
+import { storeDebugPayload } from "@/app/api/webhook-debug/route";
 
 export async function POST(request: NextRequest) {
   let body: Record<string, unknown>;
@@ -10,7 +11,8 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
   }
 
-  // Log raw payload so we can see the real Lightfunnels structure
+  // Store raw payload for debugging
+  storeDebugPayload(body);
   console.log("LF_WEBHOOK_RAW:", JSON.stringify(body, null, 2));
 
   const eventType = String(body.event ?? body.type ?? "order/created");
