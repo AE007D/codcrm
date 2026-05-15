@@ -128,6 +128,8 @@ export default function CommandesPage() {
   const [shipCarrier, setShipCarrier] = useState<ShipCarrier>("ameex");
   const [shipping, setShipping] = useState(false);
   const [shipResults, setShipResults] = useState<{ id: string; ok: boolean; msg: string }[]>([]);
+  const [ameexCities, setAmeexCities] = useState<{ id: string; name: string }[]>([]);
+  const [cityOverrides, setCityOverrides] = useState<Record<string, string>>({}); // orderId → cityId
 
   // ── Fetch all orders from Supabase ────────────────────────────────────────
   const fetchOrders = useCallback(async () => {
@@ -280,6 +282,31 @@ export default function CommandesPage() {
     }
   }
 
+  async function openShipModal(ids?: string[]) {
+    setShipResults([]);
+    setCityOverrides({});
+    if (ids) setSelected(new Set(ids));
+    setShipModal(true);
+    // Pre-load Ameex cities
+    try {
+      const settingsData = await fetch("/api/settings").then(r => r.json());
+      const creds = settingsData.settings?.ameex ?? {};
+      if (!creds.apiId) return;
+      const cd = await fetch("/api/ameex", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "cities", apiId: creds.apiId, apiKey: creds.apiKey }),
+      }).then(r => r.json());
+      const list: {id:string;name:string}[] = [];
+      const raw = Array.isArray(cd) ? cd : Array.isArray(cd?.api?.data) ? cd.api.data : Array.isArray(cd?.data) ? cd.data : [];
+      for (const c of raw) {
+        const id = String(c.id ?? c.city_id ?? "");
+        const name = String(c.name ?? c.city_name ?? c.label ?? "");
+        if (id && name) list.push({ id, name });
+      }
+      if (list.length) setAmeexCities(list);
+    } catch { /* silent */ }
+  }
+
   // Send selected orders to carrier
   async function sendToCarrier() {
     setShipping(true);
@@ -297,24 +324,8 @@ export default function CommandesPage() {
     // Build Ameex city name → ID map for auto-resolution
     const normalize = (s: string) => s.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").trim();
     const ameexCityMap: Record<string, string> = {};
-    if (shipCarrier === "ameex" && creds.apiId) {
-      try {
-        const cd = await fetch("/api/ameex", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ action: "cities", apiId: creds.apiId, apiKey: creds.apiKey }),
-        }).then(r => r.json());
-        // Ameex wraps responses: {login, api:{type, data:[...]}} or flat array
-        const list = Array.isArray(cd) ? cd
-          : Array.isArray(cd?.api?.data) ? cd.api.data
-          : Array.isArray(cd?.data) ? cd.data
-          : [];
-        for (const c of list) {
-          const name = normalize(c.name ?? c.city_name ?? c.label ?? "");
-          const id   = String(c.id ?? c.city_id ?? c.value ?? "");
-          if (name && id) ameexCityMap[name] = id;
-        }
-      } catch { /* proceed without map */ }
+    for (const c of ameexCities) {
+      ameexCityMap[normalize(c.name)] = c.id;
     }
 
     const results: { id: string; ok: boolean; msg: string }[] = [];
@@ -323,9 +334,9 @@ export default function CommandesPage() {
       try {
         let res: Response;
         if (shipCarrier === "ameex") {
-          // Resolve city name → Ameex numeric city ID (accent-insensitive)
+          // Resolve city name → Ameex numeric city ID (manual override > auto-lookup > raw name)
           const cityRaw = (order.city ?? "").trim();
-          const cityId  = ameexCityMap[normalize(cityRaw)] ?? cityRaw;
+          const cityId  = cityOverrides[order.id] ?? ameexCityMap[normalize(cityRaw)] ?? cityRaw;
           res = await fetch("/api/ameex", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
@@ -426,7 +437,7 @@ export default function CommandesPage() {
           </div>
           <div className="flex items-center gap-2">
             {confirmedCount > 0 && (
-              <button onClick={() => { setShipModal(true); setShipResults([]); setSelected(new Set(orders.filter(o => o.status === "confirmé").map(o => o.id))); }}
+              <button onClick={() => { openShipModal(orders.filter(o => o.status === "confirmé").map(o => o.id)); }}
                 className="bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold px-3 lg:px-4 py-2.5 rounded-xl shadow-md shadow-indigo-200 transition-colors whitespace-nowrap flex items-center gap-2">
                 <span>📦</span>
                 <span className="hidden sm:inline">Expédier ({confirmedCount})</span>
@@ -476,7 +487,7 @@ export default function CommandesPage() {
             <div className="bg-indigo-600 rounded-2xl px-5 py-3 mb-3 flex items-center gap-3">
               <svg viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth={2} className="w-5 h-5 shrink-0"><path d="M21 16V8a2 2 0 00-1-1.73l-7-4a2 2 0 00-2 0l-7 4A2 2 0 003 8v8a2 2 0 001 1.73l7 4a2 2 0 002 0l7-4A2 2 0 0021 16z"/></svg>
               <p className="text-white text-sm font-semibold flex-1">{confirmedCount} commande(s) prêtes à expédier</p>
-              <button onClick={() => { setShipModal(true); setShipResults([]); setSelected(new Set(orders.filter(o => o.status === "confirmé").map(o => o.id))); }}
+              <button onClick={() => { openShipModal(orders.filter(o => o.status === "confirmé").map(o => o.id)); }}
                 className="bg-white/20 hover:bg-white/30 text-white text-xs font-semibold px-4 py-2 rounded-xl whitespace-nowrap shrink-0">
                 Expédier →
               </button>
@@ -502,7 +513,7 @@ export default function CommandesPage() {
             <div className="bg-slate-900 text-white rounded-2xl px-5 py-3 mb-4 flex items-center gap-4 flex-wrap">
               <span className="text-sm font-semibold">{selected.size} sélectionné(s)</span>
               <div className="flex gap-2 flex-wrap">
-                <button onClick={() => { setShipModal(true); setShipResults([]); }}
+                <button onClick={() => { openShipModal(); }}
                   className="bg-indigo-500 hover:bg-indigo-600 text-white text-xs font-semibold px-4 py-2 rounded-xl transition-colors flex items-center gap-1.5">
                   📦 Envoyer au transporteur
                 </button>
@@ -629,7 +640,7 @@ export default function CommandesPage() {
                               </button>
                             )}
                             {o.status === "confirmé" && (
-                              <button onClick={() => { setShipModal(true); setShipResults([]); setSelected(new Set([o.id])); }}
+                              <button onClick={() => { openShipModal([o.id]); }}
                                 className="flex items-center gap-1 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold px-2.5 py-1.5 rounded-xl transition-colors shadow-sm shadow-indigo-200 whitespace-nowrap">
                                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="w-3.5 h-3.5"><path d="M21 16V8a2 2 0 00-1-1.73l-7-4a2 2 0 00-2 0l-7 4A2 2 0 003 8v8a2 2 0 001 1.73l7 4a2 2 0 002 0l7-4A2 2 0 0021 16z"/></svg>
                                 Expédier
@@ -815,6 +826,34 @@ export default function CommandesPage() {
                 </div>
               )}
 
+              {/* Ameex city selector for unresolved cities */}
+              {!shipResults.length && shipCarrier === "ameex" && ameexCities.length > 0 && (() => {
+                const normalize = (s: string) => s.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").trim();
+                const cityMap: Record<string,string> = {};
+                for (const c of ameexCities) cityMap[normalize(c.name)] = c.id;
+                const selectedOrders = orders.filter(o => selected.has(o.id));
+                const unresolved = selectedOrders.filter(o => !cityMap[normalize(o.city ?? "")] && !cityOverrides[o.id]);
+                if (!unresolved.length) return null;
+                return (
+                  <div className="space-y-2">
+                    <p className="text-xs font-bold text-amber-600">⚠ Villes non reconnues — sélectionnez la ville Ameex :</p>
+                    {unresolved.map(o => (
+                      <div key={o.id} className="flex items-center gap-2">
+                        <span className="text-xs text-slate-600 w-24 truncate font-semibold">{o.customer}</span>
+                        <span className="text-xs text-slate-400 flex-1 truncate">{o.city || "(sans ville)"}</span>
+                        <select
+                          value={cityOverrides[o.id] ?? ""}
+                          onChange={e => setCityOverrides(prev => ({ ...prev, [o.id]: e.target.value }))}
+                          className="text-xs border border-slate-200 rounded-lg px-2 py-1.5 outline-none focus:border-blue-400 bg-white"
+                        >
+                          <option value="">-- Choisir --</option>
+                          {ameexCities.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                        </select>
+                      </div>
+                    ))}
+                  </div>
+                );
+              })()}
               {!shipResults.length && (
                 <p className="text-xs text-slate-400">
                   Les identifiants API de {shipCarrier === "ameex" ? "Ameex" : "Eagle Express"} doivent être configurés dans la page Intégrations.
@@ -933,7 +972,7 @@ export default function CommandesPage() {
                 </div>
               )}
               {drawer.status === "confirmé" && (
-                <button onClick={() => { setShipModal(true); setShipResults([]); setSelected(new Set([drawer.id])); setDrawer(null); }}
+                <button onClick={() => { openShipModal([drawer.id]); setDrawer(null); }}
                   className="w-full py-3 rounded-2xl bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-bold shadow-md shadow-indigo-200 transition-colors flex items-center justify-center gap-2">
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="w-4 h-4"><path d="M21 16V8a2 2 0 00-1-1.73l-7-4a2 2 0 00-2 0l-7 4A2 2 0 003 8v8a2 2 0 001 1.73l7 4a2 2 0 002 0l7-4A2 2 0 0021 16z"/></svg>
                   Envoyer au transporteur
