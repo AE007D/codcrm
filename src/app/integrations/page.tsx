@@ -92,8 +92,9 @@ export default function IntegrationsPage() {
   function showToast(msg: string, ok = true) { setToast({ msg, ok }); setTimeout(() => setToast(null), 3000); }
 
   /* Ameex state */
-  const [ameex, setAmeex] = useState<Creds>({ apiId: "", apiKey: "" });
-  const [ameexSaved, setAmeexSaved] = useState<Creds | null>(null);
+  type AmeexCreds = Creds & { defaultType?: string; depotId?: string };
+  const [ameex, setAmeex] = useState<AmeexCreds>({ apiId: "", apiKey: "", defaultType: "SIMPLE", depotId: "" });
+  const [ameexSaved, setAmeexSaved] = useState<AmeexCreds | null>(null);
   const [ameexParcels, setAmeexParcels] = useState<Parcel[]>([]);
   const [ameexForm, setAmeexForm] = useState({ receiver: "", phone: "", city: "", address: "", cod: "", product: "", order_num: "", comment: "", type: "SIMPLE", open: "NO", try: "NO", fragile: "0", replace: "false" });
   const [ameexTab, setAmeexTab] = useState<"config"|"add"|"parcels"|"track"|"cities">("config");
@@ -401,6 +402,29 @@ export default function IntegrationsPage() {
                         <input type={f.pw ? "password" : "text"} placeholder={f.ph} value={ameex[f.key as keyof Creds]} onChange={e => setAmeex(c => ({ ...c, [f.key]: e.target.value }))} className="w-full text-sm border border-slate-200 rounded-xl px-4 py-2.5 outline-none focus:border-blue-400 font-mono" />
                       </div>
                     ))}
+                    {/* Ship type preference */}
+                    <div>
+                      <label className="text-xs font-semibold text-slate-600 mb-2 block">Mode d&apos;envoi par défaut</label>
+                      <div className="grid grid-cols-2 gap-2">
+                        {([["SIMPLE","🚚 Ramassage"],["STOCK","🏭 Stock / Hub"]] as const).map(([val, lbl]) => (
+                          <button key={val} type="button" onClick={() => setAmeex(c => ({ ...c, defaultType: val }))}
+                            className={`py-2.5 rounded-xl border-2 text-sm font-semibold transition-all ${(ameex.defaultType ?? "SIMPLE") === val ? "border-blue-600 bg-blue-50 text-blue-700" : "border-slate-200 text-slate-500 hover:border-slate-300"}`}>
+                            {lbl}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                    {/* Depot ID — only shown for STOCK */}
+                    {(ameex.defaultType ?? "SIMPLE") === "STOCK" && (
+                      <div>
+                        <label className="text-xs font-semibold text-slate-600 mb-1 block">ID du dépôt / Hub Ameex</label>
+                        <input type="text" placeholder="Ex: 1 (Casablanca Hub Principal)"
+                          value={ameex.depotId ?? ""}
+                          onChange={e => setAmeex(c => ({ ...c, depotId: e.target.value }))}
+                          className="w-full text-sm border border-slate-200 rounded-xl px-4 py-2.5 outline-none focus:border-blue-400 font-mono" />
+                        <p className="text-xs text-slate-400 mt-1">Trouvez l&apos;ID dans Ameex → Villes ou contactez le support Ameex.</p>
+                      </div>
+                    )}
                     <button onClick={saveAmeex} className="w-full py-2.5 bg-blue-700 hover:bg-blue-800 text-white font-semibold text-sm rounded-xl shadow-md shadow-blue-200 transition-colors">Sauvegarder</button>
                   </div>
                 )}

@@ -195,10 +195,13 @@ export default function CommandesPage() {
     } catch { /* ignore */ }
     // 3. Load preferences + refresh from API
     fetch("/api/settings").then(r => r.json()).then(async d => {
-      // Restore ship type + depot preference
+      // Restore ship type + depot from Ameex config OR from ameexShipPref
+      const ameexCfg = d.settings?.ameex ?? {};
       const pref = d.settings?.ameexShipPref ?? {};
-      if (pref.type) setAmeexShipType(pref.type);
-      if (pref.depot) setAmeexDepot(pref.depot);
+      const savedType = ameexCfg.defaultType ?? pref.type;
+      const savedDepot = ameexCfg.depotId ?? pref.depot;
+      if (savedType) setAmeexShipType(savedType);
+      if (savedDepot) setAmeexDepot(savedDepot);
 
       const creds = d.settings?.ameex ?? {};
       if (!creds.apiId) return;
@@ -375,6 +378,9 @@ export default function CommandesPage() {
     try {
       const settingsData = await fetch("/api/settings").then(r => r.json());
       const creds = settingsData.settings?.ameex ?? {};
+      // Apply saved default type + depot from Ameex config
+      if (creds.defaultType) setAmeexShipType(creds.defaultType);
+      if (creds.depotId) setAmeexDepot(creds.depotId);
       if (creds.apiId) {
         // Cities
         const cd = await fetch("/api/ameex", {
@@ -450,8 +456,15 @@ export default function CommandesPage() {
               order_num: order.orderNumber || order.id.slice(-8),
               comment: "",
               type: ameexShipType,
-              // For STOCK type: pass the depot/hub ID
-              ...(ameexShipType === "STOCK" && ameexDepot ? { depot: ameexDepot } : {}),
+              // For STOCK type: send depot ID under all possible Ameex field names
+              ...(ameexShipType === "STOCK" && ameexDepot ? {
+                depot:      ameexDepot,
+                depot_id:   ameexDepot,
+                hub:        ameexDepot,
+                hub_id:     ameexDepot,
+                warehouse:  ameexDepot,
+                stock:      ameexDepot,
+              } : {}),
               open: "NO",
               try: "NO",
               fragile: "0",
