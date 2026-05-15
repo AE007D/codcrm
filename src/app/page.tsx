@@ -23,7 +23,7 @@ type Order = {
   city: string;
   product: string;
   quantity: number;
-  created_at: string;
+  created_at: string; // normalized from receivedAt
 };
 
 type TeamUser = {
@@ -157,10 +157,28 @@ export default function Home() {
 
   useEffect(() => {
     Promise.all([
-      fetch("/api/lf-orders").then(r => r.ok ? r.json() : { orders: [] }),
+      fetch("/api/orders").then(r => {
+        if (r.status === 401) { window.location.href = "/login"; return { orders: [] }; }
+        return r.ok ? r.json() : { orders: [] };
+      }),
       fetch("/api/auth/users").then(r => r.ok ? r.json() : { users: [] }),
     ]).then(([ordersData, teamData]) => {
-      setAllOrders(ordersData.orders ?? []);
+      // Normalize Supabase camelCase fields to the dashboard's expected format
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const normalized = (ordersData.orders ?? []).map((o: any) => ({
+        id: o.id,
+        order_number: o.orderNumber ?? o.order_number ?? "",
+        status: o.status ?? "nouveau",
+        financial_status: o.financial_status ?? "cod",
+        total_price: String(o.totalPrice ?? o.total_price ?? "0"),
+        currency: o.currency ?? "MAD",
+        customer_name: o.customerName ?? o.customer_name ?? "",
+        city: o.city ?? "",
+        product: o.product ?? "",
+        quantity: o.quantity ?? 1,
+        created_at: o.receivedAt ?? o.received_at ?? o.created_at ?? new Date().toISOString(),
+      }));
+      setAllOrders(normalized);
       setTeam((teamData.users ?? []).filter((u: TeamUser) => u.active));
     }).finally(() => setLoading(false));
   }, []);
