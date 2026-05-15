@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabase } from "@/lib/supabase";
+import { upsertLead } from "@/lib/supabaseLeadStore";
 import crypto from "crypto";
 
 export const dynamic = "force-dynamic";
@@ -39,9 +40,46 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
   let body: Record<string, unknown>;
   try { body = await request.json(); } catch { return NextResponse.json({ error: "Invalid JSON" }, { status: 400 }); }
 
-  const { customerName, phone, city, address, quantity = 1 } = body as {
-    customerName: string; phone: string; city: string; address: string; quantity?: number;
+  const { action, customerName, phone, city, address, quantity = 1 } = body as {
+    action?: string; customerName: string; phone: string; city: string; address: string; quantity?: number;
   };
+
+  // ── Abandoned lead capture ──────────────────────────────────────────────
+  if (action === "save-lead") {
+    if (!customerName || !phone) return NextResponse.json({ ok: false }, { status: 400 });
+
+    const { data: product } = await supabase
+      .from("crm_products")
+      .select("id, name, sell_price, owner_id")
+      .eq("id", id)
+      .maybeSingle();
+
+    if (!product) return NextResponse.json({ ok: false }, { status: 404 });
+
+    await upsertLead({
+      id: `abandoned_page_${id}_${String(phone).replace(/\s/g, "")}`,
+      workspaceId: product.owner_id,
+      type: "abandoned",
+      customer: String(customerName).trim(),
+      phone: String(phone).trim(),
+      email: "",
+      city: String(city ?? "").trim(),
+      address: String(address ?? "").trim(),
+      product: product.name,
+      amount: parseFloat(product.sell_price ?? "0"),
+      currency: "MAD",
+      funnel: "Page produit",
+      funnelUrl: `/p/${id}`,
+      quantity: 1,
+      createdAt: new Date().toISOString(),
+      receivedAt: new Date().toISOString(),
+      callAttempts: 0,
+      recovered: false,
+      notes: "",
+    }).catch(() => {});
+
+    return NextResponse.json({ ok: true });
+  }
 
   if (!customerName || !phone || !city) {
     return NextResponse.json({ error: "يرجى تعبئة الاسم والهاتف والمدينة" }, { status: 400 });

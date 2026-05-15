@@ -23,6 +23,26 @@ export default function ProductPage() {
   const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
   const [error, setError] = useState("");
+  const [leadSaved, setLeadSaved] = useState(false);
+
+  // Save abandoned lead as soon as phone is filled — silent, no UI change
+  async function saveAbandonedLead() {
+    if (leadSaved || submitted || !form.phone.trim() || !form.customerName.trim() || !id) return;
+    try {
+      await fetch(`/api/p/${id}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "save-lead",
+          customerName: form.customerName,
+          phone: form.phone,
+          city: form.city,
+          address: form.address,
+        }),
+      });
+      setLeadSaved(true);
+    } catch { /* silent */ }
+  }
 
   useEffect(() => {
     if (!id) return;
@@ -164,6 +184,7 @@ export default function ProductPage() {
               <label className="text-xs font-bold text-slate-500 mb-1.5 block">رقم الهاتف *</label>
               <input type="tel" placeholder="06 00 00 00 00" value={form.phone} dir="ltr"
                 onChange={e => setForm(f => ({ ...f, phone: e.target.value }))}
+                onBlur={saveAbandonedLead}
                 className="w-full text-sm border-2 border-slate-200 rounded-2xl px-4 py-3 outline-none focus:border-blue-400 focus:ring-4 focus:ring-blue-50 transition-all text-left" />
             </div>
 
