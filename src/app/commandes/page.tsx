@@ -294,12 +294,33 @@ export default function CommandesPage() {
       creds = shipCarrier === "ameex" ? (s.ameex ?? {}) : (s.eagle ?? {});
     } catch { /* no creds */ }
 
+    // Build Ameex city name → ID map for auto-resolution
+    const ameexCityMap: Record<string, string> = {};
+    if (shipCarrier === "ameex" && creds.apiId) {
+      try {
+        const cd = await fetch("/api/ameex", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ action: "cities", apiId: creds.apiId, apiKey: creds.apiKey }),
+        }).then(r => r.json());
+        const list = Array.isArray(cd) ? cd : (cd?.data ?? cd?.cities ?? []);
+        for (const c of list) {
+          const name = (c.name ?? c.city_name ?? c.label ?? "").toLowerCase().trim();
+          const id   = String(c.id ?? c.city_id ?? c.value ?? "");
+          if (name && id) ameexCityMap[name] = id;
+        }
+      } catch { /* proceed without map */ }
+    }
+
     const results: { id: string; ok: boolean; msg: string }[] = [];
 
     for (const order of selectedOrders) {
       try {
         let res: Response;
         if (shipCarrier === "ameex") {
+          // Resolve city name → Ameex numeric city ID
+          const cityRaw = (order.city ?? "").trim();
+          const cityId  = ameexCityMap[cityRaw.toLowerCase()] ?? cityRaw;
           res = await fetch("/api/ameex", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
@@ -310,7 +331,7 @@ export default function CommandesPage() {
               // Correct Ameex field names (matches integrations page)
               receiver: order.customer,
               phone: order.phone,
-              city: order.city,
+              city: cityId,
               address: order.address || order.city,
               cod: order.amount,             // Cash On Delivery amount
               product: order.product,
