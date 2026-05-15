@@ -25,6 +25,9 @@ export async function PATCH(request: NextRequest) {
   }
   const { id, ...patch } = body as { id: string } & Record<string, unknown>;
   if (!id) return NextResponse.json({ error: "Missing id" }, { status: 400 });
+  // Only allow updating a lead that belongs to this user
+  const leads = getLeads(user.id);
+  if (!leads.find(l => l.id === id)) return NextResponse.json({ error: "Not found" }, { status: 404 });
   updateLead(id, patch);
   return NextResponse.json({ ok: true });
 }
