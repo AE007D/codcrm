@@ -105,7 +105,9 @@ export default function CommandesPage() {
       setOrders(prev => {
         // Map server orders, preserving local status/notes/attempts if already known
         const localById = new Map(prev.map(o => [o.id, o]));
-        return lfOrders.map(o => {
+        const serverIds = new Set(lfOrders.map(o => String(o.id)));
+
+        const serverMapped = lfOrders.map(o => {
           const id = String(o.id);
           const existing = localById.get(id);
           return {
@@ -126,6 +128,10 @@ export default function CommandesPage() {
             noAnswer: existing?.noAnswer ?? 0,
           };
         });
+
+        // Keep manually added orders (they don't exist on server)
+        const manualOrders = prev.filter(o => o.source === "manuel" && !serverIds.has(o.id));
+        return [...manualOrders, ...serverMapped];
       });
     } catch { /* silent */ }
   }, []);
