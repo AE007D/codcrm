@@ -78,6 +78,15 @@ function SourceBadge({ source }: { source: Order["source"] }) {
 
 type ShipCarrier = "ameex" | "eagle";
 
+type CatalogProduct = {
+  id: string;
+  name: string;
+  sku: string;
+  image: string;
+  sellPrice: number;
+  stock: number;
+};
+
 export default function CommandesPage() {
   const [orders, setOrders] = useState<Order[]>([]);
   const [filter, setFilter] = useState<OrderStatus | "tous">("tous");
@@ -87,6 +96,27 @@ export default function CommandesPage() {
   const [notesModal, setNotesModal] = useState<Order | null>(null);
   const [noteText, setNoteText] = useState("");
   const [drawer, setDrawer] = useState<Order | null>(null);
+
+  // Catalog
+  const [catalog, setCatalog] = useState<CatalogProduct[]>([]);
+  const [catalogSearch, setCatalogSearch] = useState("");
+  const [showCatalogDrop, setShowCatalogDrop] = useState(false);
+
+  useEffect(() => {
+    fetch("/api/products").then(r => r.ok ? r.json() : null).then(d => {
+      if (d?.products) setCatalog(d.products);
+    }).catch(() => {});
+  }, []);
+
+  function applyCatalogProduct(p: CatalogProduct) {
+    setForm(f => ({ ...f, product: p.name, amount: String(p.sellPrice) }));
+    setCatalogSearch(p.name);
+    setShowCatalogDrop(false);
+  }
+
+  const filteredCatalog = catalog.filter(p =>
+    !catalogSearch || p.name.toLowerCase().includes(catalogSearch.toLowerCase()) || p.sku.toLowerCase().includes(catalogSearch.toLowerCase())
+  ).slice(0, 6);
 
   // Selection state
   const [selected, setSelected] = useState<Set<string>>(new Set());
@@ -539,7 +569,7 @@ export default function CommandesPage() {
           <div className="bg-white rounded-2xl shadow-xl w-full max-w-lg p-6">
             <div className="flex items-center justify-between mb-5">
               <h2 className="text-lg font-bold text-slate-900">Nouvelle commande</h2>
-              <button onClick={() => { setShowModal(false); setForm(emptyForm); }} className="text-slate-400 hover:text-slate-600">
+              <button onClick={() => { setShowModal(false); setForm(emptyForm); setCatalogSearch(""); }} className="text-slate-400 hover:text-slate-600">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="w-5 h-5"><path d="M18 6L6 18M6 6l12 12"/></svg>
               </button>
             </div>
@@ -549,11 +579,65 @@ export default function CommandesPage() {
                 { key: "phone", label: "Téléphone *", ph: "0612345678" },
                 { key: "city", label: "Ville", ph: "Casablanca" },
                 { key: "address", label: "Adresse", ph: "Rue, quartier…", full: true },
-                { key: "product", label: "Produit *", ph: "Ex: Montre Sport", full: true },
-                { key: "amount", label: "Montant COD (MAD) *", ph: "350" },
-                { key: "notes", label: "Notes", ph: "Optionnel" },
               ].map(({ key, label, ph, full }) => (
                 <div key={key} className={full ? "col-span-2" : ""}>
+                  <label className="text-xs font-semibold text-slate-600 mb-1 block">{label}</label>
+                  <input type="text" placeholder={ph} value={form[key as keyof typeof emptyForm] as string}
+                    onChange={e => setForm(f => ({ ...f, [key]: e.target.value }))}
+                    className="w-full text-sm border border-slate-200 rounded-xl px-4 py-2.5 outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-50" />
+                </div>
+              ))}
+
+              {/* Product — catalog search */}
+              <div className="col-span-2 relative">
+                <label className="text-xs font-semibold text-slate-600 mb-1 block">Produit *</label>
+                <input
+                  type="text"
+                  placeholder="Rechercher dans le catalogue…"
+                  value={catalogSearch}
+                  onChange={e => {
+                    setCatalogSearch(e.target.value);
+                    setForm(f => ({ ...f, product: e.target.value }));
+                    setShowCatalogDrop(true);
+                  }}
+                  onFocus={() => setShowCatalogDrop(true)}
+                  onBlur={() => setTimeout(() => setShowCatalogDrop(false), 150)}
+                  className="w-full text-sm border border-slate-200 rounded-xl px-4 py-2.5 outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-50"
+                />
+                {showCatalogDrop && filteredCatalog.length > 0 && (
+                  <div className="absolute z-50 top-full mt-1 left-0 right-0 bg-white border border-slate-200 rounded-xl shadow-lg overflow-hidden">
+                    {filteredCatalog.map(p => (
+                      <button
+                        key={p.id}
+                        type="button"
+                        onMouseDown={() => applyCatalogProduct(p)}
+                        className="w-full flex items-center gap-3 px-3 py-2.5 hover:bg-blue-50 transition-colors text-left"
+                      >
+                        {p.image ? (
+                          <img src={p.image} alt={p.name} className="w-9 h-9 rounded-lg object-cover border border-slate-100 shrink-0" />
+                        ) : (
+                          <div className="w-9 h-9 rounded-lg bg-slate-100 flex items-center justify-center shrink-0">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="w-4 h-4 text-slate-400">
+                              <path d="M6 2L3 6v14a2 2 0 002 2h14a2 2 0 002-2V6l-3-4z"/>
+                            </svg>
+                          </div>
+                        )}
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-semibold text-slate-800 truncate">{p.name}</p>
+                          <p className="text-xs text-slate-400">{p.sku && `SKU: ${p.sku} · `}{p.sellPrice} MAD · Stock: {p.stock}</p>
+                        </div>
+                        <span className="text-xs font-bold text-blue-600 shrink-0">{p.sellPrice} MAD</span>
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {[
+                { key: "amount", label: "Montant COD (MAD) *", ph: "350" },
+                { key: "notes", label: "Notes", ph: "Optionnel" },
+              ].map(({ key, label, ph }) => (
+                <div key={key} className={key === "notes" ? "col-span-2" : ""}>
                   <label className="text-xs font-semibold text-slate-600 mb-1 block">{label}</label>
                   <input type="text" placeholder={ph} value={form[key as keyof typeof emptyForm] as string}
                     onChange={e => setForm(f => ({ ...f, [key]: e.target.value }))}
@@ -571,7 +655,7 @@ export default function CommandesPage() {
               </div>
             </div>
             <div className="flex gap-3 mt-5">
-              <button onClick={() => { setShowModal(false); setForm(emptyForm); }} className="flex-1 py-2.5 rounded-xl border border-slate-200 text-sm font-semibold text-slate-600 hover:bg-slate-50">Annuler</button>
+              <button onClick={() => { setShowModal(false); setForm(emptyForm); setCatalogSearch(""); }} className="flex-1 py-2.5 rounded-xl border border-slate-200 text-sm font-semibold text-slate-600 hover:bg-slate-50">Annuler</button>
               <button onClick={addOrder} className="flex-1 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold shadow-md shadow-blue-200">Ajouter</button>
             </div>
           </div>
