@@ -858,8 +858,8 @@ export default function CommandesPage() {
                 </div>
               )}
 
-              {/* Ameex city selector for unresolved cities */}
-              {!shipResults.length && shipCarrier === "ameex" && ameexCities.length > 0 && (() => {
+              {/* Ameex city selector — always shown for unresolved cities, dropdown or text input */}
+              {!shipResults.length && shipCarrier === "ameex" && (() => {
                 const normalize = (s: string) => s.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").trim();
                 const cityMap: Record<string,string> = {};
                 for (const c of ameexCities) cityMap[normalize(c.name)] = c.id;
@@ -871,20 +871,30 @@ export default function CommandesPage() {
                 });
                 if (!unresolved.length) return null;
                 return (
-                  <div className="space-y-2">
-                    <p className="text-xs font-bold text-amber-600">⚠ Villes non reconnues — sélectionnez la ville Ameex :</p>
+                  <div className="space-y-2 bg-amber-50 border border-amber-200 rounded-2xl p-3">
+                    <p className="text-xs font-bold text-amber-700">⚠ Ville manquante ou non reconnue — obligatoire pour Ameex :</p>
                     {unresolved.map(o => (
                       <div key={o.id} className="flex items-center gap-2">
-                        <span className="text-xs text-slate-600 w-24 truncate font-semibold">{o.customer}</span>
-                        <span className="text-xs text-slate-400 flex-1 truncate">{o.city || "(sans ville)"}</span>
-                        <select
-                          value={cityOverrides[o.id] ?? ""}
-                          onChange={e => setCityOverrides(prev => ({ ...prev, [o.id]: e.target.value }))}
-                          className="text-xs border border-slate-200 rounded-lg px-2 py-1.5 outline-none focus:border-blue-400 bg-white"
-                        >
-                          <option value="">-- Choisir --</option>
-                          {ameexCities.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-                        </select>
+                        <span className="text-xs text-slate-700 w-20 truncate font-semibold">{o.customer}</span>
+                        <span className="text-xs text-slate-400 w-16 truncate">{o.city || "—"}</span>
+                        {ameexCities.length > 0 ? (
+                          <select
+                            value={cityOverrides[o.id] ?? ""}
+                            onChange={e => setCityOverrides(prev => ({ ...prev, [o.id]: e.target.value }))}
+                            className="flex-1 text-xs border border-amber-300 rounded-lg px-2 py-1.5 outline-none focus:border-blue-400 bg-white"
+                          >
+                            <option value="">-- Choisir ville --</option>
+                            {ameexCities.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                          </select>
+                        ) : (
+                          <input
+                            type="text"
+                            placeholder="ID Ville Ameex (ex: 5)"
+                            value={cityOverrides[o.id] ?? ""}
+                            onChange={e => setCityOverrides(prev => ({ ...prev, [o.id]: e.target.value }))}
+                            className="flex-1 text-xs border border-amber-300 rounded-lg px-2 py-1.5 outline-none focus:border-blue-400 bg-white"
+                          />
+                        )}
                       </div>
                     ))}
                   </div>
@@ -902,12 +912,23 @@ export default function CommandesPage() {
                 className="flex-1 py-3 rounded-xl border border-slate-200 text-sm font-semibold text-slate-600 hover:bg-slate-50">
                 Fermer
               </button>
-              {!shipResults.length && (
-                <button onClick={sendToCarrier} disabled={shipping || selected.size === 0}
-                  className="flex-1 py-3 rounded-xl bg-indigo-600 hover:bg-indigo-700 disabled:opacity-60 text-white text-sm font-bold shadow-md shadow-indigo-200 transition-colors">
-                  {shipping ? "Envoi en cours…" : `Envoyer ${selected.size} colis →`}
-                </button>
-              )}
+              {!shipResults.length && (() => {
+                const normalize = (s: string) => s.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").trim();
+                const cityMap: Record<string,string> = {};
+                for (const c of ameexCities) cityMap[normalize(c.name)] = c.id;
+                const hasUnresolved = shipCarrier === "ameex" && orders.filter(o => selected.has(o.id)).some(o => {
+                  if (cityOverrides[o.id]) return false;
+                  const canonical = resolveCity(o.city ?? "");
+                  return !cityMap[normalize(canonical)] && !cityMap[normalize(o.city ?? "")];
+                });
+                return (
+                  <button onClick={sendToCarrier} disabled={shipping || selected.size === 0 || hasUnresolved}
+                    title={hasUnresolved ? "Sélectionnez la ville pour chaque commande" : ""}
+                    className="flex-1 py-3 rounded-xl bg-indigo-600 hover:bg-indigo-700 disabled:opacity-60 disabled:cursor-not-allowed text-white text-sm font-bold shadow-md shadow-indigo-200 transition-colors">
+                    {shipping ? "Envoi en cours…" : `Envoyer ${selected.size} colis →`}
+                  </button>
+                );
+              })()}
             </div>
           </div>
         </div>
