@@ -4,16 +4,24 @@ import crypto from "crypto";
 
 export const dynamic = "force-dynamic";
 
-// GET /api/p/[id] — public: returns product info for the order page
+// GET /api/p/[id] — public: returns product info + increments page views
 export async function GET(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const { data, error } = await supabase
     .from("crm_products")
-    .select("id, name, image, sell_price, owner_id")
+    .select("id, name, image, sell_price, owner_id, page_views")
     .eq("id", id)
     .maybeSingle();
 
   if (error || !data) return NextResponse.json({ error: "Produit introuvable." }, { status: 404 });
+
+  // Increment page views (fire and forget)
+  supabase
+    .from("crm_products")
+    .update({ page_views: (data.page_views ?? 0) + 1 })
+    .eq("id", id)
+    .then(() => {})
+    .catch(() => {});
 
   return NextResponse.json({
     id: data.id,
@@ -36,7 +44,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
   };
 
   if (!customerName || !phone || !city) {
-    return NextResponse.json({ error: "Nom, téléphone et ville sont requis." }, { status: 400 });
+    return NextResponse.json({ error: "يرجى تعبئة الاسم والهاتف والمدينة" }, { status: 400 });
   }
 
   // Get product info
@@ -78,7 +86,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     return NextResponse.json({ error: "Erreur lors de la commande." }, { status: 500 });
   }
 
-  // Reduce stock by quantity
+  // Reduce stock by quantity ordered
   if (product.stock > 0) {
     await supabase
       .from("crm_products")

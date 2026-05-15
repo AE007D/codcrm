@@ -38,11 +38,6 @@ const navItems: NavItem[] = [
       <path d="M22 3H2l8 9.46V19l4 2v-8.54L22 3z"/>
     </svg>
   )},
-  { label: "Mes Pages", href: "/pages", adminOnly: true, icon: (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="w-5 h-5">
-      <rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 21V9"/>
-    </svg>
-  )},
   { label: "Clients", href: "/clients", adminOnly: true, icon: (
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="w-5 h-5">
       <path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/>

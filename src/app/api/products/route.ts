@@ -1,12 +1,33 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getRequestUser } from "@/lib/getRequestUser";
 import { getProducts, createProduct, updateProduct, deleteProduct, addStock } from "@/lib/supabaseProductStore";
+import { supabase } from "@/lib/supabase";
 
 export async function GET() {
   const user = await getRequestUser();
   if (!user) return NextResponse.json({ error: "Non authentifié." }, { status: 401 });
+
   const products = await getProducts(user.workspaceId);
-  return NextResponse.json({ products });
+
+  // Fetch page order counts per product (source='page') in one query
+  const { data: pageOrders } = await supabase
+    .from("crm_orders")
+    .select("product")
+    .eq("workspace_id", user.workspaceId)
+    .eq("source", "page");
+
+  const pageOrderMap: Record<string, number> = {};
+  for (const o of pageOrders ?? []) {
+    const key = String(o.product ?? "").trim();
+    pageOrderMap[key] = (pageOrderMap[key] ?? 0) + 1;
+  }
+
+  const enriched = products.map(p => ({
+    ...p,
+    pageOrders: pageOrderMap[p.name] ?? 0,
+  }));
+
+  return NextResponse.json({ products: enriched });
 }
 
 export async function POST(request: NextRequest) {

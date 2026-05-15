@@ -14,6 +14,8 @@ type Product = {
   stock: number;
   minStock: number;
   createdAt: string;
+  pageViews: number;
+  pageOrders: number;
 };
 
 type OrderProduct = { name: string; unitsSold: number; orderCount: number; revenue: number };
@@ -314,6 +316,26 @@ export default function ProduitsPage() {
                           <span><strong className="text-slate-700">{stats.unitsSold}</strong> vendus</span>
                           <span>·</span>
                           <span><strong className="text-slate-700">{Math.round(stats.revenue).toLocaleString("fr-MA")}</strong> MAD</span>
+                        </div>
+                      )}
+
+                      {/* Page KPIs */}
+                      {(p.pageViews > 0 || p.pageOrders > 0) && (
+                        <div className="grid grid-cols-3 gap-1.5">
+                          <div className="bg-violet-50 rounded-xl p-2 text-center">
+                            <p className="text-xs text-violet-400 font-medium leading-tight">Vues page</p>
+                            <p className="text-sm font-black text-violet-700">{p.pageViews.toLocaleString("fr-MA")}</p>
+                          </div>
+                          <div className="bg-blue-50 rounded-xl p-2 text-center">
+                            <p className="text-xs text-blue-400 font-medium leading-tight">Cmds page</p>
+                            <p className="text-sm font-black text-blue-700">{p.pageOrders}</p>
+                          </div>
+                          <div className={`rounded-xl p-2 text-center ${p.pageViews > 0 && p.pageOrders / p.pageViews >= 0.05 ? "bg-emerald-50" : "bg-amber-50"}`}>
+                            <p className="text-xs text-slate-400 font-medium leading-tight">Taux conv.</p>
+                            <p className={`text-sm font-black ${p.pageViews > 0 && p.pageOrders / p.pageViews >= 0.05 ? "text-emerald-700" : "text-amber-700"}`}>
+                              {p.pageViews > 0 ? `${((p.pageOrders / p.pageViews) * 100).toFixed(1)}%` : "—"}
+                            </p>
+                          </div>
                         </div>
                       )}
 

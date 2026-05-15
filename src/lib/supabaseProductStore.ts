@@ -13,6 +13,7 @@ export type Product = {
   stock: number;
   minStock: number;
   createdAt: string;
+  pageViews: number;
 };
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -28,6 +29,7 @@ function rowToProduct(row: any): Product {
     stock: row.stock ?? 0,
     minStock: row.min_stock ?? 5,
     createdAt: row.created_at,
+    pageViews: row.page_views ?? 0,
   };
 }
 
