@@ -135,6 +135,10 @@ export default function CommandesPage() {
   // Edit mode for drawer
   const [editMode, setEditMode] = useState(false);
   const [editForm, setEditForm] = useState<{ customer: string; phone: string; city: string; address: string; product: string; amount: string }>({ customer: "", phone: "", city: "", address: "", product: "", amount: "" });
+  const [citySearch, setCitySearch] = useState("");
+  const [editCitySearch, setEditCitySearch] = useState("");
+  const [showCityDrop, setShowCityDrop] = useState(false);
+  const [showEditCityDrop, setShowEditCityDrop] = useState(false);
 
   // ── Fetch all orders from Supabase ────────────────────────────────────────
   const fetchOrders = useCallback(async () => {
@@ -176,6 +180,21 @@ export default function CommandesPage() {
     window.addEventListener("new-orders", handler);
     return () => window.removeEventListener("new-orders", handler);
   }, [fetchOrders]);
+
+  // ── Load Ameex cities once on mount ──────────────────────────────────────
+  useEffect(() => {
+    fetch("/api/settings").then(r => r.json()).then(async d => {
+      const creds = d.settings?.ameex ?? {};
+      if (!creds.apiId) return;
+      const cd = await fetch("/api/ameex", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "cities", apiId: creds.apiId, apiKey: creds.apiKey }),
+      }).then(r => r.json());
+      const raw = Array.isArray(cd) ? cd : Array.isArray(cd?.api?.data) ? cd.api.data : Array.isArray(cd?.data) ? cd.data : [];
+      const list = raw.map((c: Record<string,unknown>) => ({ id: String(c.id ?? c.city_id ?? ""), name: String(c.name ?? c.city_name ?? "") })).filter((c: {id:string;name:string}) => c.id && c.name);
+      if (list.length) setAmeexCities(list);
+    }).catch(() => {});
+  }, []);
 
   function setStatus(id: string, status: OrderStatus) {
     setOrders(prev => prev.map(o => o.id === id ? { ...o, status } : o));
@@ -710,7 +729,7 @@ export default function CommandesPage() {
           <div className="bg-white rounded-2xl shadow-xl w-full max-w-lg p-6">
             <div className="flex items-center justify-between mb-5">
               <h2 className="text-lg font-bold text-slate-900">Nouvelle commande</h2>
-              <button onClick={() => { setShowModal(false); setForm(emptyForm); setCatalogSearch(""); }} className="text-slate-400 hover:text-slate-600">
+              <button onClick={() => { setShowModal(false); setForm(emptyForm); setCatalogSearch(""); setCitySearch(""); }} className="text-slate-400 hover:text-slate-600">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="w-5 h-5"><path d="M18 6L6 18M6 6l12 12"/></svg>
               </button>
             </div>
@@ -718,8 +737,6 @@ export default function CommandesPage() {
               {[
                 { key: "customer", label: "Nom client *", ph: "Ex: Youssef Alami", full: true },
                 { key: "phone", label: "Téléphone *", ph: "0612345678" },
-                { key: "city", label: "Ville", ph: "Casablanca" },
-                { key: "address", label: "Adresse", ph: "Rue, quartier…", full: true },
               ].map(({ key, label, ph, full }) => (
                 <div key={key} className={full ? "col-span-2" : ""}>
                   <label className="text-xs font-semibold text-slate-600 mb-1 block">{label}</label>
@@ -728,6 +745,32 @@ export default function CommandesPage() {
                     className="w-full text-sm border border-slate-200 rounded-xl px-4 py-2.5 outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-50" />
                 </div>
               ))}
+              {/* City — searchable Ameex dropdown */}
+              <div className="relative">
+                <label className="text-xs font-semibold text-slate-600 mb-1 block">Ville</label>
+                <input type="text" placeholder="Rechercher ville…"
+                  value={citySearch}
+                  onChange={e => { setCitySearch(e.target.value); setForm(f => ({ ...f, city: e.target.value })); setShowCityDrop(true); }}
+                  onFocus={() => setShowCityDrop(true)}
+                  onBlur={() => setTimeout(() => setShowCityDrop(false), 150)}
+                  className="w-full text-sm border border-slate-200 rounded-xl px-4 py-2.5 outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-50" />
+                {showCityDrop && ameexCities.filter(c => c.name.toLowerCase().includes(citySearch.toLowerCase())).length > 0 && (
+                  <div className="absolute z-50 top-full mt-1 left-0 right-0 bg-white border border-slate-200 rounded-xl shadow-lg overflow-hidden max-h-44 overflow-y-auto">
+                    {ameexCities.filter(c => !citySearch || c.name.toLowerCase().includes(citySearch.toLowerCase())).slice(0, 10).map(c => (
+                      <button key={c.id} type="button" onMouseDown={() => { setForm(f => ({ ...f, city: c.name })); setCitySearch(c.name); setShowCityDrop(false); }}
+                        className="w-full text-left px-3 py-2 text-sm hover:bg-blue-50 transition-colors flex items-center justify-between">
+                        <span>{c.name}</span><span className="text-xs text-slate-400">#{c.id}</span>
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+              <div className="col-span-2">
+                <label className="text-xs font-semibold text-slate-600 mb-1 block">Adresse</label>
+                <input type="text" placeholder="Rue, quartier…" value={form.address}
+                  onChange={e => setForm(f => ({ ...f, address: e.target.value }))}
+                  className="w-full text-sm border border-slate-200 rounded-xl px-4 py-2.5 outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-50" />
+              </div>
 
               {/* Product — catalog search */}
               <div className="col-span-2 relative">
@@ -796,7 +839,7 @@ export default function CommandesPage() {
               </div>
             </div>
             <div className="flex gap-3 mt-5">
-              <button onClick={() => { setShowModal(false); setForm(emptyForm); setCatalogSearch(""); }} className="flex-1 py-2.5 rounded-xl border border-slate-200 text-sm font-semibold text-slate-600 hover:bg-slate-50">Annuler</button>
+              <button onClick={() => { setShowModal(false); setForm(emptyForm); setCatalogSearch(""); setCitySearch(""); }} className="flex-1 py-2.5 rounded-xl border border-slate-200 text-sm font-semibold text-slate-600 hover:bg-slate-50">Annuler</button>
               <button onClick={addOrder} className="flex-1 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold shadow-md shadow-blue-200">Ajouter</button>
             </div>
           </div>
@@ -969,7 +1012,6 @@ export default function CommandesPage() {
                   {[
                     { key: "customer", label: "Nom client", ph: "Nom complet" },
                     { key: "phone",    label: "Téléphone",  ph: "0612345678" },
-                    { key: "city",     label: "Ville",      ph: "Casablanca" },
                     { key: "address",  label: "Adresse",    ph: "Rue, quartier…" },
                     { key: "product",  label: "Produit",    ph: "Nom du produit" },
                     { key: "amount",   label: "COD (MAD)",  ph: "350" },
@@ -982,6 +1024,26 @@ export default function CommandesPage() {
                         className="w-full text-sm border border-slate-200 rounded-xl px-3 py-2 outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-50 bg-white" />
                     </div>
                   ))}
+                  {/* City — searchable Ameex dropdown */}
+                  <div className="relative">
+                    <label className="text-xs font-semibold text-slate-500 mb-1 block">Ville</label>
+                    <input type="text" placeholder="Rechercher ville…"
+                      value={editCitySearch || editForm.city}
+                      onChange={e => { setEditCitySearch(e.target.value); setEditForm(f => ({ ...f, city: e.target.value })); setShowEditCityDrop(true); }}
+                      onFocus={() => { setEditCitySearch(editForm.city); setShowEditCityDrop(true); }}
+                      onBlur={() => setTimeout(() => setShowEditCityDrop(false), 150)}
+                      className="w-full text-sm border border-slate-200 rounded-xl px-3 py-2 outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-50 bg-white" />
+                    {showEditCityDrop && ameexCities.filter(c => !editCitySearch || c.name.toLowerCase().includes(editCitySearch.toLowerCase())).length > 0 && (
+                      <div className="absolute z-50 top-full mt-1 left-0 right-0 bg-white border border-slate-200 rounded-xl shadow-lg overflow-hidden max-h-40 overflow-y-auto">
+                        {ameexCities.filter(c => !editCitySearch || c.name.toLowerCase().includes(editCitySearch.toLowerCase())).slice(0, 10).map(c => (
+                          <button key={c.id} type="button" onMouseDown={() => { setEditForm(f => ({ ...f, city: c.name })); setEditCitySearch(c.name); setShowEditCityDrop(false); }}
+                            className="w-full text-left px-3 py-2 text-sm hover:bg-blue-50 transition-colors flex items-center justify-between">
+                            <span>{c.name}</span><span className="text-xs text-slate-400">#{c.id}</span>
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
                   <div className="flex gap-2 pt-1">
                     <button onClick={() => setEditMode(false)} className="flex-1 py-2 rounded-xl border border-slate-200 text-sm font-semibold text-slate-600 hover:bg-slate-50">Annuler</button>
                     <button onClick={saveEditForm} className="flex-1 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold shadow-md shadow-blue-200">Sauvegarder</button>
