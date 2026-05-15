@@ -420,12 +420,17 @@ export default function CommandesPage() {
     const selectedOrders = orders.filter(o => selected.has(o.id));
 
     // Load credentials from server (per-user, not localStorage)
-    let creds: Record<string, string> = {};
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    let creds: Record<string, any> = {};
     try {
       const settingsData = await fetch("/api/settings").then(r => r.json());
       const s = settingsData.settings ?? {};
       creds = shipCarrier === "ameex" ? (s.ameex ?? {}) : (s.eagle ?? {});
     } catch { /* no creds */ }
+
+    // Resolve ship type + depot: prefer fresh settings > UI state
+    const shipType: string = creds.defaultType ?? ameexShipType ?? "SIMPLE";
+    const depotId: string  = creds.depotId     ?? ameexDepot    ?? "";
 
     const results: { id: string; ok: boolean; msg: string }[] = [];
 
@@ -446,18 +451,18 @@ export default function CommandesPage() {
               action: "addParcel",
               apiId: creds.apiId ?? "",
               apiKey: creds.apiKey ?? "",
-              // Correct Ameex field names (matches integrations page)
+              // Correct Ameex field names (confirmed by API test)
               receiver: order.customer,
               phone: order.phone,
               city: cityId,
               address: order.address || order.city,
-              cod: order.amount,             // Cash On Delivery amount
+              cod: order.amount,
               product: order.product,
               order_num: order.orderNumber || order.id.slice(-8),
               comment: "",
-              type: ameexShipType,
-              // For STOCK type: p_hub is the confirmed Ameex API parameter for hub/depot
-              ...(ameexShipType === "STOCK" && ameexDepot ? { p_hub: ameexDepot } : {}),
+              type: shipType,
+              // p_hub is the confirmed Ameex param for hub/depot (e.g. 34 = Casablanca Hub Principal)
+              ...(shipType === "STOCK" && depotId ? { p_hub: depotId } : {}),
               open: "NO",
               try: "NO",
               fragile: "0",
