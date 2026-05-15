@@ -333,3 +333,63 @@ export function resolveCity(input: string): string {
   }
   return input; // fallback: return as-is
 }
+
+/**
+ * Multi-strategy city resolver: given a raw city string and a list of
+ * Ameex cities {id, name}, returns the best matching Ameex city ID or null.
+ *
+ * Strategies (in order of confidence):
+ * 1. Exact match after alias resolution + normalization
+ * 2. Input contains a known city name (e.g. "Hay Hassani Casablanca" → Casa)
+ * 3. A known city name contains the input (e.g. "Casa" → Casablanca)
+ * 4. Partial word overlap ≥ 1 word ≥ 4 chars
+ */
+export function resolveAmeexCityId(
+  rawCity: string,
+  ameexCities: { id: string; name: string }[]
+): string | null {
+  if (!rawCity.trim() || !ameexCities.length) return null;
+
+  const n = normalizeCity;
+
+  // Build map from normalized name → id
+  const idMap: Record<string, string> = {};
+  for (const c of ameexCities) idMap[n(c.name)] = c.id;
+
+  // 1. Exact match via alias resolution
+  const canonical = resolveCity(rawCity.trim());
+  if (idMap[n(canonical)]) return idMap[n(canonical)];
+  if (idMap[n(rawCity)]) return idMap[n(rawCity)];
+
+  const normInput = n(rawCity);
+
+  // 2. Input CONTAINS a known city name (e.g. "Sidi Bernoussi, Casablanca")
+  for (const c of ameexCities) {
+    const normName = n(c.name);
+    if (normName.length >= 4 && normInput.includes(normName)) return c.id;
+  }
+
+  // 3. Known city name CONTAINS the input (e.g. "al hoc" → "Al Hoceima")
+  for (const c of ameexCities) {
+    const normName = n(c.name);
+    if (normInput.length >= 4 && normName.includes(normInput)) return c.id;
+  }
+
+  // 4. Try resolving each word of the input against aliases, then look up
+  const words = normInput.split(/[\s,;/\\-]+/).filter(w => w.length >= 3);
+  for (const word of words) {
+    // Check word directly against city names
+    for (const c of ameexCities) {
+      if (n(c.name).startsWith(word) && word.length >= 4) return c.id;
+    }
+    // Check word against all aliases
+    for (const [alias, canonical2] of Object.entries(CITY_ALIASES)) {
+      if (n(alias) === word || n(alias).startsWith(word) && word.length >= 4) {
+        const resolvedId = idMap[n(canonical2)];
+        if (resolvedId) return resolvedId;
+      }
+    }
+  }
+
+  return null;
+}

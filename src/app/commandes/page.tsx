@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { resolveCity, AMEEX_CITIES_FALLBACK } from "@/lib/moroccanCities";
+import { resolveCity, resolveAmeexCityId, AMEEX_CITIES_FALLBACK } from "@/lib/moroccanCities";
 import Sidebar from "@/components/Sidebar";
 
 type OrderStatus = "nouveau" | "confirmé" | "annulé" | "injoignable" | "fausse" | "expédié" | "livré" | "retourné";
@@ -398,27 +398,18 @@ export default function CommandesPage() {
       creds = shipCarrier === "ameex" ? (s.ameex ?? {}) : (s.eagle ?? {});
     } catch { /* no creds */ }
 
-    // Build Ameex city name → ID map for auto-resolution
-    const normalize = (s: string) => s.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").trim();
-    const ameexCityMap: Record<string, string> = {};
-    for (const c of ameexCities) {
-      ameexCityMap[normalize(c.name)] = c.id;
-    }
-
     const results: { id: string; ok: boolean; msg: string }[] = [];
 
     for (const order of selectedOrders) {
       try {
         let res: Response;
         if (shipCarrier === "ameex") {
-          // City: use override (set in ship modal) first, then auto-resolve from name
-          const cityRaw       = (order.city ?? "").trim();
-          const cityCanonical = resolveCity(cityRaw);
-          const overrideVal   = cityOverrides[order.id] ?? "";
-          const cityId        = overrideVal
-                              || ameexCityMap[normalize(cityCanonical)]
-                              || ameexCityMap[normalize(cityRaw)]
-                              || cityRaw;
+          // City: override from ship modal > smart multi-strategy resolver > raw value
+          const cityRaw   = (order.city ?? "").trim();
+          const overrideVal = cityOverrides[order.id] ?? "";
+          const cityId    = overrideVal
+                          || resolveAmeexCityId(cityRaw, ameexCities)
+                          || cityRaw;
           res = await fetch("/api/ameex", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
@@ -934,17 +925,14 @@ export default function CommandesPage() {
 
               {/* Ameex — city selector for ALL orders, pre-filled, always editable */}
               {!shipResults.length && shipCarrier === "ameex" && (() => {
-                const normalize = (s: string) => s.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").trim();
-                const cityMap: Record<string,string> = {};
                 const cityNameMap: Record<string,string> = {};
-                for (const c of ameexCities) { cityMap[normalize(c.name)] = c.id; cityNameMap[c.id] = c.name; }
+                for (const c of ameexCities) { cityNameMap[c.id] = c.name; }
                 const selectedOrders = orders.filter(o => selected.has(o.id));
                 return (
                   <div className="space-y-2">
                     <p className="text-xs font-semibold text-slate-500">🏙 Vérifiez la ville de chaque commande avant d&apos;envoyer :</p>
                     {selectedOrders.map(o => {
-                      const canonical = resolveCity(o.city ?? "");
-                      const autoId = cityMap[normalize(canonical)] ?? cityMap[normalize(o.city ?? "")];
+                      const autoId = resolveAmeexCityId(o.city ?? "", ameexCities) ?? undefined;
                       const currentVal = cityOverrides[o.id] ?? autoId ?? "";
                       const currentName = currentVal ? (cityNameMap[currentVal] ?? currentVal) : "";
                       return (
@@ -970,9 +958,10 @@ export default function CommandesPage() {
                                 // On blur, resolve typed value to a city ID if possible
                                 const typed = e.target.value.trim();
                                 if (!typed) { setCityOverrides(prev => ({ ...prev, [o.id]: "" })); return; }
+                                const norm = (s: string) => s.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").trim();
                                 const matched = ameexCities.find(c =>
                                   c.name.toLowerCase() === typed.toLowerCase() ||
-                                  normalize(c.name) === normalize(typed)
+                                  norm(c.name) === norm(typed)
                                 );
                                 if (matched) setCityOverrides(prev => ({ ...prev, [o.id]: matched.id }));
                               }}
@@ -1004,12 +993,8 @@ export default function CommandesPage() {
                 Fermer
               </button>
               {!shipResults.length && (() => {
-                const normalize = (s: string) => s.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").trim();
-                const cityMap: Record<string,string> = {};
-                for (const c of ameexCities) cityMap[normalize(c.name)] = c.id;
                 const hasUnresolved = shipCarrier === "ameex" && orders.filter(o => selected.has(o.id)).some(o => {
-                  const canonical = resolveCity(o.city ?? "");
-                  const autoId = cityMap[normalize(canonical)] ?? cityMap[normalize(o.city ?? "")];
+                  const autoId = resolveAmeexCityId(o.city ?? "", ameexCities);
                   const val = cityOverrides[o.id] ?? autoId ?? "";
                   return !val;
                 });
