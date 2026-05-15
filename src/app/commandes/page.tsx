@@ -197,6 +197,19 @@ export default function CommandesPage() {
   }, []);
 
   function setStatus(id: string, status: OrderStatus) {
+    // Block confirmation if city is missing
+    if (status === "confirmé") {
+      const order = orders.find(o => o.id === id);
+      if (order && !order.city?.trim()) {
+        // Open drawer in edit mode focused on city
+        setDrawer(order);
+        setEditMode(true);
+        setEditForm({ customer: order.customer, phone: order.phone, city: "", address: order.address, product: order.product, amount: String(order.amount) });
+        setEditCitySearch("");
+        showToast("Veuillez ajouter la ville avant de confirmer.", false);
+        return;
+      }
+    }
     setOrders(prev => prev.map(o => o.id === id ? { ...o, status } : o));
     setDrawer(prev => prev?.id === id ? { ...prev, status } : prev);
     fetch("/api/orders", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id, status }) }).catch(() => {});
