@@ -26,7 +26,6 @@ type FunnelLead = {
   notes: string;
 };
 
-const LEADS_KEY = "codcrm_funnel_leads";
 
 type Filter = "tous" | "purchase" | "abandoned" | "recovered";
 
@@ -46,26 +45,21 @@ export default function FunnelsPage() {
   const [noteModal, setNoteModal] = useState<FunnelLead | null>(null);
   const [noteText, setNoteText] = useState("");
 
-  /* Persist locally */
-  useEffect(() => {
-    const stored = localStorage.getItem(LEADS_KEY);
-    if (stored) setLeads(JSON.parse(stored));
-  }, []);
-  useEffect(() => {
-    localStorage.setItem(LEADS_KEY, JSON.stringify(leads));
-  }, [leads]);
-
-  /* Poll server for new webhook leads every 8s */
+  /* Poll server — always replace from source of truth */
   const pollLeads = useCallback(async () => {
     try {
       const res = await fetch("/api/lf-leads");
       const data = await res.json();
       const serverLeads: FunnelLead[] = data.leads ?? [];
-      if (serverLeads.length === 0) return;
+      // Preserve local notes/callAttempts/recovered for existing leads
       setLeads(prev => {
-        const existingIds = new Set(prev.map(l => l.id));
-        const newLeads = serverLeads.filter(l => !existingIds.has(l.id));
-        return newLeads.length > 0 ? [...newLeads, ...prev] : prev;
+        const localById = new Map(prev.map(l => [l.id, l]));
+        return serverLeads.map(l => {
+          const existing = localById.get(l.id);
+          return existing
+            ? { ...l, notes: existing.notes, callAttempts: existing.callAttempts, recovered: existing.recovered }
+            : l;
+        });
       });
     } catch { /* silent */ }
   }, []);

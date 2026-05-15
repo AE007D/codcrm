@@ -23,7 +23,6 @@ type Order = {
   noAnswer: number;
 };
 
-const ORDERS_KEY = "codcrm_orders";
 
 const STATUS_CONFIG: Record<OrderStatus, { label: string; color: string; bg: string; border: string; icon: string }> = {
   nouveau:  { label: "Nouveau",  color: "text-blue-600",    bg: "bg-blue-50",    border: "border-blue-200",   icon: "🔔" },
@@ -96,29 +95,20 @@ export default function CommandesPage() {
   const [shipping, setShipping] = useState(false);
   const [shipResults, setShipResults] = useState<{ id: string; ok: boolean; msg: string }[]>([]);
 
-  useEffect(() => {
-    const stored = localStorage.getItem(ORDERS_KEY);
-    if (stored) {
-      try { setOrders(JSON.parse(stored)); } catch { /* ignore */ }
-    }
-  }, []);
-
-  useEffect(() => {
-    localStorage.setItem(ORDERS_KEY, JSON.stringify(orders));
-  }, [orders]);
-
   const pullLF = useCallback(async () => {
     try {
       const res = await fetch("/api/lf-orders");
       const data = await res.json();
       const lfOrders: Record<string, unknown>[] = data.orders ?? [];
       setOrders(prev => {
-        const existingIds = new Set(prev.map(o => o.id));
-        const newOrders: Order[] = lfOrders
-          .filter(o => !existingIds.has(String(o.id)))
-          .map(o => ({
-            id: String(o.id),
-            orderNumber: `#${o.order_number ?? String(o.id).slice(-5)}`,
+        // Map server orders, preserving local status/notes/attempts if already known
+        const localById = new Map(prev.map(o => [o.id, o]));
+        return lfOrders.map(o => {
+          const id = String(o.id);
+          const existing = localById.get(id);
+          return {
+            id,
+            orderNumber: `#${o.order_number ?? id.slice(-5)}`,
             customer: String(o.customer_name ?? ""),
             city: String(o.city ?? ""),
             phone: String(o.customer_phone ?? ""),
@@ -126,14 +116,14 @@ export default function CommandesPage() {
             product: String(o.product ?? ""),
             amount: parseFloat(String(o.total_price ?? "0")),
             currency: String(o.currency ?? "MAD"),
-            status: "nouveau" as OrderStatus,
+            status: existing?.status ?? "nouveau" as OrderStatus,
             date: new Date(String(o.received_at ?? Date.now())).toLocaleDateString("fr-MA", { day: "2-digit", month: "2-digit", year: "numeric" }),
             source: "lightfunnels" as Order["source"],
-            notes: "",
-            attempts: 0,
-            noAnswer: 0,
-          }));
-        return newOrders.length > 0 ? [...newOrders, ...prev] : prev;
+            notes: existing?.notes ?? "",
+            attempts: existing?.attempts ?? 0,
+            noAnswer: existing?.noAnswer ?? 0,
+          };
+        });
       });
     } catch { /* silent */ }
   }, []);

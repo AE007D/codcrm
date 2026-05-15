@@ -19,20 +19,12 @@ type Product = {
   rateSource?: "ameex" | "eagle" | "both" | "manual";
 };
 
-const STORAGE_KEY   = "codcrm_products_calc";
+const STORAGE_KEY   = "codcrm_products_calc_v2"; // v2: starts empty, no fake defaults
 const LAST_RUN_KEY  = "codcrm_calc_last_run";
 const AMEEX_KEY     = "ameex_creds";
 const EAGLE_KEY     = "eagle_creds";
 const INTERVAL_DAYS = 3;
 
-const defaultProducts: Product[] = [
-  { id: 1, name: "Montre Sport Pro",    purchasePrice: 120, sellPrice: 350, shippingCost: 25, cpd: 29.3, platform: "Facebook" },
-  { id: 2, name: "Écouteurs BT X2",     purchasePrice: 60,  sellPrice: 199, shippingCost: 25, cpd: 14.8, platform: "TikTok" },
-  { id: 3, name: "Sac à dos XL",        purchasePrice: 180, sellPrice: 420, shippingCost: 30, cpd: 39.6, platform: "TikTok" },
-  { id: 4, name: "Chargeur rapide 65W", purchasePrice: 55,  sellPrice: 149, shippingCost: 20, cpd: 20.0, platform: "Facebook" },
-  { id: 5, name: "Lampe LED bureau",    purchasePrice: 30,  sellPrice: 89,  shippingCost: 20, cpd: 20.0, platform: "Facebook" },
-  { id: 6, name: "Coque iPhone 15",     purchasePrice: 12,  sellPrice: 59,  shippingCost: 18, cpd: 15.2, platform: "TikTok" },
-];
 
 /* ── Delivery status classification ── */
 const DELIVERED_KEYWORDS = ["livré", "delivered", "remis", "succès", "success", "réussi"];
@@ -113,7 +105,7 @@ function hoursUntilNext(lastRun: number) {
 const emptyForm = { name: "", purchasePrice: "", sellPrice: "", shippingCost: "", cpd: "", platform: "Facebook" };
 
 export default function CalculateurPage() {
-  const [products, setProducts] = useState<Product[]>(defaultProducts);
+  const [products, setProducts] = useState<Product[]>([]);
   const [lastRun, setLastRun] = useState<number>(Date.now() - 86400000);
   const [syncing, setSyncing] = useState(false);
   const [lastSync, setLastSync] = useState<number | null>(null);
