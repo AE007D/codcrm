@@ -127,98 +127,126 @@ export default function CommandesPage() {
   const [shipping, setShipping] = useState(false);
   const [shipResults, setShipResults] = useState<{ id: string; ok: boolean; msg: string }[]>([]);
 
-  const pullLF = useCallback(async () => {
+  // ── Fetch all orders from Supabase ────────────────────────────────────────
+  const fetchOrders = useCallback(async () => {
     try {
-      const res = await fetch("/api/lf-orders");
+      const res = await fetch("/api/orders");
+      if (res.status === 401) { window.location.href = "/login"; return; }
+      if (!res.ok) return;
       const data = await res.json();
-      const lfOrders: Record<string, unknown>[] = data.orders ?? [];
-      setOrders(prev => {
-        // Map server orders, preserving local status/notes/attempts if already known
-        const localById = new Map(prev.map(o => [o.id, o]));
-        const serverIds = new Set(lfOrders.map(o => String(o.id)));
-
-        const serverMapped = lfOrders.map(o => {
-          const id = String(o.id);
-          const existing = localById.get(id);
-          return {
-            id,
-            orderNumber: `#${o.order_number ?? id.slice(-5)}`,
-            customer: String(o.customer_name ?? ""),
-            city: String(o.city ?? ""),
-            phone: String(o.customer_phone ?? ""),
-            address: String(o.address ?? ""),
-            product: String(o.product ?? ""),
-            amount: parseFloat(String(o.total_price ?? "0")),
-            currency: String(o.currency ?? "MAD"),
-            status: existing?.status ?? "nouveau" as OrderStatus,
-            date: new Date(String(o.received_at ?? Date.now())).toLocaleDateString("fr-MA", { day: "2-digit", month: "2-digit", year: "numeric" }),
-            source: "lightfunnels" as Order["source"],
-            notes: existing?.notes ?? "",
-            attempts: existing?.attempts ?? 0,
-            noAnswer: existing?.noAnswer ?? 0,
-          };
-        });
-
-        // Keep manually added orders (they don't exist on server)
-        const manualOrders = prev.filter(o => o.source === "manuel" && !serverIds.has(o.id));
-        return [...manualOrders, ...serverMapped];
-      });
+      const rows: Record<string, unknown>[] = data.orders ?? [];
+      setOrders(rows.map(o => ({
+        id: String(o.id),
+        orderNumber: String(o.orderNumber ?? o.order_number ?? ""),
+        customer: String(o.customerName ?? o.customer_name ?? ""),
+        city: String(o.city ?? ""),
+        phone: String(o.customerPhone ?? o.customer_phone ?? ""),
+        address: String(o.address ?? ""),
+        product: String(o.product ?? ""),
+        amount: parseFloat(String(o.totalPrice ?? o.total_price ?? "0")),
+        currency: String(o.currency ?? "MAD"),
+        status: (o.status ?? "nouveau") as OrderStatus,
+        date: new Date(String(o.receivedAt ?? o.received_at ?? Date.now())).toLocaleDateString("fr-MA", { day: "2-digit", month: "2-digit", year: "numeric" }),
+        source: (o.source ?? "manuel") as Order["source"],
+        notes: String(o.notes ?? ""),
+        attempts: Number(o.attempts ?? 0),
+        noAnswer: Number(o.noAnswer ?? o.no_answer ?? 0),
+      })));
     } catch { /* silent */ }
   }, []);
 
   useEffect(() => {
-    pullLF();
-    const t = setInterval(pullLF, 10000);
+    fetchOrders();
+    const t = setInterval(fetchOrders, 30_000);
     return () => clearInterval(t);
-  }, [pullLF]);
+  }, [fetchOrders]);
+
+  // Listen for new orders from sidebar polling
+  useEffect(() => {
+    const handler = () => fetchOrders();
+    window.addEventListener("new-orders", handler);
+    return () => window.removeEventListener("new-orders", handler);
+  }, [fetchOrders]);
 
   function setStatus(id: string, status: OrderStatus) {
     setOrders(prev => prev.map(o => o.id === id ? { ...o, status } : o));
     setDrawer(prev => prev?.id === id ? { ...prev, status } : prev);
+    fetch("/api/orders", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id, status }) }).catch(() => {});
   }
 
   function incrementAttempt(id: string) {
-    setOrders(prev => prev.map(o => o.id === id ? { ...o, attempts: o.attempts + 1 } : o));
+    setOrders(prev => prev.map(o => {
+      if (o.id !== id) return o;
+      const updated = { ...o, attempts: o.attempts + 1 };
+      fetch("/api/orders", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id, attempts: updated.attempts }) }).catch(() => {});
+      return updated;
+    }));
     setDrawer(prev => prev?.id === id ? { ...prev, attempts: prev.attempts + 1 } : prev);
   }
 
   function markNoAnswer(id: string) {
-    setOrders(prev => prev.map(o => o.id === id ? { ...o, noAnswer: o.noAnswer + 1, attempts: o.attempts + 1 } : o));
+    setOrders(prev => prev.map(o => {
+      if (o.id !== id) return o;
+      const updated = { ...o, noAnswer: o.noAnswer + 1, attempts: o.attempts + 1 };
+      fetch("/api/orders", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id, attempts: updated.attempts, noAnswer: updated.noAnswer }) }).catch(() => {});
+      return updated;
+    }));
     setDrawer(prev => prev?.id === id ? { ...prev, noAnswer: prev.noAnswer + 1, attempts: prev.attempts + 1 } : prev);
   }
 
   function saveNoteInline(id: string, note: string) {
     setOrders(prev => prev.map(o => o.id === id ? { ...o, notes: note } : o));
     setDrawer(prev => prev?.id === id ? { ...prev, notes: note } : prev);
+    fetch("/api/orders", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id, notes: note }) }).catch(() => {});
   }
 
-  function addOrder() {
+  async function addOrder() {
     if (!form.customer || !form.phone || !form.product || !form.amount) return;
-    const now = new Date();
-    const o: Order = {
-      id: `m_${Date.now()}`,
-      orderNumber: `#${Math.floor(10000 + Math.random() * 90000)}`,
-      customer: form.customer,
-      city: form.city,
-      phone: form.phone,
-      address: form.address,
-      product: form.product,
-      amount: parseFloat(form.amount),
-      currency: "MAD",
-      status: "nouveau",
-      date: now.toLocaleDateString("fr-MA", { day: "2-digit", month: "2-digit", year: "numeric" }),
-      source: form.source,
-      notes: form.notes,
-      attempts: 0,
-      noAnswer: 0,
-    };
-    setOrders(prev => [o, ...prev]);
-    setForm(emptyForm);
-    setShowModal(false);
+    try {
+      const res = await fetch("/api/orders", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          customer: form.customer,
+          phone: form.phone,
+          city: form.city,
+          address: form.address,
+          product: form.product,
+          amount: form.amount,
+          notes: form.notes,
+          source: form.source,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) { console.error("addOrder error:", data.error); return; }
+      const o = data.order;
+      const mapped: Order = {
+        id: String(o.id),
+        orderNumber: String(o.orderNumber ?? ""),
+        customer: String(o.customerName ?? ""),
+        city: String(o.city ?? ""),
+        phone: String(o.customerPhone ?? ""),
+        address: String(o.address ?? ""),
+        product: String(o.product ?? ""),
+        amount: parseFloat(String(o.totalPrice ?? "0")),
+        currency: "MAD",
+        status: "nouveau",
+        date: new Date(o.receivedAt ?? Date.now()).toLocaleDateString("fr-MA", { day: "2-digit", month: "2-digit", year: "numeric" }),
+        source: (o.source ?? "manuel") as Order["source"],
+        notes: String(o.notes ?? ""),
+        attempts: 0,
+        noAnswer: 0,
+      };
+      setOrders(prev => [mapped, ...prev]);
+      setForm(emptyForm);
+      setCatalogSearch("");
+      setShowModal(false);
+    } catch (e) { console.error("addOrder failed:", e); }
   }
 
   function saveNote(id: string, note: string) {
     setOrders(prev => prev.map(o => o.id === id ? { ...o, notes: note } : o));
+    fetch("/api/orders", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id, notes: note }) }).catch(() => {});
     setNotesModal(null);
   }
 

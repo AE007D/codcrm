@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { addOrder, LFOrder } from "@/lib/orderStore";
 import { addLead, FunnelLead } from "@/lib/leadStore";
+import { upsertOrder } from "@/lib/supabaseOrderStore";
 
 // Pick first non-empty string value
 function pick(...vals: unknown[]): string {
@@ -131,6 +132,29 @@ export async function POST(request: NextRequest) {
   };
 
   addOrder(parsed, ownerId);
+
+  // Also persist to Supabase (survives Vercel restarts)
+  upsertOrder({
+    id: parsed.id,
+    workspaceId: ownerId,
+    orderNumber: String(parsed.order_number),
+    customerName: parsed.customer_name,
+    customerPhone: parsed.customer_phone,
+    customerEmail: parsed.customer_email,
+    city: parsed.city,
+    address: parsed.address,
+    product: parsed.product,
+    totalPrice: parseFloat(parsed.total_price) || 0,
+    currency: parsed.currency,
+    quantity: parsed.quantity,
+    funnel: parsed.funnel,
+    source: "lightfunnels",
+    status: "nouveau",
+    notes: "",
+    attempts: 0,
+    noAnswer: 0,
+    receivedAt: parsed.received_at,
+  }).catch(e => console.error("upsertOrder failed:", e));
 
   const purchaseLead: FunnelLead = {
     id: `purchase_${parsed.id}`,
