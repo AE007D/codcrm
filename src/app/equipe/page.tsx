@@ -71,8 +71,14 @@ export default function EquipePage() {
   const fetchUsers = useCallback(async () => {
     try {
       const res = await fetch("/api/auth/users");
+      if (res.status === 401) {
+        // Session expirée — redirect to login
+        window.location.href = "/login";
+        return;
+      }
       if (!res.ok) {
-        setError("Impossible de charger l'équipe.");
+        const d = await res.json().catch(() => ({}));
+        setError(d.error || "Impossible de charger l'équipe.");
         return;
       }
       const data = await res.json();
@@ -87,9 +93,8 @@ export default function EquipePage() {
       setLoading(true);
       try {
         const meRes = await fetch("/api/auth/me");
-        if (meRes.ok) {
-          setCurrentUser(await meRes.json());
-        }
+        if (meRes.status === 401) { window.location.href = "/login"; return; }
+        if (meRes.ok) setCurrentUser(await meRes.json());
         await fetchUsers();
       } finally {
         setLoading(false);
