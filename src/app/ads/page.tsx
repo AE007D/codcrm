@@ -19,13 +19,7 @@ type Campaign = {
   date: string;
 };
 
-const initialCampaigns: Campaign[] = [
-  { id: 1, platform: "Facebook", name: "Montre Sport - Casablanca", spend: 1200, impressions: 85000, clicks: 1240, orders: 48, delivered: 41, revenue: 16800, date: "01/05/2026" },
-  { id: 2, platform: "TikTok", name: "Écouteurs BT - Nationwide", spend: 800, impressions: 124000, clicks: 2100, orders: 62, delivered: 54, revenue: 12376, date: "03/05/2026" },
-  { id: 3, platform: "Facebook", name: "Chargeur 65W - Rabat", spend: 600, impressions: 42000, clicks: 890, orders: 35, delivered: 30, revenue: 5250, date: "05/05/2026" },
-  { id: 4, platform: "TikTok", name: "Sac XL - Marrakech", spend: 950, impressions: 98000, clicks: 1560, orders: 29, delivered: 24, revenue: 12180, date: "07/05/2026" },
-  { id: 5, platform: "Facebook", name: "Lampe LED - National", spend: 400, impressions: 31000, clicks: 620, orders: 22, delivered: 20, revenue: 1960, date: "10/05/2026" },
-];
+const initialCampaigns: Campaign[] = [];
 
 const emptyForm = {
   platform: "Facebook" as Platform,
@@ -251,6 +245,9 @@ export default function AdsPage() {
                   </tr>
                 </thead>
                 <tbody>
+                  {filtered.length === 0 && (
+                    <tr><td colSpan={13} className="text-center py-16 text-slate-400 text-sm">Aucune campagne — ajoutez manuellement ou synchronisez Facebook / TikTok</td></tr>
+                  )}
                   {filtered.map(c => {
                     const cpp = c.orders ? c.spend / c.orders : 0;
                     const cpd = c.delivered ? c.spend / c.delivered : 0;

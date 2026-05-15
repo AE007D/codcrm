@@ -25,17 +25,6 @@ type Order = {
 
 const ORDERS_KEY = "codcrm_orders";
 
-const DEMO_ORDERS: Order[] = [
-  { id: "d1", orderNumber: "#10041", customer: "Youssef Alami",  city: "Casablanca", phone: "0612345678", address: "", product: "Montre Sport Pro",    amount: 350, currency: "MAD", status: "nouveau",  date: "14/05/2026", source: "lightfunnels", notes: "", attempts: 0, noAnswer: 0 },
-  { id: "d2", orderNumber: "#10040", customer: "Fatima Zahra",   city: "Rabat",      phone: "0698765432", address: "", product: "Écouteurs BT X2",    amount: 199, currency: "MAD", status: "confirmé", date: "14/05/2026", source: "lightfunnels", notes: "", attempts: 1, noAnswer: 0 },
-  { id: "d3", orderNumber: "#10039", customer: "Hamid Benali",   city: "Marrakech",  phone: "0711223344", address: "", product: "Sac à dos XL",       amount: 420, currency: "MAD", status: "expédié",  date: "13/05/2026", source: "manuel",       notes: "", attempts: 1, noAnswer: 0 },
-  { id: "d4", orderNumber: "#10038", customer: "Samira Oukili",  city: "Fès",        phone: "0655667788", address: "", product: "Chargeur rapide 65W", amount: 149, currency: "MAD", status: "retourné", date: "13/05/2026", source: "lightfunnels", notes: "", attempts: 2, noAnswer: 0 },
-  { id: "d5", orderNumber: "#10037", customer: "Khalid Tazi",    city: "Agadir",     phone: "0799887766", address: "", product: "Montre Sport Pro",    amount: 350, currency: "MAD", status: "livré",    date: "12/05/2026", source: "lightfunnels", notes: "", attempts: 1, noAnswer: 0 },
-  { id: "d6", orderNumber: "#10036", customer: "Nadia Chraibi",  city: "Tanger",     phone: "0633445566", address: "", product: "Lampe LED bureau",    amount: 89,  currency: "MAD", status: "nouveau",  date: "12/05/2026", source: "shopify",      notes: "", attempts: 2, noAnswer: 2 },
-  { id: "d7", orderNumber: "#10035", customer: "Omar Benhaddou", city: "Oujda",      phone: "0777889900", address: "", product: "Écouteurs BT X2",    amount: 199, currency: "MAD", status: "annulé",   date: "11/05/2026", source: "lightfunnels", notes: "Pas intéressé", attempts: 2, noAnswer: 0 },
-  { id: "d8", orderNumber: "#10034", customer: "Zineb Mernissi", city: "Meknès",     phone: "0644556677", address: "", product: "Coque iPhone 15",     amount: 59,  currency: "MAD", status: "nouveau",  date: "11/05/2026", source: "lightfunnels", notes: "", attempts: 3, noAnswer: 3 },
-];
-
 const STATUS_CONFIG: Record<OrderStatus, { label: string; color: string; bg: string; border: string; icon: string }> = {
   nouveau:  { label: "Nouveau",  color: "text-blue-600",    bg: "bg-blue-50",    border: "border-blue-200",   icon: "🔔" },
   confirmé: { label: "Confirmé", color: "text-emerald-600", bg: "bg-emerald-50", border: "border-emerald-200", icon: "✅" },
@@ -89,7 +78,7 @@ function SourceBadge({ source }: { source: Order["source"] }) {
 type ShipCarrier = "ameex" | "eagle";
 
 export default function CommandesPage() {
-  const [orders, setOrders] = useState<Order[]>(DEMO_ORDERS);
+  const [orders, setOrders] = useState<Order[]>([]);
   const [filter, setFilter] = useState<OrderStatus | "tous">("tous");
   const [search, setSearch] = useState("");
   const [showModal, setShowModal] = useState(false);

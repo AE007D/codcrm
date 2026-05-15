@@ -3,13 +3,18 @@
 import { useState } from "react";
 import Sidebar from "@/components/Sidebar";
 
-const initialCarriers = [
-  { id: 1, name: "Amana Express", contact: "05 22 10 20 30", zones: "Tout le Maroc", price: "25 MAD", delay: "24-48h", orders: 892, status: "Actif" },
-  { id: 2, name: "Chronopost Maroc", contact: "05 37 20 30 40", zones: "Grandes villes", price: "35 MAD", delay: "24h", orders: 541, status: "Actif" },
-  { id: 3, name: "CTM Messagerie", contact: "05 22 45 45 45", zones: "Tout le Maroc", price: "20 MAD", delay: "48-72h", orders: 317, status: "Actif" },
-  { id: 4, name: "Naqel Express", contact: "05 29 30 40 50", zones: "Axe Casa-Rabat", price: "18 MAD", delay: "24h", orders: 205, status: "Inactif" },
-  { id: 5, name: "Glovo Business", contact: "07 00 10 20 30", zones: "Casablanca", price: "15 MAD", delay: "Same day", orders: 643, status: "Actif" },
-];
+type Carrier = {
+  id: number;
+  name: string;
+  contact: string;
+  zones: string;
+  price: string;
+  delay: string;
+  orders: number;
+  status: string;
+};
+
+const initialCarriers: Carrier[] = [];
 
 const statusStyle: Record<string, string> = {
   "Actif": "bg-emerald-50 text-emerald-600",
@@ -79,6 +84,15 @@ export default function TransporteursPage() {
               <p className="text-2xl font-bold text-slate-900">{carriers.reduce((a, c) => a + c.orders, 0).toLocaleString()}</p>
             </div>
           </div>
+
+          {/* Empty state */}
+          {carriers.length === 0 && (
+            <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-16 flex flex-col items-center gap-4 mb-6">
+              <span className="text-5xl">🚚</span>
+              <p className="text-slate-700 font-semibold text-lg">Aucun transporteur enregistré</p>
+              <p className="text-slate-400 text-sm text-center">Ajoutez vos sociétés de livraison manuellement.</p>
+            </div>
+          )}
 
           {/* Cards grid */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 lg:gap-5 mb-6">

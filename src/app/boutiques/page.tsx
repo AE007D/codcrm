@@ -3,20 +3,23 @@
 import { useState } from "react";
 import Sidebar from "@/components/Sidebar";
 
-const initialStores = [
-  { id: 1, name: "Boutique Casa Centre", city: "Casablanca", address: "23 Bd Mohammed V", phone: "05 22 11 22 33", manager: "Youssef Alami", orders: 412, status: "Active" },
-  { id: 2, name: "Shop Rabat Agdal", city: "Rabat", address: "7 Rue Patrice Lumumba", phone: "05 37 44 55 66", manager: "Fatima Zahra", orders: 289, status: "Active" },
-  { id: 3, name: "Marrakech Store", city: "Marrakech", address: "Guéliz, Av. Mohammed VI", phone: "05 24 33 44 55", manager: "Hamid Benali", orders: 198, status: "Active" },
-  { id: 4, name: "Fès Médina Shop", city: "Fès", address: "Quartier Narjiss, Fès", phone: "05 35 66 77 88", manager: "Samira Oukili", orders: 134, status: "Inactive" },
-  { id: 5, name: "Tanger Bay Store", city: "Tanger", address: "12 Av. des FAR, Tanger", phone: "05 39 77 88 99", manager: "Khalid Tazi", orders: 167, status: "Active" },
-];
+type Store = {
+  id: number;
+  name: string;
+  city: string;
+  address: string;
+  phone: string;
+  manager: string;
+  orders: number;
+  status: string;
+};
+
+const initialStores: Store[] = [];
 
 const statusStyle: Record<string, string> = {
   "Active": "bg-emerald-50 text-emerald-600",
   "Inactive": "bg-slate-100 text-slate-500",
 };
-
-type Store = typeof initialStores[0];
 
 export default function BoutiquesPage() {
   const [stores, setStores] = useState(initialStores);
@@ -90,6 +93,9 @@ export default function BoutiquesPage() {
                 </tr>
               </thead>
               <tbody>
+                {stores.length === 0 && (
+                  <tr><td colSpan={8} className="text-center py-16 text-slate-400 text-sm">Aucune boutique enregistrée. Ajoutez vos boutiques manuellement.</td></tr>
+                )}
                 {stores.map((s) => (
                   <tr key={s.id} className="border-b border-slate-50 hover:bg-slate-50/60 transition-colors">
                     <td className="px-6 py-3.5 font-semibold text-slate-800">{s.name}</td>

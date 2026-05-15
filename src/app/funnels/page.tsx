@@ -26,17 +26,6 @@ type FunnelLead = {
   notes: string;
 };
 
-/* ── demo data so the page looks alive before real webhooks fire ── */
-const DEMO_LEADS: FunnelLead[] = [
-  { id: "purchase_d1", type: "purchase", customer: "Youssef Alami", phone: "0612345678", email: "", city: "Casablanca", address: "Rue Hassan II", product: "Caméra voiture 4K", amount: 299, currency: "MAD", funnel: "Caméra Voiture LP", funnelUrl: "", quantity: 1, created_at: "2026-05-14T10:22:00Z", received_at: "2026-05-14T10:22:00Z", callAttempts: 0, recovered: false, notes: "" },
-  { id: "abandoned_d1", type: "abandoned", customer: "Fatima Zahra", phone: "0698765432", email: "", city: "Rabat", address: "", product: "Caméra voiture 4K", amount: 299, currency: "MAD", funnel: "Caméra Voiture LP", funnelUrl: "", quantity: 1, created_at: "2026-05-14T09:45:00Z", received_at: "2026-05-14T09:45:00Z", callAttempts: 0, recovered: false, notes: "" },
-  { id: "abandoned_d2", type: "abandoned", customer: "Hamid Benali", phone: "0711223344", email: "", city: "Marrakech", address: "", product: "Caméra voiture 4K", amount: 299, currency: "MAD", funnel: "Caméra Voiture LP", funnelUrl: "", quantity: 1, created_at: "2026-05-14T09:10:00Z", received_at: "2026-05-14T09:10:00Z", callAttempts: 1, recovered: false, notes: "" },
-  { id: "purchase_d2", type: "purchase", customer: "Samira Oukili", phone: "0655667788", email: "", city: "Fès", address: "Av. Mohammed V", product: "Montre Sport Pro", amount: 350, currency: "MAD", funnel: "Montre LP v2", funnelUrl: "", quantity: 1, created_at: "2026-05-13T16:30:00Z", received_at: "2026-05-13T16:30:00Z", callAttempts: 0, recovered: false, notes: "" },
-  { id: "abandoned_d3", type: "abandoned", customer: "Khalid Tazi", phone: "0799887766", email: "", city: "Agadir", address: "", product: "Montre Sport Pro", amount: 350, currency: "MAD", funnel: "Montre LP v2", funnelUrl: "", quantity: 1, created_at: "2026-05-13T15:00:00Z", received_at: "2026-05-13T15:00:00Z", callAttempts: 2, recovered: true, notes: "Rappelé — a confirmé" },
-  { id: "abandoned_d4", type: "abandoned", customer: "Nadia Chraibi", phone: "0633445566", email: "", city: "Tanger", address: "", product: "Caméra voiture 4K", amount: 299, currency: "MAD", funnel: "Caméra Voiture LP", funnelUrl: "", quantity: 1, created_at: "2026-05-13T12:00:00Z", received_at: "2026-05-13T12:00:00Z", callAttempts: 0, recovered: false, notes: "" },
-  { id: "purchase_d3", type: "purchase", customer: "Omar Benhaddou", phone: "0777889900", email: "", city: "Oujda", address: "", product: "Écouteurs BT X2", amount: 199, currency: "MAD", funnel: "Écouteurs LP", funnelUrl: "", quantity: 1, created_at: "2026-05-12T11:00:00Z", received_at: "2026-05-12T11:00:00Z", callAttempts: 0, recovered: false, notes: "" },
-];
-
 const LEADS_KEY = "codcrm_funnel_leads";
 
 type Filter = "tous" | "purchase" | "abandoned" | "recovered";
@@ -51,7 +40,7 @@ function relTime(iso: string) {
 }
 
 export default function FunnelsPage() {
-  const [leads, setLeads] = useState<FunnelLead[]>(DEMO_LEADS);
+  const [leads, setLeads] = useState<FunnelLead[]>([]);
   const [filter, setFilter] = useState<Filter>("tous");
   const [search, setSearch] = useState("");
   const [noteModal, setNoteModal] = useState<FunnelLead | null>(null);
