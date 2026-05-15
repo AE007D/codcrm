@@ -6,6 +6,15 @@ import {
   hashPassword,
 } from "@/lib/authStore";
 
+function clearAllStores() {
+  // Wipe all in-memory data so the first admin starts with a clean slate
+  globalThis.__lfOrders = [];
+  globalThis.__lfEvents = 0;
+  globalThis.__lfLeads = [];
+  globalThis.__lpPages = [];
+  globalThis.__webhookDebugLog = [];
+}
+
 export async function POST(request: NextRequest) {
   let body: { name?: string; email?: string; password?: string; role?: string };
   try {
@@ -21,6 +30,11 @@ export async function POST(request: NextRequest) {
 
   const users = getUsers();
   const isFirstUser = users.length === 0;
+
+  // First user (admin) always gets a fresh empty workspace
+  if (isFirstUser) {
+    clearAllStores();
+  }
 
   const existing = getUserByEmail(email);
   if (existing) {
