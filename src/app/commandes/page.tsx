@@ -301,19 +301,20 @@ export default function CommandesPage() {
               action: "addParcel",
               apiId: creds.apiId ?? "",
               apiKey: creds.apiKey ?? "",
-              // Ameex field names
-              reference: order.orderNumber || order.id.slice(-8),
-              fullname: order.customer,
-              name: order.customer,          // fallback alias
+              // Correct Ameex field names (matches integrations page)
+              receiver: order.customer,
               phone: order.phone,
               city: order.city,
               address: order.address || order.city,
-              price: order.amount,
-              description: order.product,
-              product: order.product,        // fallback alias
-              quantity: 1,
-              fragile: 0,
-              exchange: 0,
+              cod: order.amount,             // Cash On Delivery amount
+              product: order.product,
+              order_num: order.orderNumber || order.id.slice(-8),
+              comment: "",
+              type: "SIMPLE",
+              open: "NO",
+              try: "NO",
+              fragile: "0",
+              replace: "false",
             }),
           });
         } else {
