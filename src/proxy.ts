@@ -1,16 +1,16 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { getSession } from "@/lib/authStore";
 
 const SESSION_COOKIE = "codcrm_session";
 
 // Routes that are always public
 const PUBLIC_PATHS = ["/login"];
 
-// API routes that are public
+// API routes that are public (no auth needed)
 const PUBLIC_API_PREFIXES = [
   "/api/webhooks",
   "/api/lp-submit",
   "/api/lp-pages",
+  "/api/auth",   // all auth endpoints are public
 ];
 
 export function proxy(request: NextRequest) {
@@ -44,16 +44,10 @@ export function proxy(request: NextRequest) {
     }
   }
 
-  // Check session cookie
+  // Optimistic check: just verify the cookie exists.
+  // Real session validation happens inside each API/page route.
   const token = request.cookies.get(SESSION_COOKIE)?.value;
   if (!token) {
-    const loginUrl = request.nextUrl.clone();
-    loginUrl.pathname = "/login";
-    return NextResponse.redirect(loginUrl);
-  }
-
-  const user = getSession(token);
-  if (!user || !user.active) {
     const loginUrl = request.nextUrl.clone();
     loginUrl.pathname = "/login";
     return NextResponse.redirect(loginUrl);
