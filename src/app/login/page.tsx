@@ -22,36 +22,12 @@ export default function LoginPage() {
   const [regLoading, setRegLoading] = useState(false);
 
   const [mode, setMode] = useState<Mode>("login");
-  const [showRegisterLink, setShowRegisterLink] = useState(false);
-  const [checkingFirstUser, setCheckingFirstUser] = useState(true);
+  const [checkingAuth, setCheckingAuth] = useState(true);
 
   useEffect(() => {
-    async function check() {
-      try {
-        // Check if already authenticated
-        const meRes = await fetch("/api/auth/me");
-        if (meRes.ok) {
-          router.replace("/");
-          return;
-        }
-        // Check if there are no users yet (first run)
-        const usersRes = await fetch("/api/auth/users");
-        if (usersRes.status === 403) {
-          // 403 means there IS an admin (but we're not one), so hide register link
-          setShowRegisterLink(false);
-        } else if (!usersRes.ok) {
-          setShowRegisterLink(false);
-        } else {
-          const data = await usersRes.json();
-          setShowRegisterLink(data.users?.length === 0);
-        }
-      } catch {
-        setShowRegisterLink(false);
-      } finally {
-        setCheckingFirstUser(false);
-      }
-    }
-    check();
+    fetch("/api/auth/me").then(res => {
+      if (res.ok) router.replace("/");
+    }).finally(() => setCheckingAuth(false));
   }, [router]);
 
   async function handleLogin(e: React.FormEvent) {
@@ -111,7 +87,7 @@ export default function LoginPage() {
     }
   }
 
-  if (checkingFirstUser) {
+  if (checkingAuth) {
     return (
       <div className="min-h-screen bg-[#F0F4FF] flex items-center justify-center">
         <div className="w-8 h-8 border-2 border-blue-600 border-t-transparent rounded-full animate-spin" />
@@ -177,21 +153,19 @@ export default function LoginPage() {
                 </button>
               </form>
 
-              {showRegisterLink && (
-                <div className="mt-5 text-center">
-                  <button
-                    onClick={() => { setMode("register"); setLoginError(""); }}
-                    className="text-sm text-blue-600 hover:text-blue-700 font-medium transition-colors"
-                  >
-                    Créer un compte (premier utilisateur)
-                  </button>
-                </div>
-              )}
+              <div className="mt-5 text-center">
+                <button
+                  onClick={() => { setMode("register"); setLoginError(""); }}
+                  className="text-sm text-blue-600 hover:text-blue-700 font-medium transition-colors"
+                >
+                  Créer un compte
+                </button>
+              </div>
             </>
           ) : (
             <>
               <h2 className="text-xl font-bold text-slate-900 mb-1">Créer un compte</h2>
-              <p className="text-sm text-slate-400 mb-6">Premier administrateur du CRM</p>
+              <p className="text-sm text-slate-400 mb-6">Rejoindre l'équipe COD CRM</p>
 
               {regError && (
                 <div className="bg-red-50 border border-red-200 text-red-700 text-sm px-4 py-3 rounded-xl mb-4">
@@ -239,7 +213,7 @@ export default function LoginPage() {
                   disabled={regLoading}
                   className="w-full py-2.5 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed text-white text-sm font-semibold rounded-xl shadow-md shadow-blue-200 transition-all mt-1"
                 >
-                  {regLoading ? "Création..." : "Créer le compte admin"}
+                  {regLoading ? "Création..." : "Créer mon compte"}
                 </button>
               </form>
 
