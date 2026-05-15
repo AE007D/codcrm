@@ -23,6 +23,7 @@ export type FunnelLead = {
   callAttempts: number;
   recovered: boolean;   // abandoned lead later called and converted
   notes: string;
+  ownerId: string;
 };
 
 declare global {
@@ -30,13 +31,14 @@ declare global {
   var __lfLeads: FunnelLead[] | undefined;
 }
 
-export function getLeads(): FunnelLead[] {
+export function getLeads(ownerId: string): FunnelLead[] {
   if (!globalThis.__lfLeads) globalThis.__lfLeads = [];
-  return globalThis.__lfLeads;
+  return globalThis.__lfLeads.filter(l => l.ownerId === ownerId);
 }
 
-export function addLead(lead: FunnelLead) {
+export function addLead(lead: FunnelLead, ownerId: string) {
   if (!globalThis.__lfLeads) globalThis.__lfLeads = [];
+  lead.ownerId = ownerId;
   const idx = globalThis.__lfLeads.findIndex(l => l.id === lead.id);
   if (idx >= 0) {
     globalThis.__lfLeads[idx] = lead;

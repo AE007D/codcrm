@@ -114,7 +114,10 @@ export default function IntegrationsPage() {
   const [lfOrders, setLfOrders] = useState<LFOrder[]>([]);
   const [lfEvents, setLfEvents] = useState(0);
   const [lfTab, setLfTab] = useState<"setup"|"orders">("setup");
-  const webhookUrl = typeof window !== "undefined" ? `${window.location.origin}/api/webhooks/lightfunnels` : "https://yourapp.com/api/webhooks/lightfunnels";
+  const [currentUserId, setCurrentUserId] = useState<string>("");
+  const webhookUrl = typeof window !== "undefined"
+    ? `${window.location.origin}/api/webhooks/lightfunnels${currentUserId ? `?uid=${currentUserId}` : ""}`
+    : "https://yourapp.com/api/webhooks/lightfunnels";
 
   /* Shopify state */
   const [shopify, setShopify] = useState({ store: "", apiKey: "" });
@@ -135,6 +138,11 @@ export default function IntegrationsPage() {
     const s = localStorage.getItem(SHOPIFY_KEY); if (s) { const c = JSON.parse(s); setShopifySaved(c); setShopify(c); }
     const fb = localStorage.getItem(FB_ADS_KEY); if (fb) { const c = JSON.parse(fb); setFbAdsSaved(c); setFbAds(c); }
     const tt = localStorage.getItem(TIKTOK_ADS_KEY); if (tt) { const c = JSON.parse(tt); setTiktokAdsSaved(c); setTiktokAds(c); }
+  }, []);
+
+  /* Fetch current user ID for personalized webhook URL */
+  useEffect(() => {
+    fetch("/api/auth/me").then(r => r.json()).then(d => { if (d.id) setCurrentUserId(d.id); }).catch(() => {});
   }, []);
 
   /* LF polling */

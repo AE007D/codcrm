@@ -12,6 +12,9 @@ export async function POST(request: NextRequest) {
   if (!page) return NextResponse.json({ error: "Page introuvable" }, { status: 404 });
   if (!page.active) return NextResponse.json({ error: "Page inactive" }, { status: 403 });
 
+  // Use the page's ownerId to attribute orders/leads to the correct account
+  const ownerId = page.ownerId;
+
   const customer = String(body.customer || "").trim();
   const phone = String(body.phone || "").trim();
   const city = String(body.city || "").trim();
@@ -41,8 +44,9 @@ export async function POST(request: NextRequest) {
     funnel: page.title,
     created_at: new Date().toISOString(),
     received_at: new Date().toISOString(),
+    ownerId,
   };
-  addOrder(order);
+  addOrder(order, ownerId);
 
   // Also add to funnel leads as a purchase
   const lead: FunnelLead = {
@@ -64,8 +68,9 @@ export async function POST(request: NextRequest) {
     callAttempts: 0,
     recovered: false,
     notes: "",
+    ownerId,
   };
-  addLead(lead);
+  addLead(lead, ownerId);
 
   incrementOrders(slug);
 

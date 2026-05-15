@@ -1,19 +1,28 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getPages, getPageBySlug, savePage, deletePage, LandingPage } from "@/lib/pageStore";
+import { getRequestUser } from "@/lib/getRequestUser";
 
 export const dynamic = "force-dynamic";
 
 export async function GET(request: NextRequest) {
+  const user = await getRequestUser();
+  if (!user) return NextResponse.json({ error: "Non authentifié." }, { status: 401 });
+
   const slug = request.nextUrl.searchParams.get("slug");
   if (slug) {
     const page = getPageBySlug(slug);
     if (!page) return NextResponse.json({ error: "Not found" }, { status: 404 });
+    // Only return the page if it belongs to this user
+    if (page.ownerId !== user.id) return NextResponse.json({ error: "Not found" }, { status: 404 });
     return NextResponse.json(page);
   }
-  return NextResponse.json({ pages: getPages() });
+  return NextResponse.json({ pages: getPages(user.id) });
 }
 
 export async function POST(request: NextRequest) {
+  const user = await getRequestUser();
+  if (!user) return NextResponse.json({ error: "Non authentifié." }, { status: 401 });
+
   let body: Partial<LandingPage>;
   try { body = await request.json(); } catch { return NextResponse.json({ error: "Invalid JSON" }, { status: 400 }); }
 
@@ -44,6 +53,7 @@ export async function POST(request: NextRequest) {
     views: 0,
     orders: 0,
     created_at: new Date().toISOString(),
+    ownerId: user.id,
   };
 
   savePage(page);
@@ -51,9 +61,13 @@ export async function POST(request: NextRequest) {
 }
 
 export async function PATCH(request: NextRequest) {
+  const user = await getRequestUser();
+  if (!user) return NextResponse.json({ error: "Non authentifié." }, { status: 401 });
+
   let body: Partial<LandingPage> & { id: string };
   try { body = await request.json(); } catch { return NextResponse.json({ error: "Invalid JSON" }, { status: 400 }); }
-  const pages = getPages();
+
+  const pages = getPages(user.id);
   const idx = pages.findIndex(p => p.id === body.id);
   if (idx < 0) return NextResponse.json({ error: "Not found" }, { status: 404 });
   savePage({ ...pages[idx], ...body });
@@ -61,8 +75,11 @@ export async function PATCH(request: NextRequest) {
 }
 
 export async function DELETE(request: NextRequest) {
+  const user = await getRequestUser();
+  if (!user) return NextResponse.json({ error: "Non authentifié." }, { status: 401 });
+
   const id = request.nextUrl.searchParams.get("id");
   if (!id) return NextResponse.json({ error: "Missing id" }, { status: 400 });
-  deletePage(id);
+  deletePage(id, user.id);
   return NextResponse.json({ ok: true });
 }

@@ -37,6 +37,9 @@ function findOrderRoot(body: Record<string, unknown>): Record<string, unknown> {
 }
 
 export async function POST(request: NextRequest) {
+  // Read ownerId from ?uid= query param (set by user in their Lightfunnels webhook URL)
+  const ownerId = request.nextUrl.searchParams.get("uid") ?? "";
+
   let body: Record<string, unknown>;
   try {
     body = await request.json();
@@ -77,9 +80,10 @@ export async function POST(request: NextRequest) {
       created_at: pick(raw.created_at) || new Date().toISOString(),
       received_at: new Date().toISOString(),
       callAttempts: 0, recovered: false, notes: "",
+      ownerId,
     };
 
-    addLead(lead);
+    addLead(lead, ownerId);
     return NextResponse.json({ ok: true, type: "abandoned", lead_id: lead.id });
   }
 
@@ -123,9 +127,10 @@ export async function POST(request: NextRequest) {
     funnel: pick(funnel.name, funnel.title, order.funnel_id),
     created_at: pick(order.created_at, body.created_at) || new Date().toISOString(),
     received_at: new Date().toISOString(),
+    ownerId,
   };
 
-  addOrder(parsed);
+  addOrder(parsed, ownerId);
 
   const purchaseLead: FunnelLead = {
     id: `purchase_${parsed.id}`,
@@ -144,8 +149,9 @@ export async function POST(request: NextRequest) {
     created_at: parsed.created_at,
     received_at: parsed.received_at,
     callAttempts: 0, recovered: false, notes: "",
+    ownerId,
   };
-  addLead(purchaseLead);
+  addLead(purchaseLead, ownerId);
 
   return NextResponse.json({ ok: true, type: "purchase", order_id: parsed.id });
 }

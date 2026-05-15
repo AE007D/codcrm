@@ -22,6 +22,7 @@ export type LandingPage = {
   views: number;
   orders: number;
   created_at: string;
+  ownerId: string;
 };
 
 declare global {
@@ -29,13 +30,14 @@ declare global {
   var __lpPages: LandingPage[] | undefined;
 }
 
-export function getPages(): LandingPage[] {
+export function getPages(ownerId: string): LandingPage[] {
   if (!globalThis.__lpPages) globalThis.__lpPages = [];
-  return globalThis.__lpPages;
+  return globalThis.__lpPages.filter(p => p.ownerId === ownerId);
 }
 
 export function getPageBySlug(slug: string): LandingPage | undefined {
-  return getPages().find(p => p.slug === slug);
+  if (!globalThis.__lpPages) return undefined;
+  return globalThis.__lpPages.find(p => p.slug === slug);
 }
 
 export function savePage(page: LandingPage) {
@@ -45,9 +47,9 @@ export function savePage(page: LandingPage) {
   else globalThis.__lpPages.unshift(page);
 }
 
-export function deletePage(id: string) {
+export function deletePage(id: string, ownerId: string) {
   if (!globalThis.__lpPages) return;
-  globalThis.__lpPages = globalThis.__lpPages.filter(p => p.id !== id);
+  globalThis.__lpPages = globalThis.__lpPages.filter(p => !(p.id === id && p.ownerId === ownerId));
 }
 
 export function incrementViews(slug: string) {

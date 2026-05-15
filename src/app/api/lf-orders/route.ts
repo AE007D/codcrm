@@ -1,12 +1,17 @@
 import { NextResponse } from "next/server";
 import { getOrders, getEventCount } from "@/lib/orderStore";
+import { getRequestUser } from "@/lib/getRequestUser";
 
 export const dynamic = "force-dynamic";
 
 export async function GET() {
+  const user = await getRequestUser();
+  if (!user) return NextResponse.json({ error: "Non authentifié." }, { status: 401 });
+
+  const orders = getOrders(user.id);
   return NextResponse.json({
-    orders: getOrders(),
-    total: getOrders().length,
+    orders,
+    total: orders.length,
     events: getEventCount(),
   });
 }

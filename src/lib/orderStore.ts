@@ -18,6 +18,7 @@ export type LFOrder = {
   funnel: string;
   created_at: string;
   received_at: string;
+  ownerId: string;
 };
 
 declare global {
@@ -27,13 +28,14 @@ declare global {
   var __lfEvents: number | undefined;
 }
 
-export function getOrders(): LFOrder[] {
+export function getOrders(ownerId: string): LFOrder[] {
   if (!globalThis.__lfOrders) globalThis.__lfOrders = [];
-  return globalThis.__lfOrders;
+  return globalThis.__lfOrders.filter(o => o.ownerId === ownerId);
 }
 
-export function addOrder(order: LFOrder) {
+export function addOrder(order: LFOrder, ownerId: string) {
   if (!globalThis.__lfOrders) globalThis.__lfOrders = [];
+  order.ownerId = ownerId;
   // Deduplicate by id
   const existing = globalThis.__lfOrders.findIndex(o => o.id === order.id);
   if (existing >= 0) {
