@@ -1,53 +1,73 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getRequestUser } from "@/lib/getRequestUser";
-import { getProducts, createProduct, updateProduct, deleteProduct, addStock } from "@/lib/productStore";
+import { getProducts, createProduct, updateProduct, deleteProduct, addStock } from "@/lib/supabaseProductStore";
 
 export async function GET() {
   const user = await getRequestUser();
   if (!user) return NextResponse.json({ error: "Non authentifié." }, { status: 401 });
-  return NextResponse.json({ products: getProducts(user.workspaceId) });
+  const products = await getProducts(user.workspaceId);
+  return NextResponse.json({ products });
 }
 
 export async function POST(request: NextRequest) {
   const user = await getRequestUser();
   if (!user) return NextResponse.json({ error: "Non authentifié." }, { status: 401 });
 
-  const body = await request.json();
-  const { name, sku, image, sellPrice, purchasePrice, stock, minStock } = body;
-  if (!name) return NextResponse.json({ error: "Le nom est requis." }, { status: 400 });
+  try {
+    const body = await request.json();
+    const { name, sku, image, sellPrice, purchasePrice, stock, minStock } = body;
+    if (!name) return NextResponse.json({ error: "Le nom est requis." }, { status: 400 });
 
-  const product = createProduct({
-    ownerId: user.workspaceId,
-    name: String(name).trim(),
-    sku: String(sku ?? "").trim(),
-    image: String(image ?? ""),
-    sellPrice: parseFloat(sellPrice) || 0,
-    purchasePrice: parseFloat(purchasePrice) || 0,
-    stock: parseInt(stock) || 0,
-    minStock: parseInt(minStock) || 5,
-  });
+    const product = await createProduct({
+      ownerId: user.workspaceId,
+      name: String(name).trim(),
+      sku: String(sku ?? "").trim(),
+      image: String(image ?? ""),
+      sellPrice: parseFloat(sellPrice) || 0,
+      purchasePrice: parseFloat(purchasePrice) || 0,
+      stock: parseInt(stock) || 0,
+      minStock: parseInt(minStock) || 5,
+    });
 
-  return NextResponse.json({ ok: true, product });
+    return NextResponse.json({ ok: true, product });
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : "Erreur serveur";
+    return NextResponse.json({ error: msg }, { status: 500 });
+  }
 }
 
 export async function PATCH(request: NextRequest) {
   const user = await getRequestUser();
   if (!user) return NextResponse.json({ error: "Non authentifié." }, { status: 401 });
 
-  const body = await request.json();
-  const { id, action, qty, ...rest } = body;
-  if (!id) return NextResponse.json({ error: "ID requis." }, { status: 400 });
+  try {
+    const body = await request.json();
+    const { id, action, qty, ...rest } = body;
+    if (!id) return NextResponse.json({ error: "ID requis." }, { status: 400 });
 
-  // Special action: add stock
-  if (action === "addStock") {
-    const updated = addStock(id, user.workspaceId, parseInt(qty) || 0);
+    if (action === "addStock") {
+      const updated = await addStock(id, user.workspaceId, parseInt(qty) || 0);
+      if (!updated) return NextResponse.json({ error: "Produit introuvable." }, { status: 404 });
+      return NextResponse.json({ ok: true, product: updated });
+    }
+
+    // Normalize field names
+    const patch: Record<string, unknown> = {};
+    if (rest.name !== undefined) patch.name = rest.name;
+    if (rest.sku !== undefined) patch.sku = rest.sku;
+    if (rest.image !== undefined) patch.image = rest.image;
+    if (rest.sellPrice !== undefined) patch.sellPrice = parseFloat(rest.sellPrice) || 0;
+    if (rest.purchasePrice !== undefined) patch.purchasePrice = parseFloat(rest.purchasePrice) || 0;
+    if (rest.stock !== undefined) patch.stock = parseInt(rest.stock) || 0;
+    if (rest.minStock !== undefined) patch.minStock = parseInt(rest.minStock) || 5;
+
+    const updated = await updateProduct(id, user.workspaceId, patch);
     if (!updated) return NextResponse.json({ error: "Produit introuvable." }, { status: 404 });
     return NextResponse.json({ ok: true, product: updated });
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : "Erreur serveur";
+    return NextResponse.json({ error: msg }, { status: 500 });
   }
-
-  const updated = updateProduct(id, user.workspaceId, rest);
-  if (!updated) return NextResponse.json({ error: "Produit introuvable." }, { status: 404 });
-  return NextResponse.json({ ok: true, product: updated });
 }
 
 export async function DELETE(request: NextRequest) {
@@ -58,7 +78,7 @@ export async function DELETE(request: NextRequest) {
   const { id } = body;
   if (!id) return NextResponse.json({ error: "ID requis." }, { status: 400 });
 
-  const ok = deleteProduct(id, user.workspaceId);
+  const ok = await deleteProduct(id, user.workspaceId);
   if (!ok) return NextResponse.json({ error: "Produit introuvable." }, { status: 404 });
   return NextResponse.json({ ok: true });
 }
