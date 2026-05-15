@@ -25,8 +25,8 @@ export function proxy(request: NextRequest) {
     return NextResponse.next();
   }
 
-  // Public landing pages: /lp/[slug]
-  if (pathname.startsWith("/lp/")) {
+  // Public landing pages: /lp/[slug] and /p/[id]
+  if (pathname.startsWith("/lp/") || pathname.startsWith("/p/")) {
     return NextResponse.next();
   }
 
@@ -35,6 +35,11 @@ export function proxy(request: NextRequest) {
     if (pathname.startsWith(prefix)) {
       return NextResponse.next();
     }
+  }
+
+  // Public product page API
+  if (pathname.startsWith("/api/p/")) {
+    return NextResponse.next();
   }
 
   // Public pages
