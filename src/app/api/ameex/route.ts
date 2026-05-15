@@ -19,17 +19,25 @@ const ENDPOINTS: Record<string, { path: string; method: string }> = {
 export async function POST(request: NextRequest) {
   const { action, apiId, apiKey, ...params } = await request.json();
 
-  // For addParcel with STOCK type: ensure p_hub is always set from saved settings
-  if (action === "addParcel" && params.type === "STOCK" && !params.p_hub) {
-    try {
-      const user = await getRequestUser();
-      if (user) {
-        const settings = await getSettings(user.workspaceId);
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const depotId = (settings as any).ameex?.depotId;
-        if (depotId) params.p_hub = depotId;
-      }
-    } catch { /* silent — proceed without p_hub */ }
+  // For addParcel with STOCK type: ensure p_hub is always injected
+  if (action === "addParcel" && params.type === "STOCK") {
+    // Only inject if not already a valid numeric hub id
+    const currentHub = String(params.p_hub ?? "").trim();
+    const isValid = currentHub && /^\d+$/.test(currentHub);
+    if (!isValid) {
+      // Try reading from user's saved settings first
+      let depotId = "";
+      try {
+        const user = await getRequestUser();
+        if (user) {
+          const settings = await getSettings(user.workspaceId);
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          depotId = String((settings as any).ameex?.depotId ?? "").trim();
+        }
+      } catch { /* silent */ }
+      // Always fall back to 34 (Casablanca Hub Principal) — confirmed from account JWT
+      params.p_hub = /^\d+$/.test(depotId) ? depotId : "34";
+    }
   }
 
   const ep = ENDPOINTS[action];
