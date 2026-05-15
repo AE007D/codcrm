@@ -1,4 +1,4 @@
-// Auth store — users persisted in Supabase, sessions in-memory
+// Auth store — users AND sessions persisted in Supabase
 import crypto from "crypto";
 import { supabase } from "./supabase";
 
@@ -15,18 +15,8 @@ export type User = {
   avatar?: string; // URL or base64 data URL
 };
 
-export type Session = {
-  token: string;
-  userId: string;
-  createdAt: string;
-};
-
-declare global {
-  // eslint-disable-next-line no-var
-  var __crmSessions: Session[] | undefined;
-}
-
 const SALT = "CODCRM_SALT_";
+const SESSION_TTL_DAYS = 30;
 
 export function hashPassword(password: string): string {
   return crypto.createHash("sha256").update(SALT + password).digest("hex");
@@ -120,38 +110,51 @@ export async function updateUser(
 }
 
 export async function deleteUser(id: string): Promise<boolean> {
+  // Sessions cascade-delete via FK
   const { error } = await supabase.from("crm_users").delete().eq("id", id);
   if (error) { console.error("deleteUser:", error.message); return false; }
-  // Also purge in-memory sessions for this user
-  if (globalThis.__crmSessions) {
-    globalThis.__crmSessions = globalThis.__crmSessions.filter(s => s.userId !== id);
-  }
   return true;
 }
 
-// ── Session helpers (in-memory, short-lived) ──────────────────────────────
+// ── Session helpers (Supabase-backed, survives serverless restarts) ─────────
 
-function getSessions(): Session[] {
-  if (!globalThis.__crmSessions) globalThis.__crmSessions = [];
-  return globalThis.__crmSessions;
-}
-
-export function createSession(userId: string): string {
+export async function createSession(userId: string): Promise<string> {
   const token = crypto.randomBytes(32).toString("hex");
-  getSessions().push({ token, userId, createdAt: new Date().toISOString() });
+  const now = new Date();
+  const expires = new Date(now.getTime() + SESSION_TTL_DAYS * 24 * 60 * 60 * 1000);
+
+  const { error } = await supabase.from("crm_sessions").insert({
+    token,
+    user_id: userId,
+    created_at: now.toISOString(),
+    expires_at: expires.toISOString(),
+  });
+
+  if (error) throw new Error("createSession: " + error.message);
   return token;
 }
 
-/** Async version — resolves the user from Supabase via session token */
 export async function getSession(token: string): Promise<User | null> {
-  const session = getSessions().find(s => s.token === token);
-  if (!session) return null;
-  return (await getUserById(session.userId)) ?? null;
+  const { data, error } = await supabase
+    .from("crm_sessions")
+    .select("user_id, expires_at")
+    .eq("token", token)
+    .maybeSingle();
+
+  if (error || !data) return null;
+
+  // Check expiry
+  if (new Date(data.expires_at) < new Date()) {
+    // Expired — clean up
+    await supabase.from("crm_sessions").delete().eq("token", token);
+    return null;
+  }
+
+  return (await getUserById(data.user_id)) ?? null;
 }
 
-export function deleteSession(token: string): void {
-  if (!globalThis.__crmSessions) return;
-  globalThis.__crmSessions = globalThis.__crmSessions.filter(s => s.token !== token);
+export async function deleteSession(token: string): Promise<void> {
+  await supabase.from("crm_sessions").delete().eq("token", token);
 }
 
 // ── Row mapper ─────────────────────────────────────────────────────────────

@@ -29,7 +29,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Identifiants incorrects." }, { status: 401 });
     }
 
-    const token = createSession(user.id);
+    const token = await createSession(user.id);
 
     const cookieStore = await cookies();
     cookieStore.set(SESSION_COOKIE, token, {
