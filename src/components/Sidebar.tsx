@@ -3,7 +3,7 @@
 import Link from "next/link";
 import Image from "next/image";
 import { usePathname, useRouter } from "next/navigation";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 
 type CurrentUser = {
   id: string;
@@ -140,6 +140,92 @@ export default function Sidebar() {
     }
   }
 
+  // ── New order sound + polling ─────────────────────────────────────────────
+  const [soundEnabled, setSoundEnabled] = useState(true);
+  const lastOrderCount = useRef<number | null>(null);
+  const audioUnlocked = useRef(false);
+
+  function playChaChing() {
+    try {
+      const ctx = new AudioContext();
+      const now = ctx.currentTime;
+
+      // "Cha" — first coin hit
+      const osc1 = ctx.createOscillator();
+      const gain1 = ctx.createGain();
+      osc1.connect(gain1); gain1.connect(ctx.destination);
+      osc1.type = "sine";
+      osc1.frequency.setValueAtTime(1318, now);
+      osc1.frequency.exponentialRampToValueAtTime(880, now + 0.12);
+      gain1.gain.setValueAtTime(0.45, now);
+      gain1.gain.exponentialRampToValueAtTime(0.001, now + 0.25);
+      osc1.start(now); osc1.stop(now + 0.25);
+
+      // "Ching" — second coin ring
+      const osc2 = ctx.createOscillator();
+      const gain2 = ctx.createGain();
+      osc2.connect(gain2); gain2.connect(ctx.destination);
+      osc2.type = "sine";
+      osc2.frequency.setValueAtTime(1760, now + 0.13);
+      osc2.frequency.exponentialRampToValueAtTime(1320, now + 0.35);
+      gain2.gain.setValueAtTime(0, now + 0.13);
+      gain2.gain.setValueAtTime(0.5, now + 0.14);
+      gain2.gain.exponentialRampToValueAtTime(0.001, now + 0.6);
+      osc2.start(now + 0.13); osc2.stop(now + 0.6);
+
+      setTimeout(() => ctx.close(), 1200);
+    } catch { /* browser blocked audio */ }
+  }
+
+  // Unlock audio context on first user interaction
+  useEffect(() => {
+    function unlock() {
+      audioUnlocked.current = true;
+      window.removeEventListener("click", unlock);
+      window.removeEventListener("keydown", unlock);
+    }
+    window.addEventListener("click", unlock);
+    window.addEventListener("keydown", unlock);
+    return () => {
+      window.removeEventListener("click", unlock);
+      window.removeEventListener("keydown", unlock);
+    };
+  }, []);
+
+  // Poll for new orders every 30s
+  useEffect(() => {
+    async function checkOrders() {
+      try {
+        const res = await fetch("/api/lf-orders");
+        if (!res.ok) return;
+        const data = await res.json();
+        const count: number = (data.orders ?? []).length;
+
+        if (lastOrderCount.current === null) {
+          // First load — set baseline silently
+          lastOrderCount.current = count;
+        } else if (count > lastOrderCount.current) {
+          const newCount = count - lastOrderCount.current;
+          lastOrderCount.current = count;
+          if (soundEnabled && audioUnlocked.current) {
+            // Play once per new order (max 3 plays)
+            const plays = Math.min(newCount, 3);
+            for (let i = 0; i < plays; i++) {
+              setTimeout(() => playChaChing(), i * 700);
+            }
+          }
+          // Dispatch event so commandes page can refresh
+          window.dispatchEvent(new CustomEvent("new-orders", { detail: { count: newCount } }));
+        }
+      } catch { /* ignore */ }
+    }
+
+    checkOrders();
+    const interval = setInterval(checkOrders, 30_000);
+    return () => clearInterval(interval);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [soundEnabled]);
+
   const roleBadgeLabel: Record<string, string> = {
     admin: "Admin",
     agent: "Agent",
@@ -224,6 +310,32 @@ export default function Sidebar() {
         </nav>
 
         <div className="p-3 border-t border-slate-100">
+          {/* Sound toggle */}
+          <button
+            onClick={() => setSoundEnabled(v => !v)}
+            title={soundEnabled ? "Désactiver le son" : "Activer le son"}
+            className="w-full mb-1 flex items-center gap-2 px-3 py-2 rounded-xl text-sm text-slate-400 hover:bg-slate-50 hover:text-slate-700 transition-colors"
+          >
+            {soundEnabled ? (
+              <>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="w-4 h-4 text-emerald-500">
+                  <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/>
+                  <path d="M15.54 8.46a5 5 0 010 7.07M19.07 4.93a10 10 0 010 14.14"/>
+                </svg>
+                <span className="text-slate-500">Son activé</span>
+                <span className="ml-auto w-2 h-2 rounded-full bg-emerald-400"/>
+              </>
+            ) : (
+              <>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="w-4 h-4">
+                  <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/>
+                  <line x1="23" y1="9" x2="17" y2="15"/><line x1="17" y1="9" x2="23" y2="15"/>
+                </svg>
+                <span>Son désactivé</span>
+              </>
+            )}
+          </button>
+
           <Link href="/compte" className="flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-slate-50 transition-colors group">
             {/* Avatar */}
             <div className="w-8 h-8 rounded-xl shrink-0 overflow-hidden shadow-md shadow-blue-100">
