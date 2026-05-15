@@ -208,7 +208,7 @@ export default function Sidebar() {
   useEffect(() => {
     async function checkOrders() {
       try {
-        const res = await fetch("/api/lf-orders");
+        const res = await fetch("/api/orders");
         if (!res.ok) return;
         const data = await res.json();
         const count: number = (data.orders ?? []).length;

@@ -21,6 +21,7 @@ export async function GET() {
     email: user.email,
     role: user.role,
     avatar: user.avatar ?? null,
+    workspaceId: user.workspaceId,
   });
 }
 

@@ -112,9 +112,9 @@ export default function IntegrationsPage() {
   const [lfOrders, setLfOrders] = useState<LFOrder[]>([]);
   const [lfEvents, setLfEvents] = useState(0);
   const [lfTab, setLfTab] = useState<"setup"|"orders">("setup");
-  const [currentUserId, setCurrentUserId] = useState<string>("");
+  const [currentWorkspaceId, setCurrentWorkspaceId] = useState<string>("");
   const webhookUrl = typeof window !== "undefined"
-    ? `${window.location.origin}/api/webhooks/lightfunnels${currentUserId ? `?uid=${currentUserId}` : ""}`
+    ? `${window.location.origin}/api/webhooks/lightfunnels${currentWorkspaceId ? `?uid=${currentWorkspaceId}` : ""}`
     : "https://yourapp.com/api/webhooks/lightfunnels";
 
   /* Shopify state */
@@ -139,7 +139,7 @@ export default function IntegrationsPage() {
       if (s.facebook) { setFbAdsSaved(s.facebook);  setFbAds(s.facebook); }
       if (s.tiktok)   { setTiktokAdsSaved(s.tiktok);setTiktokAds(s.tiktok); }
     }).catch(() => {});
-    fetch("/api/auth/me").then(r => r.json()).then(d => { if (d.id) setCurrentUserId(d.id); }).catch(() => {});
+    fetch("/api/auth/me").then(r => r.json()).then(d => { if (d.workspaceId) setCurrentWorkspaceId(d.workspaceId); else if (d.id) setCurrentWorkspaceId(d.id); }).catch(() => {});
   }, []);
 
   /* LF polling */

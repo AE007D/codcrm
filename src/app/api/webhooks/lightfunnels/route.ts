@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { addOrder, LFOrder } from "@/lib/orderStore";
 import { addLead, FunnelLead } from "@/lib/leadStore";
 import { upsertOrder } from "@/lib/supabaseOrderStore";
+import { upsertLead } from "@/lib/supabaseLeadStore";
 
 // Pick first non-empty string value
 function pick(...vals: unknown[]): string {
@@ -85,6 +86,30 @@ export async function POST(request: NextRequest) {
     };
 
     addLead(lead, ownerId);
+
+    // Persist to Supabase
+    upsertLead({
+      id: lead.id,
+      workspaceId: ownerId,
+      type: "abandoned",
+      customer: lead.customer,
+      phone: lead.phone,
+      email: lead.email,
+      city: lead.city,
+      address: lead.address,
+      product: lead.product,
+      amount: lead.amount,
+      currency: lead.currency,
+      funnel: lead.funnel,
+      funnelUrl: lead.funnelUrl,
+      quantity: lead.quantity,
+      createdAt: lead.created_at,
+      receivedAt: lead.received_at,
+      callAttempts: 0,
+      recovered: false,
+      notes: "",
+    }).catch(e => console.error("upsertLead abandoned:", e));
+
     return NextResponse.json({ ok: true, type: "abandoned", lead_id: lead.id });
   }
 
@@ -176,6 +201,29 @@ export async function POST(request: NextRequest) {
     ownerId,
   };
   addLead(purchaseLead, ownerId);
+
+  // Persist purchase lead to Supabase
+  upsertLead({
+    id: purchaseLead.id,
+    workspaceId: ownerId,
+    type: "purchase",
+    customer: purchaseLead.customer,
+    phone: purchaseLead.phone,
+    email: purchaseLead.email,
+    city: purchaseLead.city,
+    address: purchaseLead.address,
+    product: purchaseLead.product,
+    amount: purchaseLead.amount,
+    currency: purchaseLead.currency,
+    funnel: purchaseLead.funnel,
+    funnelUrl: purchaseLead.funnelUrl,
+    quantity: purchaseLead.quantity,
+    createdAt: purchaseLead.created_at,
+    receivedAt: purchaseLead.received_at,
+    callAttempts: 0,
+    recovered: false,
+    notes: "",
+  }).catch(e => console.error("upsertLead purchase:", e));
 
   return NextResponse.json({ ok: true, type: "purchase", order_id: parsed.id });
 }
