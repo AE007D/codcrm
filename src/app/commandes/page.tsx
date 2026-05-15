@@ -131,6 +131,10 @@ export default function CommandesPage() {
   const [ameexCities, setAmeexCities] = useState<{ id: string; name: string }[]>([]);
   const [cityOverrides, setCityOverrides] = useState<Record<string, string>>({}); // orderId → cityId
 
+  // Edit mode for drawer
+  const [editMode, setEditMode] = useState(false);
+  const [editForm, setEditForm] = useState<{ customer: string; phone: string; city: string; address: string; product: string; amount: string }>({ customer: "", phone: "", city: "", address: "", product: "", amount: "" });
+
   // ── Fetch all orders from Supabase ────────────────────────────────────────
   const fetchOrders = useCallback(async () => {
     try {
@@ -202,6 +206,32 @@ export default function CommandesPage() {
     setOrders(prev => prev.map(o => o.id === id ? { ...o, notes: note } : o));
     setDrawer(prev => prev?.id === id ? { ...prev, notes: note } : prev);
     fetch("/api/orders", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id, notes: note }) }).catch(() => {});
+  }
+
+  async function saveEditForm() {
+    if (!drawer) return;
+    const patch = {
+      customerName: editForm.customer,
+      customerPhone: editForm.phone,
+      city: editForm.city,
+      address: editForm.address,
+      product: editForm.product,
+      totalPrice: parseFloat(editForm.amount) || 0,
+    };
+    const res = await fetch("/api/orders", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id: drawer.id, ...patch }),
+    });
+    if (res.ok) {
+      const updated = { ...drawer, customer: editForm.customer, phone: editForm.phone, city: editForm.city, address: editForm.address, product: editForm.product, amount: parseFloat(editForm.amount) || 0 };
+      setOrders(prev => prev.map(o => o.id === drawer.id ? updated : o));
+      setDrawer(updated);
+      setEditMode(false);
+      showToast("Commande modifiée ✓");
+    } else {
+      showToast("Erreur lors de la modification.", false);
+    }
   }
 
   async function addOrder() {
@@ -888,48 +918,81 @@ export default function CommandesPage() {
                 <SourceBadge source={drawer.source} />
                 <span className="text-xs text-slate-400">{drawer.date}</span>
               </div>
-              <button onClick={() => setDrawer(null)} className="w-8 h-8 rounded-xl hover:bg-slate-100 flex items-center justify-center text-slate-400">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="w-4 h-4"><path d="M18 6L6 18M6 6l12 12"/></svg>
-              </button>
+              <div className="flex items-center gap-2">
+                <button onClick={() => { setEditMode(!editMode); setEditForm({ customer: drawer.customer, phone: drawer.phone, city: drawer.city, address: drawer.address, product: drawer.product, amount: String(drawer.amount) }); }}
+                  className={`w-8 h-8 rounded-xl flex items-center justify-center transition-colors ${editMode ? "bg-blue-100 text-blue-600" : "hover:bg-slate-100 text-slate-400"}`} title="Modifier">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="w-4 h-4"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+                </button>
+                <button onClick={() => { setDrawer(null); setEditMode(false); }} className="w-8 h-8 rounded-xl hover:bg-slate-100 flex items-center justify-center text-slate-400">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="w-4 h-4"><path d="M18 6L6 18M6 6l12 12"/></svg>
+                </button>
+              </div>
             </div>
 
             <div className="flex-1 overflow-y-auto p-6 space-y-5">
-              <div className="bg-slate-50 rounded-2xl p-4 space-y-3">
-                <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider">Client</h3>
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-xl bg-blue-100 flex items-center justify-center text-blue-700 font-bold text-lg shrink-0">
-                    {drawer.customer.charAt(0).toUpperCase()}
-                  </div>
-                  <div>
-                    <p className="font-bold text-slate-900">{drawer.customer}</p>
-                    <p className="text-sm text-slate-500">{drawer.city || "Ville inconnue"}{drawer.address ? ` · ${drawer.address}` : ""}</p>
+              {editMode ? (
+                <div className="bg-blue-50 border border-blue-100 rounded-2xl p-4 space-y-3">
+                  <h3 className="text-xs font-bold text-blue-600 uppercase tracking-wider">Modifier la commande</h3>
+                  {[
+                    { key: "customer", label: "Nom client", ph: "Nom complet" },
+                    { key: "phone",    label: "Téléphone",  ph: "0612345678" },
+                    { key: "city",     label: "Ville",      ph: "Casablanca" },
+                    { key: "address",  label: "Adresse",    ph: "Rue, quartier…" },
+                    { key: "product",  label: "Produit",    ph: "Nom du produit" },
+                    { key: "amount",   label: "COD (MAD)",  ph: "350" },
+                  ].map(({ key, label, ph }) => (
+                    <div key={key}>
+                      <label className="text-xs font-semibold text-slate-500 mb-1 block">{label}</label>
+                      <input type={key === "amount" ? "number" : "text"} placeholder={ph}
+                        value={editForm[key as keyof typeof editForm]}
+                        onChange={e => setEditForm(f => ({ ...f, [key]: e.target.value }))}
+                        className="w-full text-sm border border-slate-200 rounded-xl px-3 py-2 outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-50 bg-white" />
+                    </div>
+                  ))}
+                  <div className="flex gap-2 pt-1">
+                    <button onClick={() => setEditMode(false)} className="flex-1 py-2 rounded-xl border border-slate-200 text-sm font-semibold text-slate-600 hover:bg-slate-50">Annuler</button>
+                    <button onClick={saveEditForm} className="flex-1 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold shadow-md shadow-blue-200">Sauvegarder</button>
                   </div>
                 </div>
-                <div className="flex items-center gap-2">
-                  <a href={`tel:${drawer.phone}`} onClick={() => incrementAttempt(drawer.id)}
-                    className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold px-4 py-2 rounded-xl transition-colors shadow-md shadow-blue-200">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="w-4 h-4"><path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07 19.5 19.5 0 01-6-6A19.79 19.79 0 012.12 4.18 2 2 0 014.11 2h3a2 2 0 012 1.72c.127.96.361 1.903.7 2.81a2 2 0 01-.45 2.11L8.09 9.91a16 16 0 006 6l1.27-1.27a2 2 0 012.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0122 16.92z"/></svg>
-                    {drawer.phone}
-                  </a>
-                  <button onClick={() => markNoAnswer(drawer.id)}
-                    className={`flex items-center gap-1.5 text-sm font-semibold px-4 py-2 rounded-xl transition-colors ${drawer.noAnswer >= 3 ? "bg-amber-500 hover:bg-amber-600 text-white" : "bg-slate-200 hover:bg-slate-300 text-slate-700"}`}>
-                    📵 Pas dispo
-                  </button>
-                </div>
-                {drawer.noAnswer > 0 && (
-                  <div className={`flex items-center gap-2 text-xs font-semibold px-3 py-2 rounded-xl ${drawer.noAnswer >= 3 ? "bg-amber-100 text-amber-700" : "bg-slate-100 text-slate-500"}`}>
-                    📵 {drawer.noAnswer} sans réponse · {drawer.attempts} appel(s)
+              ) : (
+                <>
+                  <div className="bg-slate-50 rounded-2xl p-4 space-y-3">
+                    <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider">Client</h3>
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-xl bg-blue-100 flex items-center justify-center text-blue-700 font-bold text-lg shrink-0">
+                        {drawer.customer.charAt(0).toUpperCase()}
+                      </div>
+                      <div>
+                        <p className="font-bold text-slate-900">{drawer.customer}</p>
+                        <p className="text-sm text-slate-500">{drawer.city || "Ville inconnue"}{drawer.address ? ` · ${drawer.address}` : ""}</p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <a href={`tel:${drawer.phone}`} onClick={() => incrementAttempt(drawer.id)}
+                        className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold px-4 py-2 rounded-xl transition-colors shadow-md shadow-blue-200">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="w-4 h-4"><path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07 19.5 19.5 0 01-6-6A19.79 19.79 0 012.12 4.18 2 2 0 014.11 2h3a2 2 0 012 1.72c.127.96.361 1.903.7 2.81a2 2 0 01-.45 2.11L8.09 9.91a16 16 0 006 6l1.27-1.27a2 2 0 012.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0122 16.92z"/></svg>
+                        {drawer.phone}
+                      </a>
+                      <button onClick={() => markNoAnswer(drawer.id)}
+                        className={`flex items-center gap-1.5 text-sm font-semibold px-4 py-2 rounded-xl transition-colors ${drawer.noAnswer >= 3 ? "bg-amber-500 hover:bg-amber-600 text-white" : "bg-slate-200 hover:bg-slate-300 text-slate-700"}`}>
+                        📵 Pas dispo
+                      </button>
+                    </div>
+                    {drawer.noAnswer > 0 && (
+                      <div className={`flex items-center gap-2 text-xs font-semibold px-3 py-2 rounded-xl ${drawer.noAnswer >= 3 ? "bg-amber-100 text-amber-700" : "bg-slate-100 text-slate-500"}`}>
+                        📵 {drawer.noAnswer} sans réponse · {drawer.attempts} appel(s)
+                      </div>
+                    )}
                   </div>
-                )}
-              </div>
-
-              <div className="bg-slate-50 rounded-2xl p-4">
-                <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Commande</h3>
-                <div className="flex items-center justify-between">
-                  <p className="font-semibold text-slate-800">{drawer.product}</p>
-                  <p className="text-lg font-black text-slate-900">{drawer.amount} {drawer.currency}</p>
-                </div>
-              </div>
+                  <div className="bg-slate-50 rounded-2xl p-4">
+                    <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Commande</h3>
+                    <div className="flex items-center justify-between">
+                      <p className="font-semibold text-slate-800">{drawer.product}</p>
+                      <p className="text-lg font-black text-slate-900">{drawer.amount} {drawer.currency}</p>
+                    </div>
+                  </div>
+                </>
+              )}
 
               {/* Status changer */}
               <div className="space-y-3">
