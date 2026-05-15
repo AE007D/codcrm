@@ -363,18 +363,21 @@ export default function CommandesPage() {
           });
         }
         const data = await res.json();
-        // Detect success: Ameex returns status=success or an id/tracking field
+        // Ameex wraps response: {login:"success", api:{type:"success", msg:"...", data:{id:..., code:"..."}}}
+        const nested = data?.api?.data ?? data?.data ?? data;
         const ok = res.ok && (
+          data?.login === "success" ||
+          data?.api?.type === "success" ||
+          nested?.id != null ||
+          nested?.code != null ||
           data.status === "success" ||
           data.status === 1 ||
-          data.status === "1" ||
           data.id != null ||
           data.tracking != null ||
           data.parcel_id != null ||
-          data.barcode != null ||
-          (!data.error && !data.message?.toLowerCase().includes("error") && !data.message?.toLowerCase().includes("invalid") && res.status === 200 && !data.raw)
+          data.barcode != null
         );
-        const trackingCode = data.code ?? data.CODE ?? data.tracking ?? data.barcode ?? data.id ?? data.parcel_id ?? null;
+        const trackingCode = nested?.code ?? nested?.id ?? data.code ?? data.CODE ?? data.tracking ?? data.barcode ?? data.id ?? data.parcel_id ?? null;
         if (ok) {
           setStatus(order.id, "expédié");
           // Save the carrier tracking code so webhooks can auto-update this order
