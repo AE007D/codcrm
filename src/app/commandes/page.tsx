@@ -367,8 +367,12 @@ export default function CommandesPage() {
         if (shipCarrier === "ameex") {
           // Resolve city: manual override > alias map > Ameex city list > raw name
           const cityRaw       = (order.city ?? "").trim();
-          const cityCanonical = resolveCity(cityRaw);          // "casa" → "Casablanca", "مكناس" → "Meknès"
-          const cityId        = cityOverrides[order.id] ?? ameexCityMap[normalize(cityCanonical)] ?? ameexCityMap[normalize(cityRaw)] ?? cityRaw;
+          const cityCanonical = resolveCity(cityRaw);
+          const overrideRaw   = cityOverrides[order.id] ?? "";
+          const overrideCanon = resolveCity(overrideRaw);
+          const cityId        = (overrideRaw
+                              ? (ameexCityMap[normalize(overrideCanon)] ?? ameexCityMap[normalize(overrideRaw)] ?? overrideRaw)
+                              : (ameexCityMap[normalize(cityCanonical)] ?? ameexCityMap[normalize(cityRaw)] ?? cityRaw));
           res = await fetch("/api/ameex", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
@@ -874,25 +878,27 @@ export default function CommandesPage() {
                   <div className="space-y-2 bg-amber-50 border border-amber-200 rounded-2xl p-3">
                     <p className="text-xs font-bold text-amber-700">⚠ Ville manquante ou non reconnue — obligatoire pour Ameex :</p>
                     {unresolved.map(o => (
-                      <div key={o.id} className="flex items-center gap-2">
-                        <span className="text-xs text-slate-700 w-20 truncate font-semibold">{o.customer}</span>
-                        <span className="text-xs text-slate-400 w-16 truncate">{o.city || "—"}</span>
+                      <div key={o.id} className="space-y-1">
+                        <div className="flex items-center gap-1.5">
+                          <span className="text-xs font-bold text-slate-700">{o.customer}</span>
+                          {o.city && <span className="text-xs text-slate-400 bg-white px-1.5 py-0.5 rounded border border-slate-200">{o.city}</span>}
+                        </div>
                         {ameexCities.length > 0 ? (
                           <select
                             value={cityOverrides[o.id] ?? ""}
                             onChange={e => setCityOverrides(prev => ({ ...prev, [o.id]: e.target.value }))}
-                            className="flex-1 text-xs border border-amber-300 rounded-lg px-2 py-1.5 outline-none focus:border-blue-400 bg-white"
+                            className="w-full text-xs border border-amber-300 rounded-lg px-2 py-2 outline-none focus:border-blue-400 bg-white"
                           >
-                            <option value="">-- Choisir ville --</option>
+                            <option value="">-- Sélectionner la ville --</option>
                             {ameexCities.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
                           </select>
                         ) : (
                           <input
                             type="text"
-                            placeholder="ID Ville Ameex (ex: 5)"
+                            placeholder="Entrez le nom de la ville (ex: Casablanca, Rabat…)"
                             value={cityOverrides[o.id] ?? ""}
                             onChange={e => setCityOverrides(prev => ({ ...prev, [o.id]: e.target.value }))}
-                            className="flex-1 text-xs border border-amber-300 rounded-lg px-2 py-1.5 outline-none focus:border-blue-400 bg-white"
+                            className="w-full text-xs border border-amber-300 rounded-lg px-2 py-2 outline-none focus:border-blue-400 bg-white"
                           />
                         )}
                       </div>
