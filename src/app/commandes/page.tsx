@@ -391,24 +391,24 @@ export default function CommandesPage() {
         const cityList = rawC.map((c: Record<string,unknown>) => ({ id: String(c.id ?? c.city_id ?? ""), name: String(c.name ?? c.city_name ?? c.ville ?? "") })).filter((c: {id:string;name:string}) => c.id && c.name);
         if (cityList.length) { setAmeexCities(cityList); try { localStorage.setItem("codcrm_ameex_cities", JSON.stringify(cityList)); } catch { /* */ } }
 
-        // Depots (try both known endpoints)
-        const loadDepots = async (action: string) => {
-          const dd = await fetch("/api/ameex", {
+        // Load hubs from Cnfg/App (confirmed endpoint that contains ameex_hubs)
+        try {
+          const cfg = await fetch("/api/ameex", {
             method: "POST", headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ action, apiId: creds.apiId, apiKey: creds.apiKey }),
+            body: JSON.stringify({ action: "cnfgApp", apiId: creds.apiId, apiKey: creds.apiKey }),
           }).then(r => r.json());
-          const rawD = Array.isArray(dd) ? dd : Array.isArray(dd?.api?.data) ? dd.api.data : Array.isArray(dd?.data) ? dd.data : Array.isArray(dd?.depots) ? dd.depots : [];
-          return rawD.map((d: Record<string,unknown>) => ({
-            id: String(d.id ?? d.depot_id ?? d.hub_id ?? ""),
-            name: String(d.name ?? d.depot_name ?? d.hub_name ?? d.label ?? ""),
-          })).filter((d: {id:string;name:string}) => d.id && d.name);
-        };
-        let depotList = await loadDepots("depots");
-        if (!depotList.length) depotList = await loadDepots("stocks");
-        if (depotList.length) {
-          setAmeexDepots(depotList);
-          if (!ameexDepot) setAmeexDepot(depotList[0].id);
-        }
+          const rawHubs = cfg?.data?.ameex_hubs ?? cfg?.ameex_hubs ?? cfg?.data?.hubs ?? cfg?.hubs ?? [];
+          const hubList = (Array.isArray(rawHubs) ? rawHubs : Object.values(rawHubs))
+            .map((h: unknown) => {
+              const hub = h as Record<string,unknown>;
+              return { id: String(hub.id ?? hub.HUB_ID ?? hub.hub_id ?? ""), name: String(hub.name ?? hub.HUB_NAME ?? hub.hub_name ?? hub.label ?? "") };
+            })
+            .filter((h: {id:string;name:string}) => h.id && h.name);
+          if (hubList.length) {
+            setAmeexDepots(hubList);
+            if (!ameexDepot) setAmeexDepot(hubList[0].id);
+          }
+        } catch { /* silent */ }
       }
     } catch { /* silent */ }
   }
@@ -456,15 +456,8 @@ export default function CommandesPage() {
               order_num: order.orderNumber || order.id.slice(-8),
               comment: "",
               type: ameexShipType,
-              // For STOCK type: send depot ID under all possible Ameex field names
-              ...(ameexShipType === "STOCK" && ameexDepot ? {
-                depot:      ameexDepot,
-                depot_id:   ameexDepot,
-                hub:        ameexDepot,
-                hub_id:     ameexDepot,
-                warehouse:  ameexDepot,
-                stock:      ameexDepot,
-              } : {}),
+              // For STOCK type: p_hub is the confirmed Ameex API parameter for hub/depot
+              ...(ameexShipType === "STOCK" && ameexDepot ? { p_hub: ameexDepot } : {}),
               open: "NO",
               try: "NO",
               fragile: "0",

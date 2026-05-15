@@ -11,6 +11,7 @@ const ENDPOINTS: Record<string, { path: string; method: string }> = {
   cities:         { path: "/Delivery/Cities", method: "GET" },
   depots:         { path: "/Delivery/Depots", method: "GET" },
   stocks:         { path: "/Stock/Depots", method: "GET" },
+  cnfgApp:        { path: "/Cnfg/App", method: "POST" },
 };
 
 export async function POST(request: NextRequest) {
