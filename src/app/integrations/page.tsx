@@ -96,8 +96,9 @@ export default function IntegrationsPage() {
   const [ameexSaved, setAmeexSaved] = useState<Creds | null>(null);
   const [ameexParcels, setAmeexParcels] = useState<Parcel[]>([]);
   const [ameexForm, setAmeexForm] = useState({ receiver: "", phone: "", city: "", address: "", cod: "", product: "", order_num: "", comment: "", type: "SIMPLE", open: "NO", try: "NO", fragile: "0", replace: "false" });
-  const [ameexTab, setAmeexTab] = useState<"config"|"add"|"parcels"|"track">("config");
+  const [ameexTab, setAmeexTab] = useState<"config"|"add"|"parcels"|"track"|"cities">("config");
   const [ameexTrack, setAmeexTrack] = useState(""); const [ameexTrackRes, setAmeexTrackRes] = useState<Parcel | null>(null);
+  const [ameexCities, setAmeexCities] = useState<Parcel[]>([]); const [ameexCitySearch, setAmeexCitySearch] = useState(""); const [ameexCitiesRaw, setAmeexCitiesRaw] = useState<string>("");
 
   /* Eagle state */
   const [eagle, setEagle] = useState<EagleCreds>({ tk: "", sk: "" });
@@ -153,6 +154,25 @@ export default function IntegrationsPage() {
   /* Ameex actions */
   function saveAmeex() { if (!ameex.apiId || !ameex.apiKey) { showToast("API ID et API Key requis.", false); return; } patchSettings({ ameex }).then(() => { setAmeexSaved(ameex); showToast("Ameex connecté ✓"); }); }
   const loadAmeexParcels = useCallback(async () => { if (!ameexSaved) return; setLoading(true); const d = await ameexCall("listParcels", ameexSaved); setLoading(false); if (Array.isArray(d)) setAmeexParcels(d); else if (d?.data) setAmeexParcels(d.data); }, [ameexSaved]);
+  const loadAmeexCities = useCallback(async () => {
+    if (!ameexSaved) { showToast("Configurez Ameex d'abord.", false); return; }
+    setLoading(true);
+    const d = await ameexCall("cities", ameexSaved);
+    setLoading(false);
+    setAmeexCitiesRaw(JSON.stringify(d, null, 2));
+    // Try all known response shapes
+    const raw = Array.isArray(d) ? d
+      : Array.isArray(d?.api?.data) ? d.api.data
+      : Array.isArray(d?.data) ? d.data
+      : Array.isArray(d?.cities) ? d.cities
+      : Array.isArray(d?.result) ? d.result
+      : [];
+    if (raw.length) {
+      setAmeexCities(raw);
+      // Also cache in localStorage for commandes page
+      try { localStorage.setItem("codcrm_ameex_cities", JSON.stringify(raw.map((c: Record<string,unknown>) => ({ id: String(c.id ?? c.city_id ?? ""), name: String(c.name ?? c.city_name ?? c.ville ?? "") })).filter((c: {id:string;name:string}) => c.id && c.name))); } catch { /* */ }
+    }
+  }, [ameexSaved]);
   async function addAmeex() { if (!ameexSaved) { showToast("Configurez Ameex d'abord.", false); return; } if (!ameexForm.receiver || !ameexForm.phone || !ameexForm.city || !ameexForm.address || !ameexForm.cod) { showToast("Champs obligatoires manquants.", false); return; } setLoading(true); const d = await ameexCall("addParcel", ameexSaved, { ...ameexForm }); setLoading(false); const nested = d?.api?.data ?? d?.data ?? null; const trackCode = nested?.code ?? nested?.id ?? d?.code ?? d?.id ?? d?.tracking ?? d?.barcode; const ok = trackCode != null || d?.api?.type === "success" || d?.status === "success"; const errMsg = d?.api?.msg ?? d?.message ?? JSON.stringify(d); const label = ok ? `Colis créé ✓ — ${trackCode ?? d?.api?.msg ?? "OK"}` : `Erreur: ${errMsg}`; showToast(label, ok); if (ok) setAmeexForm({ receiver: "", phone: "", city: "", address: "", cod: "", product: "", order_num: "", comment: "", type: "SIMPLE", open: "NO", try: "NO", fragile: "0", replace: "false" }); }
   async function trackAmeex() { if (!ameexSaved || !ameexTrack) return; setLoading(true); const d = await ameexCall("trackParcel", ameexSaved, { code: ameexTrack }); setLoading(false); if (d && !d.error) setAmeexTrackRes(d); else showToast(d?.message || "Introuvable.", false); }
 
@@ -175,7 +195,10 @@ export default function IntegrationsPage() {
   /* TikTok Ads save */
   function saveTiktokAds() { if (!tiktokAds.accessToken || !tiktokAds.advertiserId) { showToast("Access Token et Advertiser ID requis.", false); return; } patchSettings({ tiktok: tiktokAds }).then(() => { setTiktokAdsSaved(tiktokAds); showToast("TikTok Ads connecté ✓"); }); }
 
-  useEffect(() => { if (active === "ameex" && ameexTab === "parcels") loadAmeexParcels(); }, [active, ameexTab, loadAmeexParcels]);
+  useEffect(() => {
+    if (active === "ameex" && ameexTab === "parcels") loadAmeexParcels();
+    if (active === "ameex" && ameexTab === "cities" && ameexCities.length === 0) loadAmeexCities();
+  }, [active, ameexTab, loadAmeexParcels, loadAmeexCities, ameexCities.length]);
   useEffect(() => { if (active === "eagle" && eagleTab === "parcels") loadEagleParcels(); if (active === "eagle" && eagleTab === "cities" && eagleCities.length === 0) loadEagleCities(); }, [active, eagleTab, loadEagleParcels, loadEagleCities, eagleCities.length]);
 
   const connected: Record<string, boolean> = { lightfunnels: lfEvents > 0, shopify: !!shopifySaved?.store, ameex: !!ameexSaved?.apiId, eagle: !!eagleSaved?.tk, "facebook-ads": !!fbAdsSaved?.accessToken, "tiktok-ads": !!tiktokAdsSaved?.accessToken };
@@ -365,9 +388,9 @@ export default function IntegrationsPage() {
                   <Badge connected={connected.ameex} />
                 </div>
                 <div className="flex gap-2 flex-wrap">
-                  {(["config","add","parcels","track"] as const).map(t => (
+                  {(["config","add","parcels","track","cities"] as const).map(t => (
                     <button key={t} onClick={() => setAmeexTab(t)} className={`text-sm font-semibold px-4 py-2 rounded-xl transition-colors ${ameexTab === t ? "bg-blue-700 text-white shadow-md shadow-blue-200" : "bg-white text-slate-500 border border-slate-200 hover:bg-slate-50"}`}>
-                      {t === "config" ? "⚙️ Config" : t === "add" ? "➕ Ajouter" : t === "parcels" ? `📦 Colis${ameexParcels.length ? ` (${ameexParcels.length})` : ""}` : "🔍 Track"}
+                      {t === "config" ? "⚙️ Config" : t === "add" ? "➕ Ajouter" : t === "parcels" ? `📦 Colis${ameexParcels.length ? ` (${ameexParcels.length})` : ""}` : t === "track" ? "🔍 Track" : "🏙️ Villes"}
                     </button>
                   ))}
                 </div>
@@ -416,6 +439,56 @@ export default function IntegrationsPage() {
                       <button onClick={trackAmeex} className="px-4 py-2.5 bg-blue-700 text-white text-sm font-semibold rounded-xl">{loading?"…":"Suivre"}</button>
                     </div>
                     {ameexTrackRes && <div className="space-y-1">{Object.entries(ameexTrackRes).map(([k,v])=><div key={k} className="flex justify-between text-sm border-b border-slate-50 pb-1"><span className="text-slate-400">{k}</span><span className="font-semibold text-slate-800">{String(v)}</span></div>)}</div>}
+                  </div>
+                )}
+                {ameexTab === "cities" && (
+                  <div className="space-y-3">
+                    <div className="bg-white rounded-2xl border border-slate-100">
+                      <div className="px-5 py-3 border-b flex items-center gap-3 flex-wrap">
+                        <span className="font-semibold text-slate-800">Villes Ameex</span>
+                        <input type="text" placeholder="Rechercher…" value={ameexCitySearch} onChange={e=>setAmeexCitySearch(e.target.value)} className="w-44 text-sm border border-slate-200 rounded-xl px-3 py-1.5 outline-none focus:border-blue-400" />
+                        <button onClick={loadAmeexCities} className="ml-auto text-xs px-3 py-1.5 border border-slate-200 rounded-lg text-slate-500 hover:bg-slate-50">{loading?"…":"↻ Actualiser"}</button>
+                      </div>
+                      {ameexCities.length === 0 ? (
+                        <div className="py-10 text-center text-slate-400 text-sm space-y-3">
+                          <p>{loading ? "Chargement…" : "Aucune ville retournée par l'API."}</p>
+                          {!loading && ameexCitiesRaw && (
+                            <details className="text-left mx-5">
+                              <summary className="cursor-pointer text-xs text-blue-600 font-semibold">Voir réponse brute de l&apos;API</summary>
+                              <pre className="mt-2 text-xs bg-slate-50 border border-slate-200 rounded-xl p-4 overflow-auto max-h-60 text-slate-700">{ameexCitiesRaw}</pre>
+                            </details>
+                          )}
+                        </div>
+                      ) : (
+                        <>
+                          <table className="w-full text-sm">
+                            <thead><tr className="text-xs text-slate-400 border-b"><th className="text-left px-5 py-2 font-semibold uppercase tracking-wide">ID</th><th className="text-left px-5 py-2 font-semibold uppercase tracking-wide">Ville</th><th className="text-left px-5 py-2 font-semibold uppercase tracking-wide">Région</th><th className="text-right px-5 py-2 font-semibold uppercase tracking-wide">Copier</th></tr></thead>
+                            <tbody>
+                              {ameexCities
+                                .filter(c => {
+                                  const q = ameexCitySearch.toLowerCase();
+                                  return !q || String(c.name??c.city_name??c.ville??"").toLowerCase().includes(q) || String(c.id??c.city_id??"").includes(q);
+                                })
+                                .map((c,i) => (
+                                  <tr key={i} className="border-b border-slate-50 hover:bg-slate-50/60">
+                                    <td className="px-5 py-2.5 font-mono text-xs font-bold text-blue-700">{String(c.id??c.city_id??"—")}</td>
+                                    <td className="px-5 py-2.5 font-medium text-slate-800">{String(c.name??c.city_name??c.ville??"—")}</td>
+                                    <td className="px-5 py-2.5 text-xs text-slate-400">{String(c.region??c.zone??c.area??"")}</td>
+                                    <td className="px-5 py-2.5 text-right"><button onClick={()=>{navigator.clipboard.writeText(String(c.id??c.city_id??""));}} className="text-xs px-2 py-1 bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100 font-semibold">ID</button></td>
+                                  </tr>
+                                ))
+                              }
+                            </tbody>
+                          </table>
+                          {ameexCitiesRaw && (
+                            <details className="px-5 pb-3 pt-1">
+                              <summary className="cursor-pointer text-xs text-slate-400 hover:text-blue-600">Voir réponse brute</summary>
+                              <pre className="mt-2 text-xs bg-slate-50 border border-slate-200 rounded-xl p-4 overflow-auto max-h-48 text-slate-600">{ameexCitiesRaw}</pre>
+                            </details>
+                          )}
+                        </>
+                      )}
+                    </div>
                   </div>
                 )}
               </div>

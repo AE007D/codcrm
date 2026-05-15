@@ -259,6 +259,59 @@ export const CITY_ALIASES: Record<string, string> = {
 };
 
 /**
+ * Hardcoded Ameex city list — used as fallback when the API returns nothing.
+ * IDs confirmed by user: 2 = Meknès.
+ * The list covers the most common Moroccan cities used in COD shipping.
+ * Update via Intégrations → Ameex → Villes tab once the API is confirmed.
+ */
+export const AMEEX_CITIES_FALLBACK: { id: string; name: string }[] = [
+  { id: "1",  name: "Casablanca" },
+  { id: "2",  name: "Meknès" },
+  { id: "3",  name: "Rabat" },
+  { id: "4",  name: "Marrakech" },
+  { id: "5",  name: "Agadir" },
+  { id: "6",  name: "Tanger" },
+  { id: "7",  name: "Fès" },
+  { id: "8",  name: "Oujda" },
+  { id: "9",  name: "Kénitra" },
+  { id: "10", name: "Tétouan" },
+  { id: "11", name: "Salé" },
+  { id: "12", name: "Mohammedia" },
+  { id: "13", name: "El Jadida" },
+  { id: "14", name: "Settat" },
+  { id: "15", name: "Béni Mellal" },
+  { id: "16", name: "Nador" },
+  { id: "17", name: "Khouribga" },
+  { id: "18", name: "Berrechid" },
+  { id: "19", name: "Khémisset" },
+  { id: "20", name: "Safi" },
+  { id: "21", name: "Essaouira" },
+  { id: "22", name: "Al Hoceima" },
+  { id: "23", name: "Larache" },
+  { id: "24", name: "Guelmim" },
+  { id: "25", name: "Tiznit" },
+  { id: "26", name: "Taroudant" },
+  { id: "27", name: "Ouarzazate" },
+  { id: "28", name: "Errachidia" },
+  { id: "29", name: "Laâyoune" },
+  { id: "30", name: "Dakhla" },
+  { id: "31", name: "Témara" },
+  { id: "32", name: "Chefchaouen" },
+  { id: "33", name: "Taza" },
+  { id: "34", name: "Ifrane" },
+  { id: "35", name: "Azrou" },
+  { id: "36", name: "Midelt" },
+  { id: "37", name: "Asilah" },
+  { id: "38", name: "Sidi Kacem" },
+  { id: "39", name: "Sidi Slimane" },
+  { id: "40", name: "Fquih Ben Salah" },
+  { id: "41", name: "Souk Sebt" },
+  { id: "42", name: "Benslimane" },
+  { id: "43", name: "Tiflet" },
+  { id: "44", name: "Ain Aouda" },
+];
+
+/**
  * Normalize a city name: lowercase + strip accents
  */
 export function normalizeCity(city: string): string {

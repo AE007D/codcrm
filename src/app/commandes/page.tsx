@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { resolveCity } from "@/lib/moroccanCities";
+import { resolveCity, AMEEX_CITIES_FALLBACK } from "@/lib/moroccanCities";
 import Sidebar from "@/components/Sidebar";
 
 type OrderStatus = "nouveau" | "confirmé" | "annulé" | "injoignable" | "fausse" | "expédié" | "livré" | "retourné";
@@ -183,12 +183,14 @@ export default function CommandesPage() {
 
   // ── Load Ameex cities once on mount ──────────────────────────────────────
   useEffect(() => {
-    // Load from localStorage cache first (instant)
+    // 1. Start with hardcoded fallback so dropdown is always populated
+    setAmeexCities(AMEEX_CITIES_FALLBACK);
+    // 2. Load from localStorage cache (overrides fallback if fresher data)
     try {
       const cached = localStorage.getItem("codcrm_ameex_cities");
       if (cached) { const parsed = JSON.parse(cached); if (parsed?.length) setAmeexCities(parsed); }
     } catch { /* ignore */ }
-    // Then refresh from API
+    // 3. Refresh from API (overrides cache if API returns data)
     fetch("/api/settings").then(r => r.json()).then(async d => {
       const creds = d.settings?.ameex ?? {};
       if (!creds.apiId) return;
@@ -196,8 +198,13 @@ export default function CommandesPage() {
         method: "POST", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ action: "cities", apiId: creds.apiId, apiKey: creds.apiKey }),
       }).then(r => r.json());
-      const raw = Array.isArray(cd) ? cd : Array.isArray(cd?.api?.data) ? cd.api.data : Array.isArray(cd?.data) ? cd.data : [];
-      const list = raw.map((c: Record<string,unknown>) => ({ id: String(c.id ?? c.city_id ?? ""), name: String(c.name ?? c.city_name ?? "") })).filter((c: {id:string;name:string}) => c.id && c.name);
+      const raw = Array.isArray(cd) ? cd
+        : Array.isArray(cd?.api?.data) ? cd.api.data
+        : Array.isArray(cd?.data) ? cd.data
+        : Array.isArray(cd?.cities) ? cd.cities
+        : Array.isArray(cd?.result) ? cd.result
+        : [];
+      const list = raw.map((c: Record<string,unknown>) => ({ id: String(c.id ?? c.city_id ?? ""), name: String(c.name ?? c.city_name ?? c.ville ?? "") })).filter((c: {id:string;name:string}) => c.id && c.name);
       if (list.length) { setAmeexCities(list); try { localStorage.setItem("codcrm_ameex_cities", JSON.stringify(list)); } catch { /* ignore */ } }
     }).catch(() => {});
   }, []);
@@ -356,23 +363,24 @@ export default function CommandesPage() {
     setCityOverrides({});
     if (ids) setSelected(new Set(ids));
     setShipModal(true);
-    // Pre-load Ameex cities
+    // Pre-load Ameex cities (fallback already loaded on mount; try API refresh)
     try {
       const settingsData = await fetch("/api/settings").then(r => r.json());
       const creds = settingsData.settings?.ameex ?? {};
-      if (!creds.apiId) return;
-      const cd = await fetch("/api/ameex", {
-        method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: "cities", apiId: creds.apiId, apiKey: creds.apiKey }),
-      }).then(r => r.json());
-      const list: {id:string;name:string}[] = [];
-      const raw = Array.isArray(cd) ? cd : Array.isArray(cd?.api?.data) ? cd.api.data : Array.isArray(cd?.data) ? cd.data : [];
-      for (const c of raw) {
-        const id = String(c.id ?? c.city_id ?? "");
-        const name = String(c.name ?? c.city_name ?? c.label ?? "");
-        if (id && name) list.push({ id, name });
+      if (creds.apiId) {
+        const cd = await fetch("/api/ameex", {
+          method: "POST", headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ action: "cities", apiId: creds.apiId, apiKey: creds.apiKey }),
+        }).then(r => r.json());
+        const raw = Array.isArray(cd) ? cd
+          : Array.isArray(cd?.api?.data) ? cd.api.data
+          : Array.isArray(cd?.data) ? cd.data
+          : Array.isArray(cd?.cities) ? cd.cities
+          : Array.isArray(cd?.result) ? cd.result
+          : [];
+        const list = raw.map((c: Record<string,unknown>) => ({ id: String(c.id ?? c.city_id ?? ""), name: String(c.name ?? c.city_name ?? c.ville ?? "") })).filter((c: {id:string;name:string}) => c.id && c.name);
+        if (list.length) { setAmeexCities(list); try { localStorage.setItem("codcrm_ameex_cities", JSON.stringify(list)); } catch { /* */ } }
       }
-      if (list.length) setAmeexCities(list);
     } catch { /* silent */ }
   }
 
@@ -938,25 +946,45 @@ export default function CommandesPage() {
                       const canonical = resolveCity(o.city ?? "");
                       const autoId = cityMap[normalize(canonical)] ?? cityMap[normalize(o.city ?? "")];
                       const currentVal = cityOverrides[o.id] ?? autoId ?? "";
+                      const currentName = currentVal ? (cityNameMap[currentVal] ?? currentVal) : "";
                       return (
                         <div key={o.id} className={`flex items-center gap-2 p-2 rounded-xl border ${currentVal ? "border-slate-200 bg-slate-50" : "border-amber-300 bg-amber-50"}`}>
                           <span className="text-xs font-semibold text-slate-700 w-20 truncate shrink-0">{o.customer}</span>
-                          {ameexCities.length > 0 ? (
-                            <select
-                              value={currentVal}
-                              onChange={e => setCityOverrides(prev => ({ ...prev, [o.id]: e.target.value }))}
-                              className="flex-1 text-xs border border-slate-200 rounded-lg px-2 py-1.5 outline-none focus:border-blue-400 bg-white"
-                            >
-                              <option value="">-- Choisir ville --</option>
-                              {ameexCities.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-                            </select>
-                          ) : (
-                            <input type="text" placeholder="Ville Ameex (ex: Casablanca)"
-                              value={cityOverrides[o.id] ?? o.city ?? ""}
-                              onChange={e => setCityOverrides(prev => ({ ...prev, [o.id]: e.target.value }))}
-                              className="flex-1 text-xs border border-slate-200 rounded-lg px-2 py-1.5 outline-none focus:border-blue-400 bg-white"
+                          <div className="flex-1 relative">
+                            <input
+                              list={`cities-${o.id}`}
+                              placeholder="Tapez ou choisissez une ville…"
+                              value={currentName}
+                              onChange={e => {
+                                const typed = e.target.value;
+                                // Try to match typed value to a city name → store the ID
+                                const matched = ameexCities.find(c => c.name.toLowerCase() === typed.toLowerCase());
+                                if (matched) {
+                                  setCityOverrides(prev => ({ ...prev, [o.id]: matched.id }));
+                                } else {
+                                  // Store as-is (search mode); if the user selects from datalist it will match
+                                  setCityOverrides(prev => ({ ...prev, [o.id]: typed }));
+                                }
+                              }}
+                              onBlur={e => {
+                                // On blur, resolve typed value to a city ID if possible
+                                const typed = e.target.value.trim();
+                                if (!typed) { setCityOverrides(prev => ({ ...prev, [o.id]: "" })); return; }
+                                const matched = ameexCities.find(c =>
+                                  c.name.toLowerCase() === typed.toLowerCase() ||
+                                  normalize(c.name) === normalize(typed)
+                                );
+                                if (matched) setCityOverrides(prev => ({ ...prev, [o.id]: matched.id }));
+                              }}
+                              className={`w-full text-xs border rounded-lg px-2 py-1.5 outline-none focus:border-blue-400 bg-white ${currentVal && !ameexCities.find(c=>c.id===currentVal) ? "border-amber-300" : "border-slate-200"}`}
                             />
-                          )}
+                            <datalist id={`cities-${o.id}`}>
+                              {ameexCities.map(c => <option key={c.id} value={c.name} />)}
+                            </datalist>
+                            {currentVal && ameexCities.find(c=>c.id===currentVal) && (
+                              <span className="absolute right-2 top-1/2 -translate-y-1/2 text-xs text-slate-400 font-mono">#{currentVal}</span>
+                            )}
+                          </div>
                         </div>
                       );
                     })}
