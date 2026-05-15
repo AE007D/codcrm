@@ -131,6 +131,9 @@ export default function CommandesPage() {
   const [shipResults, setShipResults] = useState<{ id: string; ok: boolean; msg: string }[]>([]);
   const [ameexCities, setAmeexCities] = useState<{ id: string; name: string }[]>([]);
   const [cityOverrides, setCityOverrides] = useState<Record<string, string>>({}); // orderId → cityId
+  const [ameexShipType, setAmeexShipType] = useState<"SIMPLE"|"STOCK">("SIMPLE");
+  const [ameexDepots, setAmeexDepots] = useState<{ id: string; name: string }[]>([]);
+  const [ameexDepot, setAmeexDepot] = useState<string>("");
 
   // Edit mode for drawer
   const [editMode, setEditMode] = useState(false);
@@ -190,8 +193,13 @@ export default function CommandesPage() {
       const cached = localStorage.getItem("codcrm_ameex_cities");
       if (cached) { const parsed = JSON.parse(cached); if (parsed?.length) setAmeexCities(parsed); }
     } catch { /* ignore */ }
-    // 3. Refresh from API (overrides cache if API returns data)
+    // 3. Load preferences + refresh from API
     fetch("/api/settings").then(r => r.json()).then(async d => {
+      // Restore ship type + depot preference
+      const pref = d.settings?.ameexShipPref ?? {};
+      if (pref.type) setAmeexShipType(pref.type);
+      if (pref.depot) setAmeexDepot(pref.depot);
+
       const creds = d.settings?.ameex ?? {};
       if (!creds.apiId) return;
       const cd = await fetch("/api/ameex", {
@@ -363,23 +371,38 @@ export default function CommandesPage() {
     setCityOverrides({});
     if (ids) setSelected(new Set(ids));
     setShipModal(true);
-    // Pre-load Ameex cities (fallback already loaded on mount; try API refresh)
+    // Pre-load Ameex cities + depots (fallback already loaded on mount; try API refresh)
     try {
       const settingsData = await fetch("/api/settings").then(r => r.json());
       const creds = settingsData.settings?.ameex ?? {};
       if (creds.apiId) {
+        // Cities
         const cd = await fetch("/api/ameex", {
           method: "POST", headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ action: "cities", apiId: creds.apiId, apiKey: creds.apiKey }),
         }).then(r => r.json());
-        const raw = Array.isArray(cd) ? cd
-          : Array.isArray(cd?.api?.data) ? cd.api.data
-          : Array.isArray(cd?.data) ? cd.data
-          : Array.isArray(cd?.cities) ? cd.cities
-          : Array.isArray(cd?.result) ? cd.result
-          : [];
-        const list = raw.map((c: Record<string,unknown>) => ({ id: String(c.id ?? c.city_id ?? ""), name: String(c.name ?? c.city_name ?? c.ville ?? "") })).filter((c: {id:string;name:string}) => c.id && c.name);
-        if (list.length) { setAmeexCities(list); try { localStorage.setItem("codcrm_ameex_cities", JSON.stringify(list)); } catch { /* */ } }
+        const rawC = Array.isArray(cd) ? cd : Array.isArray(cd?.api?.data) ? cd.api.data : Array.isArray(cd?.data) ? cd.data : Array.isArray(cd?.cities) ? cd.cities : Array.isArray(cd?.result) ? cd.result : [];
+        const cityList = rawC.map((c: Record<string,unknown>) => ({ id: String(c.id ?? c.city_id ?? ""), name: String(c.name ?? c.city_name ?? c.ville ?? "") })).filter((c: {id:string;name:string}) => c.id && c.name);
+        if (cityList.length) { setAmeexCities(cityList); try { localStorage.setItem("codcrm_ameex_cities", JSON.stringify(cityList)); } catch { /* */ } }
+
+        // Depots (try both known endpoints)
+        const loadDepots = async (action: string) => {
+          const dd = await fetch("/api/ameex", {
+            method: "POST", headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ action, apiId: creds.apiId, apiKey: creds.apiKey }),
+          }).then(r => r.json());
+          const rawD = Array.isArray(dd) ? dd : Array.isArray(dd?.api?.data) ? dd.api.data : Array.isArray(dd?.data) ? dd.data : Array.isArray(dd?.depots) ? dd.depots : [];
+          return rawD.map((d: Record<string,unknown>) => ({
+            id: String(d.id ?? d.depot_id ?? d.hub_id ?? ""),
+            name: String(d.name ?? d.depot_name ?? d.hub_name ?? d.label ?? ""),
+          })).filter((d: {id:string;name:string}) => d.id && d.name);
+        };
+        let depotList = await loadDepots("depots");
+        if (!depotList.length) depotList = await loadDepots("stocks");
+        if (depotList.length) {
+          setAmeexDepots(depotList);
+          if (!ameexDepot) setAmeexDepot(depotList[0].id);
+        }
       }
     } catch { /* silent */ }
   }
@@ -426,7 +449,9 @@ export default function CommandesPage() {
               product: order.product,
               order_num: order.orderNumber || order.id.slice(-8),
               comment: "",
-              type: "SIMPLE",
+              type: ameexShipType,
+              // For STOCK type: pass the depot/hub ID
+              ...(ameexShipType === "STOCK" && ameexDepot ? { depot: ameexDepot } : {}),
               open: "NO",
               try: "NO",
               fragile: "0",
@@ -904,6 +929,46 @@ export default function CommandesPage() {
                   ))}
                 </div>
               </div>
+
+              {/* Ameex — type envoi : Ramassage vs Stock */}
+              {shipCarrier === "ameex" && !shipResults.length && (
+                <div>
+                  <p className="text-xs font-semibold text-slate-500 mb-2">📦 Type d&apos;envoi :</p>
+                  <div className="grid grid-cols-2 gap-2">
+                    {([["SIMPLE","🚚 Ramassage","Le transporteur vient récupérer"],["STOCK","🏭 Stock / Hub","Depuis votre dépôt Ameex"]] as const).map(([val, label, desc]) => (
+                      <button key={val} onClick={() => { setAmeexShipType(val); fetch("/api/settings",{method:"PATCH",headers:{"Content-Type":"application/json"},body:JSON.stringify({ameexShipPref:{type:val,depot:ameexDepot}})}); }}
+                        className={`flex flex-col items-start gap-0.5 px-3 py-2.5 rounded-xl border-2 text-left transition-all ${ameexShipType === val ? "border-blue-500 bg-blue-50" : "border-slate-200 hover:border-slate-300"}`}>
+                        <span className={`text-xs font-bold ${ameexShipType === val ? "text-blue-700" : "text-slate-700"}`}>{label}</span>
+                        <span className="text-[10px] text-slate-400 leading-tight">{desc}</span>
+                      </button>
+                    ))}
+                  </div>
+                  {ameexShipType === "STOCK" && (
+                    <div className="mt-2">
+                      {ameexDepots.length > 0 ? (
+                        <select
+                          value={ameexDepot}
+                          onChange={e => { setAmeexDepot(e.target.value); fetch("/api/settings",{method:"PATCH",headers:{"Content-Type":"application/json"},body:JSON.stringify({ameexShipPref:{type:ameexShipType,depot:e.target.value}})}); }}
+                          className="w-full text-xs border border-slate-200 rounded-xl px-3 py-2 outline-none focus:border-blue-400 bg-white font-medium"
+                        >
+                          {ameexDepots.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
+                        </select>
+                      ) : (
+                        <div className="flex gap-2">
+                          <input
+                            type="text"
+                            placeholder="ID du dépôt (ex: 1 pour Casablanca Hub)"
+                            value={ameexDepot}
+                            onChange={e => setAmeexDepot(e.target.value)}
+                            className="flex-1 text-xs border border-slate-200 rounded-xl px-3 py-2 outline-none focus:border-blue-400"
+                          />
+                          <span className="text-xs text-slate-400 self-center shrink-0">Hub Ameex</span>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              )}
 
               {/* Results */}
               {shipResults.length > 0 && (

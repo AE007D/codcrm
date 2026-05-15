@@ -9,6 +9,8 @@ const ENDPOINTS: Record<string, { path: string; method: string }> = {
   deliveryNote:   { path: "/Delivery/Parcels/Note", method: "GET" },
   pickupRequest:  { path: "/Pickup/Request", method: "POST" },
   cities:         { path: "/Delivery/Cities", method: "GET" },
+  depots:         { path: "/Delivery/Depots", method: "GET" },
+  stocks:         { path: "/Stock/Depots", method: "GET" },
 };
 
 export async function POST(request: NextRequest) {
