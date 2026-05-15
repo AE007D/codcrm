@@ -10,17 +10,14 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
   const { id } = await params;
   const { data, error } = await supabase
     .from("crm_products")
-    .select("id, name, image, sell_price, owner_id, page_views")
+    .select("id, name, image, sell_price, owner_id")
     .eq("id", id)
     .maybeSingle();
 
   if (error || !data) return NextResponse.json({ error: "Produit introuvable." }, { status: 404 });
 
-  // Increment page views (fire and forget)
-  void supabase
-    .from("crm_products")
-    .update({ page_views: (data.page_views ?? 0) + 1 })
-    .eq("id", id);
+  // Increment page views (silently ignored if column doesn't exist yet)
+  void supabase.rpc("increment_page_views", { product_id: id });
 
   return NextResponse.json({
     id: data.id,
