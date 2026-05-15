@@ -1,19 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import {
-  getUsers,
+  getUserCount,
   getUserByEmail,
   createUser,
   hashPassword,
 } from "@/lib/authStore";
-
-function clearAllStores() {
-  // Wipe all in-memory data so the first admin starts with a clean slate
-  globalThis.__lfOrders = [];
-  globalThis.__lfEvents = 0;
-  globalThis.__lfLeads = [];
-  globalThis.__lpPages = [];
-  globalThis.__webhookDebugLog = [];
-}
 
 export async function POST(request: NextRequest) {
   let body: { name?: string; email?: string; password?: string; role?: string };
@@ -28,15 +19,10 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Nom, email et mot de passe requis." }, { status: 400 });
   }
 
-  const users = getUsers();
-  const isFirstUser = users.length === 0;
+  const count = await getUserCount();
+  const isFirstUser = count === 0;
 
-  // First user (admin) always gets a fresh empty workspace
-  if (isFirstUser) {
-    clearAllStores();
-  }
-
-  const existing = getUserByEmail(email);
+  const existing = await getUserByEmail(email);
   if (existing) {
     return NextResponse.json({ error: "Cet email est déjà utilisé." }, { status: 409 });
   }
@@ -44,7 +30,7 @@ export async function POST(request: NextRequest) {
   const validRoles = ["admin", "agent", "viewer"];
   const assignedRole = validRoles.includes(role ?? "") ? (role as "admin" | "agent" | "viewer") : "agent";
 
-  const user = createUser({
+  const user = await createUser({
     name,
     email,
     passwordHash: hashPassword(password),

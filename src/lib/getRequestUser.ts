@@ -5,5 +5,5 @@ export async function getRequestUser() {
   const cookieStore = await cookies();
   const token = cookieStore.get("codcrm_session")?.value;
   if (!token) return null;
-  return getSession(token); // returns User | null
+  return getSession(token); // now async → returns Promise<User | null>
 }

@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { usePathname, useRouter } from "next/navigation";
 import { useState, useEffect } from "react";
 
@@ -9,6 +10,7 @@ type CurrentUser = {
   name: string;
   email: string;
   role: "admin" | "agent" | "viewer";
+  avatar?: string | null;
 };
 
 const navItems = [
@@ -46,22 +48,10 @@ const navItems = [
       <path d="M16 10a4 4 0 01-8 0"/>
     </svg>
   )},
-  { label: "Livreurs", href: "/livreurs", icon: (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="w-5 h-5">
-      <path d="M5 17H3a2 2 0 01-2-2V5a2 2 0 012-2h11a2 2 0 012 2v3M9 17h6m4 0h2"/><circle cx="7" cy="17" r="2"/>
-      <path d="M13 17V9h5l3 4v4h-2"/><circle cx="19" cy="17" r="2"/>
-    </svg>
-  )},
   { label: "Boutiques", href: "/boutiques", icon: (
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="w-5 h-5">
       <path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/>
       <polyline points="9 22 9 12 15 12 15 22"/>
-    </svg>
-  )},
-  { label: "Transporteurs", href: "/transporteurs", icon: (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="w-5 h-5">
-      <rect x="1" y="3" width="15" height="13" rx="1"/>
-      <path d="M16 8h4l3 5v3h-7V8z"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/>
     </svg>
   )},
   { label: "Équipe", href: "/equipe", icon: (
@@ -123,12 +113,18 @@ export default function Sidebar() {
     return () => { document.body.style.overflow = ""; };
   }, [open]);
 
-  // Fetch current user
-  useEffect(() => {
+  // Fetch current user (and re-fetch on profile updates)
+  function fetchMe() {
     fetch("/api/auth/me")
       .then(r => r.ok ? r.json() : null)
       .then(data => { if (data) setCurrentUser(data); })
       .catch(() => {});
+  }
+  useEffect(() => {
+    fetchMe();
+    window.addEventListener("profile-updated", fetchMe);
+    return () => window.removeEventListener("profile-updated", fetchMe);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   async function handleLogout() {
@@ -225,9 +221,16 @@ export default function Sidebar() {
         </nav>
 
         <div className="p-3 border-t border-slate-100">
-          <div className="flex items-center gap-3 px-3 py-2.5 rounded-xl">
-            <div className="w-8 h-8 rounded-xl bg-blue-600 flex items-center justify-center text-white text-sm font-bold shadow-md shadow-blue-200 shrink-0">
-              {userInitial}
+          <Link href="/compte" className="flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-slate-50 transition-colors group">
+            {/* Avatar */}
+            <div className="w-8 h-8 rounded-xl shrink-0 overflow-hidden shadow-md shadow-blue-100">
+              {currentUser?.avatar ? (
+                <Image src={currentUser.avatar} alt={currentUser.name} width={32} height={32} className="object-cover w-full h-full" unoptimized />
+              ) : (
+                <div className="w-full h-full bg-blue-600 flex items-center justify-center text-white text-sm font-bold">
+                  {userInitial}
+                </div>
+              )}
             </div>
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-1.5">
@@ -244,19 +247,25 @@ export default function Sidebar() {
                 {currentUser?.email ?? ""}
               </p>
             </div>
-            <button
-              onClick={handleLogout}
-              disabled={loggingOut}
-              title="Se déconnecter"
-              className="w-7 h-7 flex items-center justify-center rounded-lg text-slate-400 hover:text-red-500 hover:bg-red-50 transition-colors shrink-0 disabled:opacity-50"
-            >
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="w-4 h-4">
-                <path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4"/>
-                <polyline points="16 17 21 12 16 7"/>
-                <line x1="21" y1="12" x2="9" y2="12"/>
-              </svg>
-            </button>
-          </div>
+            {/* Settings icon */}
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}
+              className="w-4 h-4 text-slate-300 group-hover:text-slate-500 shrink-0 transition-colors">
+              <circle cx="12" cy="12" r="3"/>
+              <path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/>
+            </svg>
+          </Link>
+          <button
+            onClick={handleLogout}
+            disabled={loggingOut}
+            className="w-full mt-1 flex items-center gap-2 px-3 py-2 rounded-xl text-sm text-slate-400 hover:text-red-500 hover:bg-red-50 transition-colors disabled:opacity-50"
+          >
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="w-4 h-4">
+              <path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4"/>
+              <polyline points="16 17 21 12 16 7"/>
+              <line x1="21" y1="12" x2="9" y2="12"/>
+            </svg>
+            {loggingOut ? "Déconnexion…" : "Se déconnecter"}
+          </button>
         </div>
       </aside>
     </>

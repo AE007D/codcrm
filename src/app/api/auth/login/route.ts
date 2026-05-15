@@ -18,7 +18,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Email et mot de passe requis." }, { status: 400 });
   }
 
-  const user = getUserByEmail(email);
+  const user = await getUserByEmail(email);
   if (!user || !user.active) {
     return NextResponse.json({ error: "Identifiants incorrects." }, { status: 401 });
   }

@@ -1,7 +1,18 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
+import Image from "next/image";
 import Sidebar from "@/components/Sidebar";
+
+type CatalogProduct = {
+  id: string;
+  name: string;
+  sku: string;
+  image: string;
+  sellPrice: number;
+  purchasePrice: number;
+  stock: number;
+};
 
 type Product = {
   id: number;
@@ -108,11 +119,14 @@ const emptyForm = { name: "", purchasePrice: "", sellPrice: "", shippingCost: ""
 
 export default function CalculateurPage() {
   const [products, setProducts] = useState<Product[]>([]);
+  const [catalog, setCatalog] = useState<CatalogProduct[]>([]);
   const [lastRun, setLastRun] = useState<number>(Date.now() - 86400000);
   const [syncing, setSyncing] = useState(false);
   const [lastSync, setLastSync] = useState<number | null>(null);
   const [showModal, setShowModal] = useState(false);
   const [form, setForm] = useState(emptyForm);
+  const [catalogSearch, setCatalogSearch] = useState("");
+  const [selectedCatalogId, setSelectedCatalogId] = useState<string | null>(null);
   const [error, setError] = useState("");
   const [filter, setFilter] = useState<"All" | "Winner" | "Loser">("All");
   const [justRan, setJustRan] = useState(false);
@@ -125,6 +139,14 @@ export default function CalculateurPage() {
   }, []);
 
   useEffect(() => { localStorage.setItem(STORAGE_KEY, JSON.stringify(products)); }, [products]);
+
+  // Load product catalog
+  useEffect(() => {
+    fetch("/api/products")
+      .then(r => r.ok ? r.json() : { products: [] })
+      .then(d => setCatalog(d.products ?? []))
+      .catch(() => {});
+  }, []);
 
   const runAnalysis = useCallback(() => {
     const ts = Date.now();
@@ -191,6 +213,17 @@ export default function CalculateurPage() {
     return () => clearInterval(t);
   }, [syncRates]);
 
+  function applyCatalogProduct(cp: CatalogProduct) {
+    setSelectedCatalogId(cp.id);
+    setForm(f => ({
+      ...f,
+      name: cp.name,
+      sellPrice: String(cp.sellPrice),
+      purchasePrice: String(cp.purchasePrice),
+    }));
+    setCatalogSearch("");
+  }
+
   function handleAdd() {
     const { name, purchasePrice, sellPrice, shippingCost, cpd } = form;
     if (!name || !purchasePrice || !sellPrice || !shippingCost || !cpd) { setError("Veuillez remplir tous les champs obligatoires (*)"); return; }
@@ -204,6 +237,7 @@ export default function CalculateurPage() {
       platform: form.platform,
     }]);
     setForm(emptyForm); setError(""); setShowModal(false);
+    setSelectedCatalogId(null); setCatalogSearch("");
   }
 
   const FALLBACK_RATE = 70;
@@ -313,9 +347,19 @@ export default function CalculateurPage() {
                 </div>
 
                 <div className="flex items-start justify-between mb-3">
-                  <div className="flex-1 min-w-0">
-                    <h3 className="font-bold text-slate-900 truncate">{p.name}</h3>
-                    <span className="text-xs text-slate-400">{p.platform}</span>
+                  <div className="flex items-center gap-3 flex-1 min-w-0">
+                    {(() => {
+                      const cp = catalog.find(c => c.name === p.name);
+                      return cp?.image ? (
+                        <div className="w-10 h-10 rounded-xl overflow-hidden bg-slate-100 shrink-0">
+                          <Image src={cp.image} alt={p.name} width={40} height={40} className="object-cover w-full h-full" unoptimized />
+                        </div>
+                      ) : null;
+                    })()}
+                    <div className="min-w-0">
+                      <h3 className="font-bold text-slate-900 truncate">{p.name}</h3>
+                      <span className="text-xs text-slate-400">{p.platform}</span>
+                    </div>
                   </div>
                 </div>
 
@@ -402,14 +446,95 @@ export default function CalculateurPage() {
 
       {showModal && (
         <div className="fixed inset-0 bg-black/30 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl shadow-xl w-full max-w-md p-6">
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-md p-6 max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between mb-5">
               <h2 className="text-lg font-bold text-slate-900">Ajouter un produit</h2>
-              <button onClick={() => { setShowModal(false); setError(""); setForm(emptyForm); }} className="text-slate-400 hover:text-slate-600">
+              <button onClick={() => { setShowModal(false); setError(""); setForm(emptyForm); setSelectedCatalogId(null); setCatalogSearch(""); }} className="text-slate-400 hover:text-slate-600">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="w-5 h-5"><path d="M18 6L6 18M6 6l12 12"/></svg>
               </button>
             </div>
             {error && <p className="text-xs text-red-500 bg-red-50 px-3 py-2 rounded-lg mb-4">{error}</p>}
+
+            {/* ── Catalog picker ── */}
+            {catalog.length > 0 && (
+              <div className="mb-5">
+                <label className="text-xs font-semibold text-slate-600 mb-2 block">
+                  Importer depuis le catalogue
+                  <span className="ml-1.5 text-slate-400 font-normal">({catalog.length} produits)</span>
+                </label>
+
+                {selectedCatalogId ? (
+                  (() => {
+                    const cp = catalog.find(c => c.id === selectedCatalogId)!;
+                    return (
+                      <div className="flex items-center gap-3 bg-blue-50 border border-blue-200 rounded-2xl px-4 py-3">
+                        {cp.image ? (
+                          <div className="w-10 h-10 rounded-xl overflow-hidden bg-white shrink-0">
+                            <Image src={cp.image} alt={cp.name} width={40} height={40} className="object-cover w-full h-full" unoptimized />
+                          </div>
+                        ) : (
+                          <div className="w-10 h-10 rounded-xl bg-blue-200 flex items-center justify-center text-blue-700 font-bold text-sm shrink-0">
+                            {cp.name.slice(0, 2).toUpperCase()}
+                          </div>
+                        )}
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-bold text-blue-900 truncate">{cp.name}</p>
+                          <p className="text-xs text-blue-600">{cp.sellPrice} MAD vente · {cp.purchasePrice} MAD achat</p>
+                        </div>
+                        <button onClick={() => { setSelectedCatalogId(null); setForm(f => ({ ...f, name: "", sellPrice: "", purchasePrice: "" })); }}
+                          className="text-blue-400 hover:text-blue-600 shrink-0">
+                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="w-4 h-4"><path d="M18 6L6 18M6 6l12 12"/></svg>
+                        </button>
+                      </div>
+                    );
+                  })()
+                ) : (
+                  <div className="relative">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
+                    <input
+                      type="text"
+                      placeholder="Rechercher un produit du catalogue…"
+                      value={catalogSearch}
+                      onChange={e => setCatalogSearch(e.target.value)}
+                      className="w-full text-sm border border-slate-200 rounded-xl pl-9 pr-4 py-2.5 outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-50"
+                    />
+                    {catalogSearch && (
+                      <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-slate-200 rounded-xl shadow-lg z-10 max-h-48 overflow-y-auto">
+                        {catalog.filter(cp => cp.name.toLowerCase().includes(catalogSearch.toLowerCase()) || cp.sku.toLowerCase().includes(catalogSearch.toLowerCase())).length === 0 ? (
+                          <p className="text-sm text-slate-400 px-4 py-3 text-center">Aucun produit trouvé</p>
+                        ) : catalog.filter(cp => cp.name.toLowerCase().includes(catalogSearch.toLowerCase()) || cp.sku.toLowerCase().includes(catalogSearch.toLowerCase())).map(cp => (
+                          <button key={cp.id} onClick={() => applyCatalogProduct(cp)}
+                            className="w-full flex items-center gap-3 px-4 py-3 hover:bg-blue-50 transition-colors text-left border-b border-slate-50 last:border-0">
+                            {cp.image ? (
+                              <div className="w-8 h-8 rounded-lg overflow-hidden bg-slate-100 shrink-0">
+                                <Image src={cp.image} alt={cp.name} width={32} height={32} className="object-cover w-full h-full" unoptimized />
+                              </div>
+                            ) : (
+                              <div className="w-8 h-8 rounded-lg bg-blue-100 flex items-center justify-center text-blue-600 font-bold text-xs shrink-0">
+                                {cp.name.slice(0, 2).toUpperCase()}
+                              </div>
+                            )}
+                            <div className="flex-1 min-w-0">
+                              <p className="text-sm font-semibold text-slate-800 truncate">{cp.name}</p>
+                              <p className="text-xs text-slate-400">{cp.sku && `SKU: ${cp.sku} · `}{cp.sellPrice} MAD vente · {cp.purchasePrice} MAD achat</p>
+                            </div>
+                            <span className={`text-xs font-semibold px-2 py-0.5 rounded-lg shrink-0 ${cp.stock === 0 ? "bg-red-100 text-red-600" : cp.stock <= 5 ? "bg-amber-100 text-amber-700" : "bg-emerald-100 text-emerald-700"}`}>
+                              {cp.stock === 0 ? "Rupture" : `${cp.stock} stock`}
+                            </span>
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
+                <div className="flex items-center gap-3 my-4">
+                  <div className="flex-1 h-px bg-slate-100" />
+                  <span className="text-xs text-slate-400">ou saisir manuellement</span>
+                  <div className="flex-1 h-px bg-slate-100" />
+                </div>
+              </div>
+            )}
+
             <div className="mb-4">
               <label className="text-xs font-semibold text-slate-600 mb-2 block">Plateforme pub</label>
               <div className="flex gap-2">
