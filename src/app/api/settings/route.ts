@@ -1,13 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getRequestUser } from "@/lib/getRequestUser";
-import { getSettings, saveSettings, UserSettings } from "@/lib/settingsStore";
+import { getSettings, saveSettings, UserSettings } from "@/lib/supabaseSettingsStore";
 
 export const dynamic = "force-dynamic";
 
 export async function GET() {
   const user = await getRequestUser();
   if (!user) return NextResponse.json({ error: "Non authentifié." }, { status: 401 });
-  return NextResponse.json({ settings: getSettings(user.workspaceId) });
+  const settings = await getSettings(user.workspaceId);
+  return NextResponse.json({ settings });
 }
 
 export async function PATCH(request: NextRequest) {
@@ -17,6 +18,6 @@ export async function PATCH(request: NextRequest) {
   let body: Partial<UserSettings>;
   try { body = await request.json(); } catch { return NextResponse.json({ error: "Invalid JSON" }, { status: 400 }); }
 
-  const settings = saveSettings(user.workspaceId, body);
+  const settings = await saveSettings(user.workspaceId, body);
   return NextResponse.json({ ok: true, settings });
 }
