@@ -21,8 +21,6 @@ type Product = {
 
 const STORAGE_KEY   = "codcrm_products_calc_v2"; // v2: starts empty, no fake defaults
 const LAST_RUN_KEY  = "codcrm_calc_last_run";
-const AMEEX_KEY     = "ameex_creds";
-const EAGLE_KEY     = "eagle_creds";
 const INTERVAL_DAYS = 3;
 
 
@@ -142,9 +140,10 @@ export default function CalculateurPage() {
     const ameexRateMap = new Map<string, ParcelStats>();
     const eagleRateMap = new Map<string, ParcelStats>();
 
-    const rawA = localStorage.getItem(AMEEX_KEY);
-    if (rawA) {
-      const c = JSON.parse(rawA);
+    const s = await fetch("/api/settings").then(r => r.json()).then(d => d.settings ?? {}).catch(() => ({}));
+
+    if (s.ameex) {
+      const c = s.ameex;
       try {
         const r = await fetch("/api/ameex", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "listParcels", apiId: c.apiId, apiKey: c.apiKey }) });
         const d = await r.json();
@@ -153,9 +152,8 @@ export default function CalculateurPage() {
       } catch { /* silent */ }
     }
 
-    const rawE = localStorage.getItem(EAGLE_KEY);
-    if (rawE) {
-      const c = JSON.parse(rawE);
+    if (s.eagle) {
+      const c = s.eagle;
       try {
         const r = await fetch("/api/eagle", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "list", tk: c.tk, sk: c.sk }) });
         const d = await r.json();

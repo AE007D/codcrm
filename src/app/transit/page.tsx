@@ -1,14 +1,11 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import Sidebar from "@/components/Sidebar";
 
 type Creds = { apiId: string; apiKey: string };
 type EagleCreds = { tk: string; sk: string };
 type Parcel = Record<string, unknown>;
-
-const AMEEX_KEY = "ameex_creds";
-const EAGLE_KEY = "eagle_creds";
 
 const AMEEX_TRANSIT = ["en cours", "in transit", "picked up", "en livraison", "ramassé", "sorti pour livraison", "processing"];
 const EAGLE_TRANSIT = ["en cours", "in transit", "in_transit", "en livraison", "livraison", "sorti", "pris en charge"];
@@ -41,9 +38,10 @@ export default function TransitPage() {
     setLoading(true); setError("");
     const results: { ameex: Parcel[]; eagle: Parcel[] } = { ameex: [], eagle: [] };
 
-    const rawA = localStorage.getItem(AMEEX_KEY);
-    if (rawA) {
-      const c: Creds = JSON.parse(rawA);
+    const s = await fetch("/api/settings").then(r => r.json()).then(d => d.settings ?? {}).catch(() => ({}));
+
+    if (s.ameex) {
+      const c: Creds = s.ameex;
       try {
         const r = await fetch("/api/ameex", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "listParcels", apiId: c.apiId, apiKey: c.apiKey }) });
         const d = await r.json();
@@ -52,9 +50,8 @@ export default function TransitPage() {
       } catch { /* silent */ }
     }
 
-    const rawE = localStorage.getItem(EAGLE_KEY);
-    if (rawE) {
-      const c: EagleCreds = JSON.parse(rawE);
+    if (s.eagle) {
+      const c: EagleCreds = s.eagle;
       try {
         const r = await fetch("/api/eagle", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "list", tk: c.tk, sk: c.sk }) });
         const d = await r.json();
@@ -63,7 +60,7 @@ export default function TransitPage() {
       } catch { /* silent */ }
     }
 
-    if (!rawA && !rawE) setError("Aucun transporteur configuré. Allez dans Intégrations pour ajouter Ameex ou Eagle Express.");
+    if (!s.ameex && !s.eagle) setError("Aucun transporteur configuré. Allez dans Intégrations pour ajouter Ameex ou Eagle Express.");
     setAmeexParcels(results.ameex);
     setEagleParcels(results.eagle);
     setLoading(false); setLoaded(true);

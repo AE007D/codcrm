@@ -214,11 +214,12 @@ export default function CommandesPage() {
     setShipResults([]);
     const selectedOrders = orders.filter(o => selected.has(o.id));
 
-    const credsKey = shipCarrier === "ameex" ? "ameex_creds" : "eagle_creds";
+    // Load credentials from server (per-user, not localStorage)
     let creds: Record<string, string> = {};
     try {
-      const raw = localStorage.getItem(credsKey);
-      if (raw) creds = JSON.parse(raw);
+      const settingsData = await fetch("/api/settings").then(r => r.json());
+      const s = settingsData.settings ?? {};
+      creds = shipCarrier === "ameex" ? (s.ameex ?? {}) : (s.eagle ?? {});
     } catch { /* no creds */ }
 
     const results: { id: string; ok: boolean; msg: string }[] = [];

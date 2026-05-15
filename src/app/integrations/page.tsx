@@ -9,12 +9,10 @@ type Creds = { apiId: string; apiKey: string };
 type EagleCreds = { tk: string; sk: string };
 type Parcel = Record<string, unknown>;
 
-/* ── storage keys ── */
-const AMEEX_KEY       = "ameex_creds";
-const EAGLE_KEY       = "eagle_creds";
-const SHOPIFY_KEY     = "shopify_creds";
-const FB_ADS_KEY      = "fb_ads_creds";
-const TIKTOK_ADS_KEY  = "tiktok_ads_creds";
+/* ── server settings helper ── */
+async function patchSettings(patch: Record<string, unknown>) {
+  await fetch("/api/settings", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(patch) });
+}
 
 /* ── helpers ── */
 async function ameexCall(action: string, c: Creds, extra: Record<string, unknown> = {}) {
@@ -131,17 +129,16 @@ export default function IntegrationsPage() {
   const [tiktokAds, setTiktokAds] = useState({ accessToken: "", advertiserId: "" });
   const [tiktokAdsSaved, setTiktokAdsSaved] = useState<{ accessToken: string; advertiserId: string } | null>(null);
 
-  /* Load from localStorage */
+  /* Load settings from server (per-user, not localStorage) */
   useEffect(() => {
-    const a = localStorage.getItem(AMEEX_KEY); if (a) { const c = JSON.parse(a); setAmeexSaved(c); setAmeex(c); }
-    const e = localStorage.getItem(EAGLE_KEY);  if (e) { const c = JSON.parse(e); setEagleSaved(c); setEagle(c); }
-    const s = localStorage.getItem(SHOPIFY_KEY); if (s) { const c = JSON.parse(s); setShopifySaved(c); setShopify(c); }
-    const fb = localStorage.getItem(FB_ADS_KEY); if (fb) { const c = JSON.parse(fb); setFbAdsSaved(c); setFbAds(c); }
-    const tt = localStorage.getItem(TIKTOK_ADS_KEY); if (tt) { const c = JSON.parse(tt); setTiktokAdsSaved(c); setTiktokAds(c); }
-  }, []);
-
-  /* Fetch current user ID for personalized webhook URL */
-  useEffect(() => {
+    fetch("/api/settings").then(r => r.json()).then(d => {
+      const s = d.settings ?? {};
+      if (s.ameex)    { setAmeexSaved(s.ameex);    setAmeex(s.ameex); }
+      if (s.eagle)    { setEagleSaved(s.eagle);     setEagle(s.eagle); }
+      if (s.shopify)  { setShopifySaved(s.shopify); setShopify(s.shopify); }
+      if (s.facebook) { setFbAdsSaved(s.facebook);  setFbAds(s.facebook); }
+      if (s.tiktok)   { setTiktokAdsSaved(s.tiktok);setTiktokAds(s.tiktok); }
+    }).catch(() => {});
     fetch("/api/auth/me").then(r => r.json()).then(d => { if (d.id) setCurrentUserId(d.id); }).catch(() => {});
   }, []);
 
@@ -154,13 +151,13 @@ export default function IntegrationsPage() {
   const [loading, setLoading] = useState(false);
 
   /* Ameex actions */
-  function saveAmeex() { if (!ameex.apiId || !ameex.apiKey) { showToast("API ID et API Key requis.", false); return; } localStorage.setItem(AMEEX_KEY, JSON.stringify(ameex)); setAmeexSaved(ameex); showToast("Ameex connecté ✓"); }
+  function saveAmeex() { if (!ameex.apiId || !ameex.apiKey) { showToast("API ID et API Key requis.", false); return; } patchSettings({ ameex }).then(() => { setAmeexSaved(ameex); showToast("Ameex connecté ✓"); }); }
   const loadAmeexParcels = useCallback(async () => { if (!ameexSaved) return; setLoading(true); const d = await ameexCall("listParcels", ameexSaved); setLoading(false); if (Array.isArray(d)) setAmeexParcels(d); else if (d?.data) setAmeexParcels(d.data); }, [ameexSaved]);
   async function addAmeex() { if (!ameexSaved) { showToast("Configurez Ameex d'abord.", false); return; } if (!ameexForm.receiver || !ameexForm.phone || !ameexForm.city || !ameexForm.address || !ameexForm.cod) { showToast("Champs obligatoires manquants.", false); return; } setLoading(true); const d = await ameexCall("addParcel", ameexSaved, { ...ameexForm }); setLoading(false); const ok = d?.message?.toLowerCase().includes("success") || d?.success; showToast(d?.message || (ok ? "Colis créé ✓" : "Erreur"), ok); if (ok) setAmeexForm({ receiver: "", phone: "", city: "", address: "", cod: "", product: "", order_num: "", comment: "", type: "SIMPLE", open: "NO", try: "NO", fragile: "0", replace: "false" }); }
   async function trackAmeex() { if (!ameexSaved || !ameexTrack) return; setLoading(true); const d = await ameexCall("trackParcel", ameexSaved, { code: ameexTrack }); setLoading(false); if (d && !d.error) setAmeexTrackRes(d); else showToast(d?.message || "Introuvable.", false); }
 
   /* Eagle actions */
-  function saveEagle() { if (!eagle.tk || !eagle.sk) { showToast("Token et Secret Key requis.", false); return; } localStorage.setItem(EAGLE_KEY, JSON.stringify(eagle)); setEagleSaved(eagle); showToast("Eagle Express connecté ✓"); }
+  function saveEagle() { if (!eagle.tk || !eagle.sk) { showToast("Token et Secret Key requis.", false); return; } patchSettings({ eagle }).then(() => { setEagleSaved(eagle); showToast("Eagle Express connecté ✓"); }); }
   const loadEagleParcels = useCallback(async () => { if (!eagleSaved) return; setLoading(true); const d = await eagleCall("list", eagleSaved); setLoading(false); if (Array.isArray(d)) setEagleParcels(d); }, [eagleSaved]);
   const loadEagleCities = useCallback(async () => { setLoading(true); const d = await eagleCall("cities", { tk: "", sk: "" }); setLoading(false); if (Array.isArray(d)) setEagleCities(d); }, []);
   async function addEagle() { if (!eagleSaved) { showToast("Configurez Eagle d'abord.", false); return; } if (!eagleForm.fullname || !eagleForm.phone || !eagleForm.city || !eagleForm.address || !eagleForm.price) { showToast("Champs obligatoires manquants.", false); return; } setLoading(true); const d = await eagleCall("add", eagleSaved, { ...eagleForm }); setLoading(false); const ok = d?.message?.toLowerCase().includes("success"); showToast(d?.message || (ok ? "Colis créé ✓" : "Erreur"), ok); if (ok) setEagleForm({ fullname: "", phone: "", city: "", address: "", price: "", product: "", qty: "1", note: "", change: "0", openpackage: "0" }); }
@@ -170,13 +167,13 @@ export default function IntegrationsPage() {
   async function sendLFTest() { const dummy = { id: `test_${Date.now()}`, order_number: Math.floor(Math.random()*9000)+1000, status: "open", financial_status: "pending", total_price: "350.00", currency: "MAD", customer: { first_name: "Test", last_name: "Client", phone: "06 00 00 00 00", email: "test@codcrm.ma" }, shipping_address: { first_name: "Test", last_name: "Client", phone: "06 00 00 00 00", address1: "12 Rue Hassan II", city: "Casablanca" }, line_items: [{ title: "Produit Test", quantity: 1, price: "350.00" }], funnel: { name: "Test Funnel" }, created_at: new Date().toISOString() }; await fetch("/api/webhooks/lightfunnels", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(dummy) }); setTimeout(fetchLF, 500); setLfTab("orders"); }
 
   /* Shopify save */
-  function saveShopify() { if (!shopify.store || !shopify.apiKey) { showToast("Store URL et API Key requis.", false); return; } localStorage.setItem(SHOPIFY_KEY, JSON.stringify(shopify)); setShopifySaved(shopify); showToast("Shopify connecté ✓"); }
+  function saveShopify() { if (!shopify.store || !shopify.apiKey) { showToast("Store URL et API Key requis.", false); return; } patchSettings({ shopify }).then(() => { setShopifySaved(shopify); showToast("Shopify connecté ✓"); }); }
 
   /* Facebook Ads save */
-  function saveFbAds() { if (!fbAds.accessToken || !fbAds.adAccountId) { showToast("Access Token et Ad Account ID requis.", false); return; } localStorage.setItem(FB_ADS_KEY, JSON.stringify(fbAds)); setFbAdsSaved(fbAds); showToast("Facebook Ads connecté ✓"); }
+  function saveFbAds() { if (!fbAds.accessToken || !fbAds.adAccountId) { showToast("Access Token et Ad Account ID requis.", false); return; } patchSettings({ facebook: fbAds }).then(() => { setFbAdsSaved(fbAds); showToast("Facebook Ads connecté ✓"); }); }
 
   /* TikTok Ads save */
-  function saveTiktokAds() { if (!tiktokAds.accessToken || !tiktokAds.advertiserId) { showToast("Access Token et Advertiser ID requis.", false); return; } localStorage.setItem(TIKTOK_ADS_KEY, JSON.stringify(tiktokAds)); setTiktokAdsSaved(tiktokAds); showToast("TikTok Ads connecté ✓"); }
+  function saveTiktokAds() { if (!tiktokAds.accessToken || !tiktokAds.advertiserId) { showToast("Access Token et Advertiser ID requis.", false); return; } patchSettings({ tiktok: tiktokAds }).then(() => { setTiktokAdsSaved(tiktokAds); showToast("TikTok Ads connecté ✓"); }); }
 
   useEffect(() => { if (active === "ameex" && ameexTab === "parcels") loadAmeexParcels(); }, [active, ameexTab, loadAmeexParcels]);
   useEffect(() => { if (active === "eagle" && eagleTab === "parcels") loadEagleParcels(); if (active === "eagle" && eagleTab === "cities" && eagleCities.length === 0) loadEagleCities(); }, [active, eagleTab, loadEagleParcels, loadEagleCities, eagleCities.length]);
