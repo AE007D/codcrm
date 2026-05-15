@@ -398,7 +398,7 @@ export default function CommandesPage() {
         const apiMsg = data?.api?.msg ?? data?.message ?? data?.error ?? "";
         const msgDetail = ok
           ? `Envoyé ✓ ${trackingCode ?? ""}`
-          : `[Ville: ${cityId}] ${apiMsg || JSON.stringify(data).slice(0, 100)}`;
+          : `${apiMsg || JSON.stringify(data).slice(0, 100)}`;
         results.push({ id: order.id, ok, msg: msgDetail });
       } catch (e) {
         results.push({ id: order.id, ok: false, msg: String(e) });
