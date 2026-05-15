@@ -183,6 +183,12 @@ export default function CommandesPage() {
 
   // ── Load Ameex cities once on mount ──────────────────────────────────────
   useEffect(() => {
+    // Load from localStorage cache first (instant)
+    try {
+      const cached = localStorage.getItem("codcrm_ameex_cities");
+      if (cached) { const parsed = JSON.parse(cached); if (parsed?.length) setAmeexCities(parsed); }
+    } catch { /* ignore */ }
+    // Then refresh from API
     fetch("/api/settings").then(r => r.json()).then(async d => {
       const creds = d.settings?.ameex ?? {};
       if (!creds.apiId) return;
@@ -192,7 +198,7 @@ export default function CommandesPage() {
       }).then(r => r.json());
       const raw = Array.isArray(cd) ? cd : Array.isArray(cd?.api?.data) ? cd.api.data : Array.isArray(cd?.data) ? cd.data : [];
       const list = raw.map((c: Record<string,unknown>) => ({ id: String(c.id ?? c.city_id ?? ""), name: String(c.name ?? c.city_name ?? "") })).filter((c: {id:string;name:string}) => c.id && c.name);
-      if (list.length) setAmeexCities(list);
+      if (list.length) { setAmeexCities(list); try { localStorage.setItem("codcrm_ameex_cities", JSON.stringify(list)); } catch { /* ignore */ } }
     }).catch(() => {});
   }, []);
 
@@ -397,14 +403,14 @@ export default function CommandesPage() {
       try {
         let res: Response;
         if (shipCarrier === "ameex") {
-          // Resolve city: manual override > alias map > Ameex city list > raw name
+          // City: use override (set in ship modal) first, then auto-resolve from name
           const cityRaw       = (order.city ?? "").trim();
           const cityCanonical = resolveCity(cityRaw);
-          const overrideRaw   = cityOverrides[order.id] ?? "";
-          const overrideCanon = resolveCity(overrideRaw);
-          const cityId        = (overrideRaw
-                              ? (ameexCityMap[normalize(overrideCanon)] ?? ameexCityMap[normalize(overrideRaw)] ?? overrideRaw)
-                              : (ameexCityMap[normalize(cityCanonical)] ?? ameexCityMap[normalize(cityRaw)] ?? cityRaw));
+          const overrideVal   = cityOverrides[order.id] ?? "";
+          const cityId        = overrideVal
+                              || ameexCityMap[normalize(cityCanonical)]
+                              || ameexCityMap[normalize(cityRaw)]
+                              || cityRaw;
           res = await fetch("/api/ameex", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
@@ -918,47 +924,42 @@ export default function CommandesPage() {
                 </div>
               )}
 
-              {/* Ameex city selector — always shown for unresolved cities, dropdown or text input */}
+              {/* Ameex — city selector for ALL orders, pre-filled, always editable */}
               {!shipResults.length && shipCarrier === "ameex" && (() => {
                 const normalize = (s: string) => s.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").trim();
                 const cityMap: Record<string,string> = {};
-                for (const c of ameexCities) cityMap[normalize(c.name)] = c.id;
+                const cityNameMap: Record<string,string> = {};
+                for (const c of ameexCities) { cityMap[normalize(c.name)] = c.id; cityNameMap[c.id] = c.name; }
                 const selectedOrders = orders.filter(o => selected.has(o.id));
-                const unresolved = selectedOrders.filter(o => {
-                  if (cityOverrides[o.id]) return false;
-                  const canonical = resolveCity(o.city ?? "");
-                  return !cityMap[normalize(canonical)] && !cityMap[normalize(o.city ?? "")];
-                });
-                if (!unresolved.length) return null;
                 return (
-                  <div className="space-y-2 bg-amber-50 border border-amber-200 rounded-2xl p-3">
-                    <p className="text-xs font-bold text-amber-700">⚠ Ville manquante ou non reconnue — obligatoire pour Ameex :</p>
-                    {unresolved.map(o => (
-                      <div key={o.id} className="space-y-1">
-                        <div className="flex items-center gap-1.5">
-                          <span className="text-xs font-bold text-slate-700">{o.customer}</span>
-                          {o.city && <span className="text-xs text-slate-400 bg-white px-1.5 py-0.5 rounded border border-slate-200">{o.city}</span>}
+                  <div className="space-y-2">
+                    <p className="text-xs font-semibold text-slate-500">🏙 Vérifiez la ville de chaque commande avant d&apos;envoyer :</p>
+                    {selectedOrders.map(o => {
+                      const canonical = resolveCity(o.city ?? "");
+                      const autoId = cityMap[normalize(canonical)] ?? cityMap[normalize(o.city ?? "")];
+                      const currentVal = cityOverrides[o.id] ?? autoId ?? "";
+                      return (
+                        <div key={o.id} className={`flex items-center gap-2 p-2 rounded-xl border ${currentVal ? "border-slate-200 bg-slate-50" : "border-amber-300 bg-amber-50"}`}>
+                          <span className="text-xs font-semibold text-slate-700 w-20 truncate shrink-0">{o.customer}</span>
+                          {ameexCities.length > 0 ? (
+                            <select
+                              value={currentVal}
+                              onChange={e => setCityOverrides(prev => ({ ...prev, [o.id]: e.target.value }))}
+                              className="flex-1 text-xs border border-slate-200 rounded-lg px-2 py-1.5 outline-none focus:border-blue-400 bg-white"
+                            >
+                              <option value="">-- Choisir ville --</option>
+                              {ameexCities.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                            </select>
+                          ) : (
+                            <input type="text" placeholder="Ville Ameex (ex: Casablanca)"
+                              value={cityOverrides[o.id] ?? o.city ?? ""}
+                              onChange={e => setCityOverrides(prev => ({ ...prev, [o.id]: e.target.value }))}
+                              className="flex-1 text-xs border border-slate-200 rounded-lg px-2 py-1.5 outline-none focus:border-blue-400 bg-white"
+                            />
+                          )}
                         </div>
-                        {ameexCities.length > 0 ? (
-                          <select
-                            value={cityOverrides[o.id] ?? ""}
-                            onChange={e => setCityOverrides(prev => ({ ...prev, [o.id]: e.target.value }))}
-                            className="w-full text-xs border border-amber-300 rounded-lg px-2 py-2 outline-none focus:border-blue-400 bg-white"
-                          >
-                            <option value="">-- Sélectionner la ville --</option>
-                            {ameexCities.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-                          </select>
-                        ) : (
-                          <input
-                            type="text"
-                            placeholder="Entrez le nom de la ville (ex: Casablanca, Rabat…)"
-                            value={cityOverrides[o.id] ?? ""}
-                            onChange={e => setCityOverrides(prev => ({ ...prev, [o.id]: e.target.value }))}
-                            className="w-full text-xs border border-amber-300 rounded-lg px-2 py-2 outline-none focus:border-blue-400 bg-white"
-                          />
-                        )}
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 );
               })()}
@@ -979,9 +980,10 @@ export default function CommandesPage() {
                 const cityMap: Record<string,string> = {};
                 for (const c of ameexCities) cityMap[normalize(c.name)] = c.id;
                 const hasUnresolved = shipCarrier === "ameex" && orders.filter(o => selected.has(o.id)).some(o => {
-                  if (cityOverrides[o.id]) return false;
                   const canonical = resolveCity(o.city ?? "");
-                  return !cityMap[normalize(canonical)] && !cityMap[normalize(o.city ?? "")];
+                  const autoId = cityMap[normalize(canonical)] ?? cityMap[normalize(o.city ?? "")];
+                  const val = cityOverrides[o.id] ?? autoId ?? "";
+                  return !val;
                 });
                 return (
                   <button onClick={sendToCarrier} disabled={shipping || selected.size === 0 || hasUnresolved}
