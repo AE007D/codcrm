@@ -21,6 +21,7 @@ export type CrmOrder = {
   attempts: number;
   noAnswer: number;
   receivedAt: string;
+  carrierTracking?: string;
 };
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -45,6 +46,7 @@ function rowToOrder(row: any): CrmOrder {
     attempts: row.attempts ?? 0,
     noAnswer: row.no_answer ?? 0,
     receivedAt: row.received_at ?? new Date().toISOString(),
+    carrierTracking: row.carrier_tracking ?? undefined,
   };
 }
 
@@ -88,16 +90,29 @@ export async function upsertOrder(order: Omit<CrmOrder, never>): Promise<CrmOrde
   return rowToOrder(data);
 }
 
+export async function updateOrderByTracking(
+  carrierTracking: string,
+  status: string
+): Promise<boolean> {
+  const { error } = await supabase
+    .from("crm_orders")
+    .update({ status })
+    .eq("carrier_tracking", carrierTracking);
+  if (error) { console.error("updateOrderByTracking:", error.message); return false; }
+  return true;
+}
+
 export async function updateOrderFields(
   id: string,
   workspaceId: string,
-  patch: Partial<{ status: string; notes: string; attempts: number; noAnswer: number }>
+  patch: Partial<{ status: string; notes: string; attempts: number; noAnswer: number; carrierTracking: string }>
 ): Promise<CrmOrder | null> {
   const dbPatch: Record<string, unknown> = {};
   if (patch.status !== undefined) dbPatch.status = patch.status;
   if (patch.notes !== undefined) dbPatch.notes = patch.notes;
   if (patch.attempts !== undefined) dbPatch.attempts = patch.attempts;
   if (patch.noAnswer !== undefined) dbPatch.no_answer = patch.noAnswer;
+  if (patch.carrierTracking !== undefined) dbPatch.carrier_tracking = patch.carrierTracking;
 
   const { data, error } = await supabase
     .from("crm_orders")

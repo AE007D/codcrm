@@ -96,6 +96,8 @@ export default function CommandesPage() {
   const [notesModal, setNotesModal] = useState<Order | null>(null);
   const [noteText, setNoteText] = useState("");
   const [drawer, setDrawer] = useState<Order | null>(null);
+  const [toast, setToast] = useState<{ msg: string; ok: boolean } | null>(null);
+  function showToast(msg: string, ok = true) { setToast({ msg, ok }); setTimeout(() => setToast(null), 3500); }
 
   // Catalog
   const [catalog, setCatalog] = useState<CatalogProduct[]>([]);
@@ -201,7 +203,10 @@ export default function CommandesPage() {
   }
 
   async function addOrder() {
-    if (!form.customer || !form.phone || !form.product || !form.amount) return;
+    if (!form.customer || !form.phone || !form.product || !form.amount) {
+      showToast("Remplissez : nom, téléphone, produit et montant.", false);
+      return;
+    }
     try {
       const res = await fetch("/api/orders", {
         method: "POST",
@@ -218,7 +223,7 @@ export default function CommandesPage() {
         }),
       });
       const data = await res.json();
-      if (!res.ok) { console.error("addOrder error:", data.error); return; }
+      if (!res.ok) { showToast(data.error || "Erreur lors de la création.", false); return; }
       const o = data.order;
       const mapped: Order = {
         id: String(o.id),
@@ -241,7 +246,8 @@ export default function CommandesPage() {
       setForm(emptyForm);
       setCatalogSearch("");
       setShowModal(false);
-    } catch (e) { console.error("addOrder failed:", e); }
+      showToast("Commande ajoutée ✓");
+    } catch (e) { console.error("addOrder failed:", e); showToast("Erreur réseau.", false); }
   }
 
   function saveNote(id: string, note: string) {
@@ -347,12 +353,21 @@ export default function CommandesPage() {
           data.barcode != null ||
           (!data.error && !data.message?.toLowerCase().includes("error") && !data.message?.toLowerCase().includes("invalid") && res.status === 200 && !data.raw)
         );
+        const trackingCode = data.code ?? data.CODE ?? data.tracking ?? data.barcode ?? data.id ?? data.parcel_id ?? null;
         if (ok) {
           setStatus(order.id, "expédié");
+          // Save the carrier tracking code so webhooks can auto-update this order
+          if (trackingCode && shipCarrier === "ameex") {
+            fetch("/api/orders", {
+              method: "PATCH",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ id: order.id, carrierTracking: String(trackingCode) }),
+            }).catch(() => {});
+          }
         }
         // Show full response detail for debugging
         const msgDetail = ok
-          ? `Envoyé ✓ ${data.id ?? data.parcel_id ?? data.barcode ?? data.tracking ?? ""}`
+          ? `Envoyé ✓ ${trackingCode ?? ""}`
           : `${data.message ?? data.error ?? JSON.stringify(data).slice(0, 80)}`;
         results.push({ id: order.id, ok, msg: msgDetail });
       } catch (e) {
@@ -374,6 +389,11 @@ export default function CommandesPage() {
   return (
     <div className="flex min-h-screen bg-[#F0F4FF]">
       <Sidebar />
+      {toast && (
+        <div className={`fixed top-5 right-5 z-[200] flex items-center gap-3 px-5 py-3 rounded-2xl shadow-2xl text-white text-sm font-semibold transition-all ${toast.ok ? "bg-emerald-500" : "bg-red-500"}`}>
+          <span>{toast.ok ? "✓" : "✕"}</span>{toast.msg}
+        </div>
+      )}
       <div className="flex-1 flex flex-col overflow-hidden">
         <header className="bg-white border-b border-slate-100 px-4 lg:px-8 py-4 pl-14 lg:pl-8 flex items-center justify-between shrink-0">
           <div>
