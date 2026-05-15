@@ -295,6 +295,7 @@ export default function CommandesPage() {
     } catch { /* no creds */ }
 
     // Build Ameex city name → ID map for auto-resolution
+    const normalize = (s: string) => s.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").trim();
     const ameexCityMap: Record<string, string> = {};
     if (shipCarrier === "ameex" && creds.apiId) {
       try {
@@ -303,9 +304,13 @@ export default function CommandesPage() {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ action: "cities", apiId: creds.apiId, apiKey: creds.apiKey }),
         }).then(r => r.json());
-        const list = Array.isArray(cd) ? cd : (cd?.data ?? cd?.cities ?? []);
+        // Ameex wraps responses: {login, api:{type, data:[...]}} or flat array
+        const list = Array.isArray(cd) ? cd
+          : Array.isArray(cd?.api?.data) ? cd.api.data
+          : Array.isArray(cd?.data) ? cd.data
+          : [];
         for (const c of list) {
-          const name = (c.name ?? c.city_name ?? c.label ?? "").toLowerCase().trim();
+          const name = normalize(c.name ?? c.city_name ?? c.label ?? "");
           const id   = String(c.id ?? c.city_id ?? c.value ?? "");
           if (name && id) ameexCityMap[name] = id;
         }
@@ -318,9 +323,9 @@ export default function CommandesPage() {
       try {
         let res: Response;
         if (shipCarrier === "ameex") {
-          // Resolve city name → Ameex numeric city ID
+          // Resolve city name → Ameex numeric city ID (accent-insensitive)
           const cityRaw = (order.city ?? "").trim();
-          const cityId  = ameexCityMap[cityRaw.toLowerCase()] ?? cityRaw;
+          const cityId  = ameexCityMap[normalize(cityRaw)] ?? cityRaw;
           res = await fetch("/api/ameex", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
@@ -390,9 +395,10 @@ export default function CommandesPage() {
           }
         }
         // Show full response detail for debugging
+        const apiMsg = data?.api?.msg ?? data?.message ?? data?.error ?? "";
         const msgDetail = ok
           ? `Envoyé ✓ ${trackingCode ?? ""}`
-          : `${data.message ?? data.error ?? JSON.stringify(data).slice(0, 80)}`;
+          : `[Ville: ${cityId}] ${apiMsg || JSON.stringify(data).slice(0, 100)}`;
         results.push({ id: order.id, ok, msg: msgDetail });
       } catch (e) {
         results.push({ id: order.id, ok: false, msg: String(e) });
