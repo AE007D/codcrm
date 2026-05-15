@@ -70,6 +70,7 @@ export default function ProduitsPage() {
         fetch("/api/products"),
         fetch("/api/lf-orders"),
       ]);
+      if (pRes.status === 401) { window.location.href = "/login"; return; }
       const pData = await pRes.json();
       setProducts(pData.products ?? []);
 

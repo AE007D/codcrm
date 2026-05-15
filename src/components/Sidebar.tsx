@@ -116,7 +116,10 @@ export default function Sidebar() {
   // Fetch current user (and re-fetch on profile updates)
   function fetchMe() {
     fetch("/api/auth/me")
-      .then(r => r.ok ? r.json() : null)
+      .then(r => {
+        if (r.status === 401) { window.location.href = "/login"; return null; }
+        return r.ok ? r.json() : null;
+      })
       .then(data => { if (data) setCurrentUser(data); })
       .catch(() => {});
   }
