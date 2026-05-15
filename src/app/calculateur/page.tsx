@@ -10,6 +10,7 @@ type Product = {
   sellPrice: number;
   shippingCost: number;
   cpd: number;
+  confirmationCost: number;   // coût de confirmation (centre d'appel)
   platform: string;
   /* Real delivery rate from shippers */
   realDeliveryRate?: number;
@@ -73,20 +74,23 @@ function calcRateForProduct(productName: string, rateMap: Map<string, ParcelStat
 
 /*
   Profit formula (COD, delivery rate R%):
-  Net/order = R*(sell - purchase - shipping - cpd) - (1-R)*(purchase + shipping)
-  Break-even R = (purchase + shipping) / (sell - cpd)
+  confirmationCost is paid on every confirmed order (delivered OR returned)
+  Net/order = R*(sell - purchase - shipping - cpd - confirmationCost)
+              - (1-R)*(purchase + shipping + confirmationCost)
+  Break-even R = (purchase + shipping + confirmationCost) / (sell - cpd - confirmationCost)
 */
 function calcMetrics(p: Product, deliveryRate: number) {
   const R = deliveryRate / 100;
-  const profitPerDelivered = p.sellPrice - p.purchasePrice - p.shippingCost - p.cpd;
-  const lossPerReturn = p.purchasePrice + p.shippingCost;
+  const cc = p.confirmationCost || 0;
+  const profitPerDelivered = p.sellPrice - p.purchasePrice - p.shippingCost - p.cpd - cc;
+  const lossPerReturn = p.purchasePrice + p.shippingCost + cc;
   const netPerOrder = R * profitPerDelivered - (1 - R) * lossPerReturn;
+  const totalCost = p.purchasePrice + p.shippingCost + p.cpd + cc;
   const margin = p.sellPrice > 0 ? (profitPerDelivered / p.sellPrice) * 100 : 0;
-  const roi = (p.purchasePrice + p.shippingCost + p.cpd) > 0
-    ? (profitPerDelivered / (p.purchasePrice + p.shippingCost + p.cpd)) * 100 : 0;
-  const denominator = p.sellPrice - p.cpd;
+  const roi = totalCost > 0 ? (profitPerDelivered / totalCost) * 100 : 0;
+  const denominator = p.sellPrice - p.cpd - cc;
   const breakEvenRate = denominator > 0
-    ? Math.min(100, Math.max(0, ((p.purchasePrice + p.shippingCost) / denominator) * 100))
+    ? Math.min(100, Math.max(0, ((p.purchasePrice + p.shippingCost + cc) / denominator) * 100))
     : 100;
   return { profitPerDelivered, netPerOrder, margin, roi, breakEvenRate, isWinner: netPerOrder > 0 && profitPerDelivered > 0 };
 }
@@ -100,7 +104,7 @@ function hoursUntilNext(lastRun: number) {
   return `${Math.floor(diff / 3600000)}h ${Math.floor((diff % 3600000) / 60000)}m`;
 }
 
-const emptyForm = { name: "", purchasePrice: "", sellPrice: "", shippingCost: "", cpd: "", platform: "Facebook" };
+const emptyForm = { name: "", purchasePrice: "", sellPrice: "", shippingCost: "", cpd: "", confirmationCost: "", platform: "Facebook" };
 
 export default function CalculateurPage() {
   const [products, setProducts] = useState<Product[]>([]);
@@ -189,8 +193,16 @@ export default function CalculateurPage() {
 
   function handleAdd() {
     const { name, purchasePrice, sellPrice, shippingCost, cpd } = form;
-    if (!name || !purchasePrice || !sellPrice || !shippingCost || !cpd) { setError("Veuillez remplir tous les champs."); return; }
-    setProducts(prev => [...prev, { id: Date.now(), name, purchasePrice: Number(purchasePrice), sellPrice: Number(sellPrice), shippingCost: Number(shippingCost), cpd: Number(cpd), platform: form.platform }]);
+    if (!name || !purchasePrice || !sellPrice || !shippingCost || !cpd) { setError("Veuillez remplir tous les champs obligatoires (*)"); return; }
+    setProducts(prev => [...prev, {
+      id: Date.now(), name,
+      purchasePrice: Number(purchasePrice),
+      sellPrice: Number(sellPrice),
+      shippingCost: Number(shippingCost),
+      cpd: Number(cpd),
+      confirmationCost: Number(form.confirmationCost) || 0,
+      platform: form.platform,
+    }]);
     setForm(emptyForm); setError(""); setShowModal(false);
   }
 
@@ -209,7 +221,7 @@ export default function CalculateurPage() {
   const lastSyncStr = lastSync ? new Date(lastSync).toLocaleTimeString("fr-MA", { hour: "2-digit", minute: "2-digit" }) : null;
 
   const previewProfit = form.sellPrice && form.purchasePrice && form.shippingCost && form.cpd
-    ? calcMetrics({ id: 0, name: "", purchasePrice: Number(form.purchasePrice), sellPrice: Number(form.sellPrice), shippingCost: Number(form.shippingCost), cpd: Number(form.cpd), platform: form.platform }, FALLBACK_RATE)
+    ? calcMetrics({ id: 0, name: "", purchasePrice: Number(form.purchasePrice), sellPrice: Number(form.sellPrice), shippingCost: Number(form.shippingCost), cpd: Number(form.cpd), confirmationCost: Number(form.confirmationCost) || 0, platform: form.platform }, FALLBACK_RATE)
     : null;
 
   const sourceLabel: Record<NonNullable<Product["rateSource"]>, string> = { ameex: "Ameex", eagle: "Eagle", both: "Ameex + Eagle", manual: "Manuel" };
@@ -336,6 +348,9 @@ export default function CalculateurPage() {
                   <div className="flex justify-between text-sm"><span className="text-slate-400">− Prix d&apos;achat</span><span className="text-red-400 font-medium">−{p.purchasePrice} MAD</span></div>
                   <div className="flex justify-between text-sm"><span className="text-slate-400">− Livraison</span><span className="text-red-400 font-medium">−{p.shippingCost} MAD</span></div>
                   <div className="flex justify-between text-sm"><span className="text-slate-400">− CPD pub</span><span className="text-red-400 font-medium">−{p.cpd.toFixed(1)} MAD</span></div>
+                  {(p.confirmationCost || 0) > 0 && (
+                    <div className="flex justify-between text-sm"><span className="text-slate-400">− Confirmation</span><span className="text-red-400 font-medium">−{(p.confirmationCost).toFixed(1)} MAD</span></div>
+                  )}
                   <div className="border-t border-slate-100 pt-1.5 flex justify-between text-sm font-bold">
                     <span className="text-slate-600">Profit / livré</span>
                     <span className={p.profitPerDelivered >= 0 ? "text-emerald-600" : "text-red-500"}>{p.profitPerDelivered >= 0 ? "+" : ""}{p.profitPerDelivered.toFixed(1)} MAD</span>
@@ -411,6 +426,7 @@ export default function CalculateurPage() {
                 { key: "sellPrice", label: "Prix de vente (MAD) *", placeholder: "350" },
                 { key: "shippingCost", label: "Frais livraison (MAD) *", placeholder: "25" },
                 { key: "cpd", label: "CPD pub (MAD) *", placeholder: "29.3" },
+                { key: "confirmationCost", label: "Coût confirmation (MAD)", placeholder: "5" },
               ].map(({ key, label, placeholder, full }) => (
                 <div key={key} className={full ? "col-span-2" : ""}>
                   <label className="text-xs font-semibold text-slate-600 mb-1 block">{label}</label>
