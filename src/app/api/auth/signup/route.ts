@@ -35,7 +35,7 @@ export async function POST(request: NextRequest) {
       passwordHash: hashPassword(password),
       role: workspaceId ? assignedRole : "admin", // fresh = always admin
       active: true,
-      workspaceId: workspaceId ?? undefined, // undefined = own workspace (set in createUser)
+      ...(workspaceId ? { workspaceId } : {}), // omit = own workspace (set in createUser)
     });
 
     return NextResponse.json({

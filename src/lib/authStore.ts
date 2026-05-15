@@ -74,7 +74,7 @@ export async function getUserCount(): Promise<number> {
 }
 
 export async function createUser(
-  user: Omit<User, "id" | "createdAt"> & { workspaceId?: string }
+  user: Omit<User, "id" | "createdAt" | "workspaceId"> & { workspaceId?: string }
 ): Promise<User> {
   const id = crypto.randomUUID();
   const now = new Date().toISOString();
