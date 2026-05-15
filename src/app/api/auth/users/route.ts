@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getUsers, getSession, updateUser, deleteUser } from "@/lib/authStore";
+import { getUsersByWorkspace, getSession, updateUser, deleteUser, createUser, hashPassword, getUserByEmail } from "@/lib/authStore";
 import { cookies } from "next/headers";
 
 const SESSION_COOKIE = "codcrm_session";
@@ -23,7 +23,8 @@ export async function GET() {
     return NextResponse.json({ error: "Non authentifié." }, { status: 401 });
   }
 
-  const users = (await getUsers()).map(u => ({
+  // Only return users in the same workspace
+  const users = (await getUsersByWorkspace(user.workspaceId)).map(u => ({
     id: u.id,
     name: u.name,
     email: u.email,
@@ -33,6 +34,48 @@ export async function GET() {
   }));
 
   return NextResponse.json({ users });
+}
+
+export async function POST(request: NextRequest) {
+  const admin = await requireAdmin();
+  if (!admin) {
+    return NextResponse.json({ error: "Admin requis." }, { status: 403 });
+  }
+
+  let body: { name?: string; email?: string; password?: string; role?: string };
+  try {
+    body = await request.json();
+  } catch {
+    return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
+  }
+
+  const { name, email, password, role } = body;
+  if (!name || !email || !password) {
+    return NextResponse.json({ error: "Nom, email et mot de passe requis." }, { status: 400 });
+  }
+
+  const existing = await getUserByEmail(email);
+  if (existing) {
+    return NextResponse.json({ error: "Cet email est déjà utilisé." }, { status: 409 });
+  }
+
+  const validRoles = ["admin", "agent", "viewer"];
+  const assignedRole = validRoles.includes(role ?? "") ? (role as "admin" | "agent" | "viewer") : "agent";
+
+  // New team member joins the admin's workspace
+  const user = await createUser({
+    name,
+    email,
+    passwordHash: hashPassword(password),
+    role: assignedRole,
+    active: true,
+    workspaceId: admin.workspaceId,
+  });
+
+  return NextResponse.json({
+    ok: true,
+    user: { id: user.id, name: user.name, email: user.email, role: user.role },
+  });
 }
 
 export async function PATCH(request: NextRequest) {

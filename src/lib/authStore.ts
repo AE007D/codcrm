@@ -12,7 +12,8 @@ export type User = {
   role: UserRole;
   createdAt: string;
   active: boolean;
-  avatar?: string; // URL or base64 data URL
+  avatar?: string;
+  workspaceId: string; // = own id for fresh signups; = admin's id for team members
 };
 
 const SALT = "CODCRM_SALT_";
@@ -22,7 +23,7 @@ export function hashPassword(password: string): string {
   return crypto.createHash("sha256").update(SALT + password).digest("hex");
 }
 
-// ── User helpers (async, Supabase-backed) ──────────────────────────────────
+// ── User helpers ────────────────────────────────────────────────────────────
 
 export async function getUsers(): Promise<User[]> {
   const { data, error } = await supabase
@@ -30,6 +31,17 @@ export async function getUsers(): Promise<User[]> {
     .select("*")
     .order("created_at", { ascending: true });
   if (error) { console.error("getUsers:", error.message); return []; }
+  return (data ?? []).map(rowToUser);
+}
+
+/** Returns only users in the same workspace */
+export async function getUsersByWorkspace(workspaceId: string): Promise<User[]> {
+  const { data, error } = await supabase
+    .from("crm_users")
+    .select("*")
+    .eq("workspace_id", workspaceId)
+    .order("created_at", { ascending: true });
+  if (error) { console.error("getUsersByWorkspace:", error.message); return []; }
   return (data ?? []).map(rowToUser);
 }
 
@@ -62,12 +74,12 @@ export async function getUserCount(): Promise<number> {
 }
 
 export async function createUser(
-  user: Omit<User, "id" | "createdAt" | "role"> & { role?: UserRole }
+  user: Omit<User, "id" | "createdAt"> & { workspaceId?: string }
 ): Promise<User> {
-  const count = await getUserCount();
-  const role: UserRole = count === 0 ? "admin" : (user.role ?? "agent");
   const id = crypto.randomUUID();
   const now = new Date().toISOString();
+  // Fresh signup: workspaceId = own id. Invited user: workspaceId = passed in
+  const workspaceId = user.workspaceId ?? id;
 
   const { data, error } = await supabase
     .from("crm_users")
@@ -76,9 +88,10 @@ export async function createUser(
       name: user.name,
       email: user.email,
       password_hash: user.passwordHash,
-      role,
-      active: true,
+      role: user.role ?? "agent",
+      active: user.active ?? true,
       created_at: now,
+      workspace_id: workspaceId,
     })
     .select()
     .single();
@@ -110,13 +123,12 @@ export async function updateUser(
 }
 
 export async function deleteUser(id: string): Promise<boolean> {
-  // Sessions cascade-delete via FK
   const { error } = await supabase.from("crm_users").delete().eq("id", id);
   if (error) { console.error("deleteUser:", error.message); return false; }
   return true;
 }
 
-// ── Session helpers (Supabase-backed, survives serverless restarts) ─────────
+// ── Session helpers (Supabase-backed) ───────────────────────────────────────
 
 export async function createSession(userId: string): Promise<string> {
   const token = crypto.randomBytes(32).toString("hex");
@@ -143,9 +155,7 @@ export async function getSession(token: string): Promise<User | null> {
 
   if (error || !data) return null;
 
-  // Check expiry
   if (new Date(data.expires_at) < new Date()) {
-    // Expired — clean up
     await supabase.from("crm_sessions").delete().eq("token", token);
     return null;
   }
@@ -157,7 +167,7 @@ export async function deleteSession(token: string): Promise<void> {
   await supabase.from("crm_sessions").delete().eq("token", token);
 }
 
-// ── Row mapper ─────────────────────────────────────────────────────────────
+// ── Row mapper ──────────────────────────────────────────────────────────────
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function rowToUser(row: any): User {
@@ -170,5 +180,6 @@ function rowToUser(row: any): User {
     createdAt: row.created_at,
     active: row.active,
     avatar: row.avatar ?? undefined,
+    workspaceId: row.workspace_id ?? row.id,
   };
 }

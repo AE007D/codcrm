@@ -5,7 +5,7 @@ import { getProducts, createProduct, updateProduct, deleteProduct, addStock } fr
 export async function GET() {
   const user = await getRequestUser();
   if (!user) return NextResponse.json({ error: "Non authentifié." }, { status: 401 });
-  return NextResponse.json({ products: getProducts(user.id) });
+  return NextResponse.json({ products: getProducts(user.workspaceId) });
 }
 
 export async function POST(request: NextRequest) {
@@ -17,7 +17,7 @@ export async function POST(request: NextRequest) {
   if (!name) return NextResponse.json({ error: "Le nom est requis." }, { status: 400 });
 
   const product = createProduct({
-    ownerId: user.id,
+    ownerId: user.workspaceId,
     name: String(name).trim(),
     sku: String(sku ?? "").trim(),
     image: String(image ?? ""),
@@ -40,12 +40,12 @@ export async function PATCH(request: NextRequest) {
 
   // Special action: add stock
   if (action === "addStock") {
-    const updated = addStock(id, user.id, parseInt(qty) || 0);
+    const updated = addStock(id, user.workspaceId, parseInt(qty) || 0);
     if (!updated) return NextResponse.json({ error: "Produit introuvable." }, { status: 404 });
     return NextResponse.json({ ok: true, product: updated });
   }
 
-  const updated = updateProduct(id, user.id, rest);
+  const updated = updateProduct(id, user.workspaceId, rest);
   if (!updated) return NextResponse.json({ error: "Produit introuvable." }, { status: 404 });
   return NextResponse.json({ ok: true, product: updated });
 }
@@ -58,7 +58,7 @@ export async function DELETE(request: NextRequest) {
   const { id } = body;
   if (!id) return NextResponse.json({ error: "ID requis." }, { status: 400 });
 
-  const ok = deleteProduct(id, user.id);
+  const ok = deleteProduct(id, user.workspaceId);
   if (!ok) return NextResponse.json({ error: "Produit introuvable." }, { status: 404 });
   return NextResponse.json({ ok: true });
 }

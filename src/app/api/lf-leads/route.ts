@@ -8,7 +8,7 @@ export async function GET() {
   const user = await getRequestUser();
   if (!user) return NextResponse.json({ error: "Non authentifié." }, { status: 401 });
 
-  const leads = getLeads(user.id);
+  const leads = getLeads(user.workspaceId);
   return NextResponse.json({ leads, total: leads.length });
 }
 
@@ -26,7 +26,7 @@ export async function PATCH(request: NextRequest) {
   const { id, ...patch } = body as { id: string } & Record<string, unknown>;
   if (!id) return NextResponse.json({ error: "Missing id" }, { status: 400 });
   // Only allow updating a lead that belongs to this user
-  const leads = getLeads(user.id);
+  const leads = getLeads(user.workspaceId);
   if (!leads.find(l => l.id === id)) return NextResponse.json({ error: "Not found" }, { status: 404 });
   updateLead(id, patch);
   return NextResponse.json({ ok: true });

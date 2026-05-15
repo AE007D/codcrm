@@ -13,10 +13,10 @@ export async function GET(request: NextRequest) {
     const page = getPageBySlug(slug);
     if (!page) return NextResponse.json({ error: "Not found" }, { status: 404 });
     // Only return the page if it belongs to this user
-    if (page.ownerId !== user.id) return NextResponse.json({ error: "Not found" }, { status: 404 });
+    if (page.ownerId !== user.workspaceId) return NextResponse.json({ error: "Not found" }, { status: 404 });
     return NextResponse.json(page);
   }
-  return NextResponse.json({ pages: getPages(user.id) });
+  return NextResponse.json({ pages: getPages(user.workspaceId) });
 }
 
 export async function POST(request: NextRequest) {
@@ -53,7 +53,7 @@ export async function POST(request: NextRequest) {
     views: 0,
     orders: 0,
     created_at: new Date().toISOString(),
-    ownerId: user.id,
+    ownerId: user.workspaceId,
   };
 
   savePage(page);
@@ -67,7 +67,7 @@ export async function PATCH(request: NextRequest) {
   let body: Partial<LandingPage> & { id: string };
   try { body = await request.json(); } catch { return NextResponse.json({ error: "Invalid JSON" }, { status: 400 }); }
 
-  const pages = getPages(user.id);
+  const pages = getPages(user.workspaceId);
   const idx = pages.findIndex(p => p.id === body.id);
   if (idx < 0) return NextResponse.json({ error: "Not found" }, { status: 404 });
   savePage({ ...pages[idx], ...body });
@@ -80,6 +80,6 @@ export async function DELETE(request: NextRequest) {
 
   const id = request.nextUrl.searchParams.get("id");
   if (!id) return NextResponse.json({ error: "Missing id" }, { status: 400 });
-  deletePage(id, user.id);
+  deletePage(id, user.workspaceId);
   return NextResponse.json({ ok: true });
 }

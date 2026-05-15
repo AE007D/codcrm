@@ -8,7 +8,7 @@ export async function GET() {
   const user = await getRequestUser();
   if (!user) return NextResponse.json({ error: "Non authentifié." }, { status: 401 });
 
-  const orders = getOrders(user.id);
+  const orders = getOrders(user.workspaceId);
   return NextResponse.json({
     orders,
     total: orders.length,

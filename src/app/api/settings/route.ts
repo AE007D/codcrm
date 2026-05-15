@@ -7,7 +7,7 @@ export const dynamic = "force-dynamic";
 export async function GET() {
   const user = await getRequestUser();
   if (!user) return NextResponse.json({ error: "Non authentifié." }, { status: 401 });
-  return NextResponse.json({ settings: getSettings(user.id) });
+  return NextResponse.json({ settings: getSettings(user.workspaceId) });
 }
 
 export async function PATCH(request: NextRequest) {
@@ -17,6 +17,6 @@ export async function PATCH(request: NextRequest) {
   let body: Partial<UserSettings>;
   try { body = await request.json(); } catch { return NextResponse.json({ error: "Invalid JSON" }, { status: 400 }); }
 
-  const settings = saveSettings(user.id, body);
+  const settings = saveSettings(user.workspaceId, body);
   return NextResponse.json({ ok: true, settings });
 }
