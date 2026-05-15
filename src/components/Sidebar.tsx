@@ -1,8 +1,15 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useState, useEffect } from "react";
+
+type CurrentUser = {
+  id: string;
+  name: string;
+  email: string;
+  role: "admin" | "agent" | "viewer";
+};
 
 const navItems = [
   { label: "Dashboard", href: "/", icon: (
@@ -101,7 +108,10 @@ const navItems = [
 
 export default function Sidebar() {
   const pathname = usePathname();
+  const router = useRouter();
   const [open, setOpen] = useState(false);
+  const [currentUser, setCurrentUser] = useState<CurrentUser | null>(null);
+  const [loggingOut, setLoggingOut] = useState(false);
 
   // Close sidebar on route change (mobile)
   useEffect(() => { setOpen(false); }, [pathname]);
@@ -112,6 +122,37 @@ export default function Sidebar() {
     else document.body.style.overflow = "";
     return () => { document.body.style.overflow = ""; };
   }, [open]);
+
+  // Fetch current user
+  useEffect(() => {
+    fetch("/api/auth/me")
+      .then(r => r.ok ? r.json() : null)
+      .then(data => { if (data) setCurrentUser(data); })
+      .catch(() => {});
+  }, []);
+
+  async function handleLogout() {
+    setLoggingOut(true);
+    try {
+      await fetch("/api/auth/logout", { method: "POST" });
+      router.replace("/login");
+    } catch {
+      setLoggingOut(false);
+    }
+  }
+
+  const roleBadgeLabel: Record<string, string> = {
+    admin: "Admin",
+    agent: "Agent",
+    viewer: "Viewer",
+  };
+  const roleColors: Record<string, string> = {
+    admin: "bg-blue-100 text-blue-700",
+    agent: "bg-emerald-100 text-emerald-700",
+    viewer: "bg-slate-100 text-slate-600",
+  };
+  const userRole = currentUser?.role ?? "agent";
+  const userInitial = (currentUser?.name ?? "?")[0].toUpperCase();
 
   return (
     <>
@@ -184,15 +225,37 @@ export default function Sidebar() {
         </nav>
 
         <div className="p-3 border-t border-slate-100">
-          <div className="flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-slate-50 cursor-pointer">
-            <div className="w-8 h-8 rounded-xl bg-blue-600 flex items-center justify-center text-white text-sm font-bold shadow-md shadow-blue-200 shrink-0">A</div>
-            <div className="flex-1 min-w-0">
-              <p className="text-sm font-semibold text-slate-800 leading-none">Admin</p>
-              <p className="text-xs text-slate-400 mt-0.5 truncate">ayoub@codcrm.ma</p>
+          <div className="flex items-center gap-3 px-3 py-2.5 rounded-xl">
+            <div className="w-8 h-8 rounded-xl bg-blue-600 flex items-center justify-center text-white text-sm font-bold shadow-md shadow-blue-200 shrink-0">
+              {userInitial}
             </div>
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="w-4 h-4 text-slate-400 shrink-0">
-              <path d="M9 18l6-6-6-6"/>
-            </svg>
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center gap-1.5">
+                <p className="text-sm font-semibold text-slate-800 leading-none truncate">
+                  {currentUser?.name ?? "Chargement..."}
+                </p>
+                {currentUser && (
+                  <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-full shrink-0 ${roleColors[userRole]}`}>
+                    {roleBadgeLabel[userRole]}
+                  </span>
+                )}
+              </div>
+              <p className="text-xs text-slate-400 mt-0.5 truncate">
+                {currentUser?.email ?? ""}
+              </p>
+            </div>
+            <button
+              onClick={handleLogout}
+              disabled={loggingOut}
+              title="Se déconnecter"
+              className="w-7 h-7 flex items-center justify-center rounded-lg text-slate-400 hover:text-red-500 hover:bg-red-50 transition-colors shrink-0 disabled:opacity-50"
+            >
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="w-4 h-4">
+                <path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4"/>
+                <polyline points="16 17 21 12 16 7"/>
+                <line x1="21" y1="12" x2="9" y2="12"/>
+              </svg>
+            </button>
           </div>
         </div>
       </aside>
