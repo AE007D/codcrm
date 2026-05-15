@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
+import { resolveCity } from "@/lib/moroccanCities";
 import Sidebar from "@/components/Sidebar";
 
 type OrderStatus = "nouveau" | "confirmé" | "annulé" | "injoignable" | "fausse" | "expédié" | "livré" | "retourné";
@@ -364,9 +365,10 @@ export default function CommandesPage() {
       try {
         let res: Response;
         if (shipCarrier === "ameex") {
-          // Resolve city name → Ameex numeric city ID (manual override > auto-lookup > raw name)
-          const cityRaw = (order.city ?? "").trim();
-          const cityId  = cityOverrides[order.id] ?? ameexCityMap[normalize(cityRaw)] ?? cityRaw;
+          // Resolve city: manual override > alias map > Ameex city list > raw name
+          const cityRaw       = (order.city ?? "").trim();
+          const cityCanonical = resolveCity(cityRaw);          // "casa" → "Casablanca", "مكناس" → "Meknès"
+          const cityId        = cityOverrides[order.id] ?? ameexCityMap[normalize(cityCanonical)] ?? ameexCityMap[normalize(cityRaw)] ?? cityRaw;
           res = await fetch("/api/ameex", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
@@ -862,7 +864,11 @@ export default function CommandesPage() {
                 const cityMap: Record<string,string> = {};
                 for (const c of ameexCities) cityMap[normalize(c.name)] = c.id;
                 const selectedOrders = orders.filter(o => selected.has(o.id));
-                const unresolved = selectedOrders.filter(o => !cityMap[normalize(o.city ?? "")] && !cityOverrides[o.id]);
+                const unresolved = selectedOrders.filter(o => {
+                  if (cityOverrides[o.id]) return false;
+                  const canonical = resolveCity(o.city ?? "");
+                  return !cityMap[normalize(canonical)] && !cityMap[normalize(o.city ?? "")];
+                });
                 if (!unresolved.length) return null;
                 return (
                   <div className="space-y-2">
