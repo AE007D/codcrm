@@ -13,7 +13,7 @@ export type Product = {
   stock: number;
   minStock: number;
   createdAt: string;
-  pageViews: number;
+  pageViews?: number;
 };
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any

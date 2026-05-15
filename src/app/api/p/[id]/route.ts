@@ -17,12 +17,10 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
   if (error || !data) return NextResponse.json({ error: "Produit introuvable." }, { status: 404 });
 
   // Increment page views (fire and forget)
-  supabase
+  void supabase
     .from("crm_products")
     .update({ page_views: (data.page_views ?? 0) + 1 })
-    .eq("id", id)
-    .then(() => {})
-    .catch(() => {});
+    .eq("id", id);
 
   return NextResponse.json({
     id: data.id,
