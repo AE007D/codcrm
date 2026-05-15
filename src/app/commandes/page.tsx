@@ -299,15 +299,21 @@ export default function CommandesPage() {
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
               action: "addParcel",
-              apiId: creds.apiId ?? creds.tk ?? "",
-              apiKey: creds.apiKey ?? creds.sk ?? "",
-              name: order.customer,
+              apiId: creds.apiId ?? "",
+              apiKey: creds.apiKey ?? "",
+              // Ameex field names
+              reference: order.orderNumber || order.id.slice(-8),
+              fullname: order.customer,
+              name: order.customer,          // fallback alias
               phone: order.phone,
               city: order.city,
               address: order.address || order.city,
               price: order.amount,
-              product: order.product,
+              description: order.product,
+              product: order.product,        // fallback alias
               quantity: 1,
+              fragile: 0,
+              exchange: 0,
             }),
           });
         } else {
@@ -318,6 +324,7 @@ export default function CommandesPage() {
               action: "addParcel",
               tk: creds.tk ?? "",
               sk: creds.sk ?? "",
+              reference: order.orderNumber || order.id.slice(-8),
               name: order.customer,
               phone: order.phone,
               city: order.city,
@@ -328,11 +335,25 @@ export default function CommandesPage() {
           });
         }
         const data = await res.json();
-        const ok = res.ok && !data.error && data.status !== "error";
+        // Detect success: Ameex returns status=success or an id/tracking field
+        const ok = res.ok && (
+          data.status === "success" ||
+          data.status === 1 ||
+          data.status === "1" ||
+          data.id != null ||
+          data.tracking != null ||
+          data.parcel_id != null ||
+          data.barcode != null ||
+          (!data.error && !data.message?.toLowerCase().includes("error") && !data.message?.toLowerCase().includes("invalid") && res.status === 200 && !data.raw)
+        );
         if (ok) {
           setStatus(order.id, "expédié");
         }
-        results.push({ id: order.id, ok, msg: ok ? "Envoyé ✓" : (data.message ?? data.error ?? "Erreur") });
+        // Show full response detail for debugging
+        const msgDetail = ok
+          ? `Envoyé ✓ ${data.id ?? data.parcel_id ?? data.barcode ?? data.tracking ?? ""}`
+          : `${data.message ?? data.error ?? JSON.stringify(data).slice(0, 80)}`;
+        results.push({ id: order.id, ok, msg: msgDetail });
       } catch (e) {
         results.push({ id: order.id, ok: false, msg: String(e) });
       }
@@ -733,14 +754,16 @@ export default function CommandesPage() {
 
               {/* Results */}
               {shipResults.length > 0 && (
-                <div className="space-y-2 max-h-48 overflow-y-auto">
+                <div className="space-y-2 max-h-56 overflow-y-auto">
                   {shipResults.map(r => {
                     const o = orders.find(x => x.id === r.id);
                     return (
-                      <div key={r.id} className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm ${r.ok ? "bg-emerald-50 text-emerald-700" : "bg-red-50 text-red-600"}`}>
-                        <span>{r.ok ? "✓" : "✗"}</span>
-                        <span className="flex-1 font-medium truncate">{o?.customer ?? r.id}</span>
-                        <span className="text-xs shrink-0">{r.msg}</span>
+                      <div key={r.id} className={`px-3 py-2.5 rounded-xl text-sm ${r.ok ? "bg-emerald-50 border border-emerald-100" : "bg-red-50 border border-red-100"}`}>
+                        <div className="flex items-center gap-2">
+                          <span className="font-bold">{r.ok ? "✓" : "✗"}</span>
+                          <span className={`font-semibold ${r.ok ? "text-emerald-700" : "text-red-700"}`}>{o?.customer ?? r.id}</span>
+                        </div>
+                        <p className={`text-xs mt-0.5 ${r.ok ? "text-emerald-600" : "text-red-500"}`}>{r.msg}</p>
                       </div>
                     );
                   })}
