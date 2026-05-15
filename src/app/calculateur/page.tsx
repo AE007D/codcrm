@@ -85,23 +85,27 @@ function calcRateForProduct(productName: string, rateMap: Map<string, ParcelStat
 
 /*
   Profit formula (COD, delivery rate R%):
-  confirmationCost is paid on every confirmed order (delivered OR returned)
-  Net/order = R*(sell - purchase - shipping - cpd - confirmationCost)
-              - (1-R)*(purchase + shipping + confirmationCost)
-  Break-even R = (purchase + shipping + confirmationCost) / (sell - cpd - confirmationCost)
+  - CPD = cost per lead from ads → paid on EVERY order (delivered OR returned)
+  - On delivery: earn sell price, pay purchase + shipping + cpd + confirmation
+  - On return: product comes BACK (purchase price not lost), pay shipping + cpd + confirmation
+  Net/order = R*(sell - purchase - shipping - cpd - cc)
+              - (1-R)*(shipping + cpd + cc)
+  Simplified: R*(sell - purchase) - shipping - cpd - cc
+  Break-even R = (shipping + cpd + cc) / (sell - purchase)
 */
 function calcMetrics(p: Product, deliveryRate: number) {
   const R = deliveryRate / 100;
   const cc = p.confirmationCost || 0;
   const profitPerDelivered = p.sellPrice - p.purchasePrice - p.shippingCost - p.cpd - cc;
-  const lossPerReturn = p.purchasePrice + p.shippingCost + cc;
+  // On return: product recovered, but shipping + CPD (lead cost) + confirmation are wasted
+  const lossPerReturn = p.shippingCost + p.cpd + cc;
   const netPerOrder = R * profitPerDelivered - (1 - R) * lossPerReturn;
   const totalCost = p.purchasePrice + p.shippingCost + p.cpd + cc;
   const margin = p.sellPrice > 0 ? (profitPerDelivered / p.sellPrice) * 100 : 0;
   const roi = totalCost > 0 ? (profitPerDelivered / totalCost) * 100 : 0;
-  const denominator = p.sellPrice - p.cpd - cc;
+  const denominator = p.sellPrice - p.purchasePrice;
   const breakEvenRate = denominator > 0
-    ? Math.min(100, Math.max(0, ((p.purchasePrice + p.shippingCost + cc) / denominator) * 100))
+    ? Math.min(100, Math.max(0, ((p.shippingCost + p.cpd + cc) / denominator) * 100))
     : 100;
   return { profitPerDelivered, netPerOrder, margin, roi, breakEvenRate, isWinner: netPerOrder > 0 && profitPerDelivered > 0 };
 }
