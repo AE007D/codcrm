@@ -1,78 +1,53 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getPageBySlug, incrementOrders } from "@/lib/pageStore";
-import { addOrder, LFOrder } from "@/lib/orderStore";
-import { addLead, FunnelLead } from "@/lib/leadStore";
+import { getPageBySlug, incrementPageOrders } from "@/lib/supabasePageStore";
+import { upsertOrder } from "@/lib/supabaseOrderStore";
+import crypto from "crypto";
 
 export async function POST(request: NextRequest) {
   let body: Record<string, unknown>;
   try { body = await request.json(); } catch { return NextResponse.json({ error: "Invalid JSON" }, { status: 400 }); }
 
   const slug = String(body.slug || "");
-  const page = getPageBySlug(slug);
+  const page = await getPageBySlug(slug);
   if (!page) return NextResponse.json({ error: "Page introuvable" }, { status: 404 });
   if (!page.active) return NextResponse.json({ error: "Page inactive" }, { status: 403 });
 
-  // Use the page's ownerId to attribute orders/leads to the correct account
   const ownerId = page.ownerId;
-
   const customer = String(body.customer || "").trim();
   const phone = String(body.phone || "").trim();
   const city = String(body.city || "").trim();
   const address = String(body.address || "").trim();
 
   if (!customer || !phone || !city) {
-    return NextResponse.json({ error: "Nom, téléphone et ville sont obligatoires." }, { status: 422 });
+    return NextResponse.json({ error: "يرجى ملء جميع الحقول الإلزامية" }, { status: 422 });
   }
 
-  const id = `lp_order_${Date.now()}`;
+  const orderId = crypto.randomUUID();
+  const now = new Date().toISOString();
 
-  // Add to orders (Commandes page)
-  const order: LFOrder = {
-    id,
-    order_number: Math.floor(10000 + Math.random() * 90000),
-    status: "pending",
-    financial_status: "cod",
-    total_price: String(page.price),
-    currency: page.currency,
-    customer_name: customer,
-    customer_phone: phone,
-    customer_email: "",
+  await upsertOrder({
+    id: orderId,
+    workspaceId: ownerId,
+    orderNumber: String(Date.now()).slice(-8),
+    customerName: customer,
+    customerPhone: phone,
+    customerEmail: "",
     city,
     address,
     product: page.title,
-    quantity: 1,
-    funnel: page.title,
-    created_at: new Date().toISOString(),
-    received_at: new Date().toISOString(),
-    ownerId,
-  };
-  addOrder(order, ownerId);
-
-  // Also add to funnel leads as a purchase
-  const lead: FunnelLead = {
-    id: `purchase_${id}`,
-    type: "purchase",
-    customer,
-    phone,
-    email: "",
-    city,
-    address,
-    product: page.title,
-    amount: page.price,
+    totalPrice: page.price,
     currency: page.currency,
-    funnel: page.title,
-    funnelUrl: `/lp/${slug}`,
     quantity: 1,
-    created_at: new Date().toISOString(),
-    received_at: new Date().toISOString(),
-    callAttempts: 0,
-    recovered: false,
+    funnel: page.title,
+    source: "page",
+    status: "nouveau",
     notes: "",
-    ownerId,
-  };
-  addLead(lead, ownerId);
+    attempts: 0,
+    noAnswer: 0,
+    receivedAt: now,
+  });
 
-  incrementOrders(slug);
+  await incrementPageOrders(slug).catch(() => {});
 
-  return NextResponse.json({ ok: true, order_id: id });
+  return NextResponse.json({ ok: true, order_id: orderId });
 }
