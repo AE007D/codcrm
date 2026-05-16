@@ -19,6 +19,7 @@ type CurrentUser = {
   name: string;
   email: string;
   role: UserRole;
+  workspaceId: string;
 };
 
 const roleBadge: Record<UserRole, { label: string; classes: string }> = {
@@ -118,6 +119,7 @@ export default function EquipePage() {
           email: inviteEmail,
           password: invitePassword,
           role: inviteRole,
+          workspaceId: currentUser?.workspaceId, // join admin's workspace
         }),
       });
       const data = await res.json();
