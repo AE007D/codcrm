@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useParams } from "next/navigation";
+import LiveTracker from "@/components/LiveTracker";
 
 type LandingPage = {
   id: string; slug: string; title: string; subtitle: string;
@@ -118,6 +119,7 @@ export default function LandingPageView() {
 
   return (
     <div className={`min-h-screen ${bg} font-sans`}>
+      <LiveTracker page={`/lp/${slug}`} pageTitle={page.title} />
       {/* Urgency top bar */}
       {page.urgencyText && (
         <div className="text-white text-center py-3 px-4 text-sm font-bold" style={{ backgroundColor: page.primaryColor }} dir="rtl">

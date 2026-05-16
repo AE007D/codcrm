@@ -3,12 +3,14 @@
 import { useState, useEffect } from "react";
 import Image from "next/image";
 import { useParams } from "next/navigation";
+import LiveTracker from "@/components/LiveTracker";
 
 type ProductInfo = {
   id: string;
   name: string;
   image: string;
   price: number;
+  ownerId?: string;
 };
 
 export default function ProductPage() {
@@ -124,6 +126,12 @@ export default function ProductPage() {
 
   return (
     <div dir="rtl" className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50">
+      <LiveTracker
+        page={`/p/${id}`}
+        pageTitle={product.name}
+        productId={id}
+        workspaceId={product.ownerId}
+      />
       {/* Sticky urgency bar */}
       <div className="sticky top-0 z-50 bg-red-600 text-white text-center text-sm font-bold py-2.5 px-4 shadow-lg">
         🔥 عرض محدود — اطلب الآن قبل نفاد الكمية!
