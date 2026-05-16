@@ -158,6 +158,22 @@ export default function Sidebar() {
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const audioUnlocked = useRef(false);
 
+  // Notification bell state
+  const [showNotifDropdown, setShowNotifDropdown] = useState(false);
+  const [nouveauOrders, setNouveauOrders] = useState<{ id: string; customerName: string; product: string; totalPrice: number }[]>([]);
+  const [confirmedOrders, setConfirmedOrders] = useState<{ id: string; customerName: string; product: string; totalPrice: number }[]>([]);
+  const notifRef = useRef<HTMLDivElement>(null);
+  const notifTotal = nouveauOrders.length + confirmedOrders.length;
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    function handler(e: MouseEvent) {
+      if (notifRef.current && !notifRef.current.contains(e.target as Node)) setShowNotifDropdown(false);
+    }
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, []);
+
   // Pre-load the MP3 once
   useEffect(() => {
     const audio = new Audio("/sell-sound.mp3");
@@ -198,32 +214,56 @@ export default function Sidebar() {
     };
   }, []);
 
-  // Poll for new orders every 30s
+  // Poll for new orders every 30s — also track pending/confirmed
   useEffect(() => {
     async function checkOrders() {
       try {
         const res = await fetch("/api/orders");
         if (!res.ok) return;
         const data = await res.json();
-        const count: number = (data.orders ?? []).length;
+        const orders: { id: string; customerName?: string; customer_name?: string; product?: string; totalPrice?: number; total_price?: number; status?: string }[] = data.orders ?? [];
+        const count = orders.length;
+
+        // Update notification buckets
+        const toConfirm = orders.filter(o => o.status === "nouveau").map(o => ({
+          id: o.id,
+          customerName: o.customerName ?? o.customer_name ?? "Client",
+          product: o.product ?? "",
+          totalPrice: Number(o.totalPrice ?? o.total_price ?? 0),
+        }));
+        const toShip = orders.filter(o => o.status === "confirmé").map(o => ({
+          id: o.id,
+          customerName: o.customerName ?? o.customer_name ?? "Client",
+          product: o.product ?? "",
+          totalPrice: Number(o.totalPrice ?? o.total_price ?? 0),
+        }));
+        setNouveauOrders(toConfirm);
+        setConfirmedOrders(toShip);
 
         if (lastOrderCount.current === null) {
-          // First load — set baseline silently
           lastOrderCount.current = count;
         } else if (count > lastOrderCount.current) {
           const newCount = count - lastOrderCount.current;
           lastOrderCount.current = count;
           if (soundEnabled && audioUnlocked.current) {
-            // Play once per new order (max 3 plays)
             const plays = Math.min(newCount, 3);
-            for (let i = 0; i < plays; i++) {
-              setTimeout(() => playChaChing(), i * 700);
-            }
+            for (let i = 0; i < plays; i++) setTimeout(() => playChaChing(), i * 700);
           }
-          // Dispatch event so commandes page can refresh
+          // Browser notification
+          if (Notification.permission === "granted") {
+            new Notification(`🛍️ ${newCount} nouvelle${newCount > 1 ? "s" : ""} commande${newCount > 1 ? "s" : ""}`, {
+              body: "Cliquez pour voir les commandes à confirmer",
+              icon: "/favicon.ico",
+            });
+          }
           window.dispatchEvent(new CustomEvent("new-orders", { detail: { count: newCount } }));
         }
       } catch { /* ignore */ }
+    }
+
+    // Request browser notification permission
+    if (typeof Notification !== "undefined" && Notification.permission === "default") {
+      Notification.requestPermission().catch(() => {});
     }
 
     checkOrders();
@@ -301,16 +341,119 @@ export default function Sidebar() {
         transition-transform duration-200 ease-in-out
         ${open ? "translate-x-0" : "-translate-x-full lg:translate-x-0"}
       `}>
-        <div className="px-6 py-5 border-b border-slate-100">
+        <div className="px-4 py-4 border-b border-slate-100">
           <div className="flex items-center gap-3">
-            <div className="w-9 h-9 bg-blue-600 rounded-xl flex items-center justify-center shadow-md shadow-blue-200">
+            <div className="w-9 h-9 bg-blue-600 rounded-xl flex items-center justify-center shadow-md shadow-blue-200 shrink-0">
               <svg viewBox="0 0 24 24" fill="white" className="w-5 h-5">
                 <path d="M3 3h7v7H3zM14 3h7v7h-7zM3 14h7v7H3zM14 14h7v7h-7z"/>
               </svg>
             </div>
-            <div>
+            <div className="flex-1 min-w-0">
               <span className="text-base font-bold text-slate-900 leading-none">COD CRM</span>
               <p className="text-xs text-slate-400 mt-0.5">e-commerce Maroc</p>
+            </div>
+
+            {/* Notification Bell */}
+            <div className="relative" ref={notifRef}>
+              <button
+                onClick={() => setShowNotifDropdown(v => !v)}
+                className="relative w-9 h-9 flex items-center justify-center rounded-xl hover:bg-slate-100 transition-colors text-slate-500"
+                title="Notifications"
+              >
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="w-5 h-5">
+                  <path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9M13.73 21a2 2 0 01-3.46 0"/>
+                </svg>
+                {notifTotal > 0 && (
+                  <span className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center animate-pulse shadow-md">
+                    {notifTotal > 99 ? "99+" : notifTotal}
+                  </span>
+                )}
+              </button>
+
+              {/* Dropdown */}
+              {showNotifDropdown && (
+                <div className="absolute top-11 right-0 w-80 bg-white rounded-2xl shadow-xl border border-slate-100 z-[100] overflow-hidden">
+                  <div className="px-4 py-3 border-b border-slate-100 flex items-center justify-between">
+                    <span className="text-sm font-bold text-slate-900">Notifications</span>
+                    {notifTotal === 0 && <span className="text-xs text-slate-400">Tout est à jour ✓</span>}
+                    {notifTotal > 0 && <span className="text-xs font-semibold text-red-500">{notifTotal} en attente</span>}
+                  </div>
+
+                  <div className="max-h-80 overflow-y-auto">
+                    {/* Orders to confirm */}
+                    {nouveauOrders.length > 0 && (
+                      <div>
+                        <div className="px-4 py-2 bg-amber-50 border-b border-amber-100">
+                          <span className="text-xs font-bold text-amber-700 uppercase tracking-wide">
+                            📞 À confirmer ({nouveauOrders.length})
+                          </span>
+                        </div>
+                        {nouveauOrders.slice(0, 5).map(o => (
+                          <Link key={o.id} href="/commandes" onClick={() => setShowNotifDropdown(false)}
+                            className="flex items-center gap-3 px-4 py-3 hover:bg-slate-50 border-b border-slate-50 transition-colors">
+                            <div className="w-2 h-2 rounded-full bg-amber-400 shrink-0" />
+                            <div className="flex-1 min-w-0">
+                              <p className="text-sm font-semibold text-slate-800 truncate">{o.customerName}</p>
+                              <p className="text-xs text-slate-400 truncate">{o.product}</p>
+                            </div>
+                            <span className="text-xs font-bold text-slate-600 shrink-0">{o.totalPrice} MAD</span>
+                          </Link>
+                        ))}
+                        {nouveauOrders.length > 5 && (
+                          <Link href="/commandes" onClick={() => setShowNotifDropdown(false)}
+                            className="block px-4 py-2 text-xs text-center text-amber-600 font-semibold hover:bg-amber-50">
+                            +{nouveauOrders.length - 5} de plus →
+                          </Link>
+                        )}
+                      </div>
+                    )}
+
+                    {/* Orders to ship */}
+                    {confirmedOrders.length > 0 && (
+                      <div>
+                        <div className="px-4 py-2 bg-blue-50 border-b border-blue-100">
+                          <span className="text-xs font-bold text-blue-700 uppercase tracking-wide">
+                            🚚 À expédier ({confirmedOrders.length})
+                          </span>
+                        </div>
+                        {confirmedOrders.slice(0, 5).map(o => (
+                          <Link key={o.id} href="/commandes" onClick={() => setShowNotifDropdown(false)}
+                            className="flex items-center gap-3 px-4 py-3 hover:bg-slate-50 border-b border-slate-50 transition-colors">
+                            <div className="w-2 h-2 rounded-full bg-blue-400 shrink-0" />
+                            <div className="flex-1 min-w-0">
+                              <p className="text-sm font-semibold text-slate-800 truncate">{o.customerName}</p>
+                              <p className="text-xs text-slate-400 truncate">{o.product}</p>
+                            </div>
+                            <span className="text-xs font-bold text-slate-600 shrink-0">{o.totalPrice} MAD</span>
+                          </Link>
+                        ))}
+                        {confirmedOrders.length > 5 && (
+                          <Link href="/commandes" onClick={() => setShowNotifDropdown(false)}
+                            className="block px-4 py-2 text-xs text-center text-blue-600 font-semibold hover:bg-blue-50">
+                            +{confirmedOrders.length - 5} de plus →
+                          </Link>
+                        )}
+                      </div>
+                    )}
+
+                    {notifTotal === 0 && (
+                      <div className="px-4 py-8 text-center">
+                        <p className="text-2xl mb-2">✅</p>
+                        <p className="text-sm text-slate-500">Aucune commande en attente</p>
+                      </div>
+                    )}
+                  </div>
+
+                  {notifTotal > 0 && (
+                    <div className="px-4 py-3 border-t border-slate-100">
+                      <Link href="/commandes" onClick={() => setShowNotifDropdown(false)}
+                        className="block w-full py-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold rounded-xl text-center transition-colors">
+                        Voir toutes les commandes →
+                      </Link>
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
           </div>
         </div>
