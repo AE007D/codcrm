@@ -80,8 +80,7 @@ const INTEGRATIONS = [
   { id: "eagle",          label: "Eagle Express",    category: "shipping", color: "bg-amber-500",   desc: "API · eagleexpress.ma",        logo: "https://eagleexpress.ma/favicon.ico" },
   { id: "facebook-ads",   label: "Facebook Ads",     category: "ads",      color: "bg-blue-600",    desc: "Graph API · Meta Business",    logo: "https://www.facebook.com/favicon.ico" },
   { id: "tiktok-ads",     label: "TikTok Ads",       category: "ads",      color: "bg-slate-900",   desc: "Marketing API · TikTok",       logo: "https://www.tiktok.com/favicon.ico" },
-  { id: "facebook-pixel", label: "Facebook Pixel",   category: "pixels",   color: "bg-blue-600",    desc: "Meta Pixel · Conversions",     logo: "https://www.facebook.com/favicon.ico" },
-  { id: "tiktok-pixel",   label: "TikTok Pixel",     category: "pixels",   color: "bg-slate-900",   desc: "TikTok Pixel · Évènements",    logo: "https://www.tiktok.com/favicon.ico" },
+  { id: "pixels",          label: "Pixels",           category: "pixels",   color: "bg-purple-600",  desc: "Multi-pixels · FB + TikTok",   logo: "" },
 ];
 
 /* ═══════════════════════════════════════════════════════
@@ -133,13 +132,10 @@ export default function IntegrationsPage() {
   const [tiktokAds, setTiktokAds] = useState({ accessToken: "", advertiserId: "" });
   const [tiktokAdsSaved, setTiktokAdsSaved] = useState<{ accessToken: string; advertiserId: string } | null>(null);
 
-  /* Facebook Pixel state */
-  const [fbPixelId, setFbPixelId] = useState("");
-  const [fbPixelSaved, setFbPixelSaved] = useState("");
-
-  /* TikTok Pixel state */
-  const [ttPixelId, setTtPixelId] = useState("");
-  const [ttPixelSaved, setTtPixelSaved] = useState("");
+  /* Multi-pixel state */
+  type PixelEntry = { pixelId: string; platform: "facebook" | "tiktok"; productName: string };
+  const [pixels, setPixels] = useState<PixelEntry[]>([]);
+  const [pixelForm, setPixelForm] = useState<PixelEntry>({ pixelId: "", platform: "facebook", productName: "" });
 
   /* Load settings from server (per-user, not localStorage) */
   useEffect(() => {
@@ -150,8 +146,15 @@ export default function IntegrationsPage() {
       if (s.shopify)          { setShopifySaved(s.shopify);      setShopify(s.shopify); }
       if (s.facebook)         { setFbAdsSaved(s.facebook);       setFbAds(s.facebook); }
       if (s.tiktok)           { setTiktokAdsSaved(s.tiktok);     setTiktokAds(s.tiktok); }
-      if (s.facebookPixelId)  { setFbPixelSaved(s.facebookPixelId as string); setFbPixelId(s.facebookPixelId as string); }
-      if (s.tiktokPixelId)    { setTtPixelSaved(s.tiktokPixelId as string);   setTtPixelId(s.tiktokPixelId as string); }
+      /* Multi-pixel — new format with legacy compat */
+      if (Array.isArray(s.pixels) && s.pixels.length > 0) {
+        setPixels(s.pixels as PixelEntry[]);
+      } else {
+        const legacy: PixelEntry[] = [];
+        if (s.facebookPixelId) legacy.push({ pixelId: s.facebookPixelId as string, platform: "facebook", productName: "" });
+        if (s.tiktokPixelId)   legacy.push({ pixelId: s.tiktokPixelId as string,   platform: "tiktok",   productName: "" });
+        if (legacy.length > 0) setPixels(legacy);
+      }
     }).catch(() => {});
     fetch("/api/auth/me").then(r => r.json()).then(d => { if (d.workspaceId) setCurrentWorkspaceId(d.workspaceId); else if (d.id) setCurrentWorkspaceId(d.id); }).catch(() => {});
   }, []);
@@ -208,21 +211,24 @@ export default function IntegrationsPage() {
   /* TikTok Ads save */
   function saveTiktokAds() { if (!tiktokAds.accessToken || !tiktokAds.advertiserId) { showToast("Access Token et Advertiser ID requis.", false); return; } patchSettings({ tiktok: tiktokAds }).then(() => { setTiktokAdsSaved(tiktokAds); showToast("TikTok Ads connecté ✓"); }); }
 
-  /* Facebook Pixel save */
-  function saveFBPixel() {
-    if (!fbPixelId.trim()) { showToast("Pixel ID requis.", false); return; }
-    patchSettings({ facebookPixelId: fbPixelId.trim() }).then(() => {
-      setFbPixelSaved(fbPixelId.trim());
-      showToast("Facebook Pixel activé ✓");
+  /* Multi-pixel: add */
+  function addPixel() {
+    if (!pixelForm.pixelId.trim()) { showToast("Pixel ID requis.", false); return; }
+    if (!pixelForm.productName.trim()) { showToast("Nom du produit requis.", false); return; }
+    const updated = [...pixels, { ...pixelForm, pixelId: pixelForm.pixelId.trim(), productName: pixelForm.productName.trim() }];
+    patchSettings({ pixels: updated }).then(() => {
+      setPixels(updated);
+      setPixelForm({ pixelId: "", platform: "facebook", productName: "" });
+      showToast("Pixel ajouté ✓");
     });
   }
 
-  /* TikTok Pixel save */
-  function saveTTPixel() {
-    if (!ttPixelId.trim()) { showToast("Pixel ID requis.", false); return; }
-    patchSettings({ tiktokPixelId: ttPixelId.trim() }).then(() => {
-      setTtPixelSaved(ttPixelId.trim());
-      showToast("TikTok Pixel activé ✓");
+  /* Multi-pixel: delete */
+  function deletePixel(idx: number) {
+    const updated = pixels.filter((_, i) => i !== idx);
+    patchSettings({ pixels: updated }).then(() => {
+      setPixels(updated);
+      showToast("Pixel supprimé");
     });
   }
 
@@ -232,7 +238,7 @@ export default function IntegrationsPage() {
   }, [active, ameexTab, loadAmeexParcels, loadAmeexCities, ameexCities.length]);
   useEffect(() => { if (active === "eagle" && eagleTab === "parcels") loadEagleParcels(); if (active === "eagle" && eagleTab === "cities" && eagleCities.length === 0) loadEagleCities(); }, [active, eagleTab, loadEagleParcels, loadEagleCities, eagleCities.length]);
 
-  const connected: Record<string, boolean> = { lightfunnels: lfEvents > 0, shopify: !!shopifySaved?.store, ameex: !!ameexSaved?.apiId, eagle: !!eagleSaved?.tk, "facebook-ads": !!fbAdsSaved?.accessToken, "tiktok-ads": !!tiktokAdsSaved?.accessToken, "facebook-pixel": !!fbPixelSaved, "tiktok-pixel": !!ttPixelSaved };
+  const connected: Record<string, boolean> = { lightfunnels: lfEvents > 0, shopify: !!shopifySaved?.store, ameex: !!ameexSaved?.apiId, eagle: !!eagleSaved?.tk, "facebook-ads": !!fbAdsSaved?.accessToken, "tiktok-ads": !!tiktokAdsSaved?.accessToken, pixels: pixels.length > 0 };
   const sources    = INTEGRATIONS.filter(i => i.category === "source");
   const shippers   = INTEGRATIONS.filter(i => i.category === "shipping");
   const adsInteg   = INTEGRATIONS.filter(i => i.category === "ads");
@@ -727,130 +733,104 @@ export default function IntegrationsPage() {
               </div>
             )}
 
-            {/* ── FACEBOOK PIXEL ── */}
-            {active === "facebook-pixel" && (
-              <div className="max-w-lg space-y-5">
+            {/* ── PIXELS ── */}
+            {active === "pixels" && (
+              <div className="max-w-2xl space-y-5">
+                {/* Header */}
                 <div className="flex items-center gap-3 mb-2">
-                  <LogoAvatar logo="https://www.facebook.com/favicon.ico" fallback="F" color="bg-blue-600" size="lg" />
-                  <div>
-                    <h2 className="font-bold text-slate-900 text-lg">Facebook Pixel</h2>
-                    <p className="text-xs text-slate-400">Meta Pixel · PageView sur chaque page</p>
+                  <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-purple-500 to-purple-700 flex items-center justify-center text-white font-bold text-lg shrink-0 shadow-md shadow-purple-200">
+                    Px
                   </div>
-                  <Badge connected={connected["facebook-pixel"]} />
+                  <div>
+                    <h2 className="font-bold text-slate-900 text-lg">Pixels Tracking</h2>
+                    <p className="text-xs text-slate-400">Multi-pixels · Facebook &amp; TikTok</p>
+                  </div>
+                  <Badge connected={connected.pixels} />
                 </div>
 
-                <div className="bg-white rounded-2xl border border-slate-100 p-6 space-y-4">
-                  <h3 className="font-bold text-slate-900">Votre Pixel ID</h3>
-                  <div>
-                    <label className="text-xs font-semibold text-slate-600 mb-1 block">Pixel ID</label>
+                {/* Info box */}
+                <div className="bg-purple-50 border border-purple-100 rounded-2xl p-4 flex gap-3">
+                  <span className="text-purple-500 text-lg">📡</span>
+                  <p className="text-sm text-purple-700">Chaque pixel fire sur toutes les pages du CRM. Vous pouvez configurer plusieurs pixels par plateforme, chacun associé à un produit.</p>
+                </div>
+
+                {/* Add form */}
+                <div className="bg-white rounded-2xl border border-slate-100 p-5">
+                  <h3 className="font-bold text-slate-900 mb-4">Ajouter un pixel</h3>
+                  <div className="flex flex-col sm:flex-row gap-3">
+                    {/* Platform */}
+                    <select
+                      value={pixelForm.platform}
+                      onChange={e => setPixelForm(f => ({ ...f, platform: e.target.value as "facebook" | "tiktok" }))}
+                      className="text-sm border border-slate-200 rounded-xl px-3 py-2.5 outline-none focus:border-purple-400 shrink-0 bg-white"
+                    >
+                      <option value="facebook">🔵 Facebook</option>
+                      <option value="tiktok">⚫ TikTok</option>
+                    </select>
+                    {/* Pixel ID */}
                     <input
                       type="text"
-                      placeholder="Ex: 1234567890123456"
-                      value={fbPixelId}
-                      onChange={e => setFbPixelId(e.target.value)}
-                      className="w-full text-sm border border-slate-200 rounded-xl px-4 py-2.5 outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-50 font-mono"
+                      placeholder="Pixel ID"
+                      value={pixelForm.pixelId}
+                      onChange={e => setPixelForm(f => ({ ...f, pixelId: e.target.value }))}
+                      className="flex-1 text-sm border border-slate-200 rounded-xl px-4 py-2.5 outline-none focus:border-purple-400 font-mono min-w-0"
                     />
-                    <p className="text-xs text-slate-400 mt-1">Visible dans Meta Events Manager → Pixel → Détails</p>
-                  </div>
-                  {fbPixelSaved && (
-                    <div className="flex items-center gap-2 px-4 py-3 bg-emerald-50 border border-emerald-100 rounded-xl">
-                      <span className="text-emerald-500 text-lg">✓</span>
-                      <div>
-                        <p className="text-sm font-semibold text-emerald-800">Pixel actif</p>
-                        <p className="text-xs text-emerald-600 font-mono">{fbPixelSaved}</p>
-                      </div>
-                    </div>
-                  )}
-                  <button onClick={saveFBPixel} className="w-full py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-semibold text-sm rounded-xl shadow-md shadow-blue-200 transition-colors">
-                    Activer le Pixel
-                  </button>
-                </div>
-
-                <div className="bg-white rounded-2xl border border-slate-100 p-5 space-y-4">
-                  <h3 className="font-bold text-slate-800">Comment trouver votre Pixel ID</h3>
-                  {[
-                    "Allez sur business.facebook.com → Events Manager",
-                    "Sélectionnez votre Pixel dans la liste",
-                    "Copiez l'ID affiché sous le nom du pixel (16 chiffres)",
-                    "Collez-le ci-dessus et cliquez Activer",
-                  ].map((s, i) => (
-                    <div key={i} className="flex gap-3">
-                      <span className="w-6 h-6 rounded-full bg-blue-600 text-white text-xs font-bold flex items-center justify-center shrink-0">{i + 1}</span>
-                      <p className="text-sm text-slate-600 pt-0.5">{s}</p>
-                    </div>
-                  ))}
-                </div>
-
-                <div className="bg-blue-50 border border-blue-100 rounded-2xl p-4 flex gap-3">
-                  <span className="text-blue-500 text-lg">📊</span>
-                  <div>
-                    <p className="text-sm font-semibold text-blue-800">Événements trackés automatiquement</p>
-                    <p className="text-sm text-blue-600">Un événement <strong>PageView</strong> est envoyé à chaque navigation dans le CRM. Vous pouvez créer des audiences personnalisées dans Meta Ads Manager.</p>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* ── TIKTOK PIXEL ── */}
-            {active === "tiktok-pixel" && (
-              <div className="max-w-lg space-y-5">
-                <div className="flex items-center gap-3 mb-2">
-                  <LogoAvatar logo="https://www.tiktok.com/favicon.ico" fallback="T" color="bg-slate-900" size="lg" />
-                  <div>
-                    <h2 className="font-bold text-slate-900 text-lg">TikTok Pixel</h2>
-                    <p className="text-xs text-slate-400">TikTok Pixel · PageView sur chaque page</p>
-                  </div>
-                  <Badge connected={connected["tiktok-pixel"]} />
-                </div>
-
-                <div className="bg-white rounded-2xl border border-slate-100 p-6 space-y-4">
-                  <h3 className="font-bold text-slate-900">Votre Pixel ID</h3>
-                  <div>
-                    <label className="text-xs font-semibold text-slate-600 mb-1 block">Pixel ID</label>
+                    {/* Product name */}
                     <input
                       type="text"
-                      placeholder="Ex: CFXXXXXXXXXXXXXXXXXX"
-                      value={ttPixelId}
-                      onChange={e => setTtPixelId(e.target.value)}
-                      className="w-full text-sm border border-slate-200 rounded-xl px-4 py-2.5 outline-none focus:border-slate-400 focus:ring-2 focus:ring-slate-50 font-mono"
+                      placeholder="Nom du produit"
+                      value={pixelForm.productName}
+                      onChange={e => setPixelForm(f => ({ ...f, productName: e.target.value }))}
+                      className="flex-1 text-sm border border-slate-200 rounded-xl px-4 py-2.5 outline-none focus:border-purple-400 min-w-0"
                     />
-                    <p className="text-xs text-slate-400 mt-1">Visible dans TikTok Ads Manager → Actifs → Événements → Web Events</p>
+                    {/* Submit */}
+                    <button
+                      onClick={addPixel}
+                      className="shrink-0 px-5 py-2.5 bg-purple-600 hover:bg-purple-700 text-white font-semibold text-sm rounded-xl shadow-md shadow-purple-200 transition-colors"
+                    >
+                      Ajouter
+                    </button>
                   </div>
-                  {ttPixelSaved && (
-                    <div className="flex items-center gap-2 px-4 py-3 bg-emerald-50 border border-emerald-100 rounded-xl">
-                      <span className="text-emerald-500 text-lg">✓</span>
-                      <div>
-                        <p className="text-sm font-semibold text-emerald-800">Pixel actif</p>
-                        <p className="text-xs text-emerald-600 font-mono">{ttPixelSaved}</p>
-                      </div>
+                </div>
+
+                {/* Pixel list */}
+                <div className="bg-white rounded-2xl border border-slate-100 overflow-hidden">
+                  <div className="px-5 py-3 border-b border-slate-100 flex items-center justify-between">
+                    <span className="font-semibold text-slate-800">Pixels configurés</span>
+                    <span className="text-xs font-semibold text-slate-400">{pixels.length} pixel{pixels.length !== 1 ? "s" : ""}</span>
+                  </div>
+                  {pixels.length === 0 ? (
+                    <div className="flex flex-col items-center py-14 gap-2 text-slate-400">
+                      <span className="text-3xl">📭</span>
+                      <p className="text-sm">Aucun pixel configuré. Ajoutez-en un ci-dessus.</p>
                     </div>
+                  ) : (
+                    <ul className="divide-y divide-slate-50">
+                      {pixels.map((p, i) => (
+                        <li key={i} className="flex items-center gap-3 px-5 py-3 hover:bg-slate-50/60 transition-colors">
+                          <span className="text-lg shrink-0">{p.platform === "facebook" ? "🔵" : "⚫"}</span>
+                          <code className="font-mono text-sm text-slate-700 flex-1 truncate">{p.pixelId}</code>
+                          {p.productName && (
+                            <span className="text-xs font-semibold bg-purple-50 text-purple-700 px-2.5 py-1 rounded-full shrink-0 max-w-[140px] truncate">
+                              {p.productName}
+                            </span>
+                          )}
+                          <span className="text-xs font-semibold text-slate-400 uppercase tracking-wide shrink-0">
+                            {p.platform === "facebook" ? "FB" : "TT"}
+                          </span>
+                          <button
+                            onClick={() => deletePixel(i)}
+                            className="shrink-0 p-1.5 text-slate-300 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+                            title="Supprimer"
+                          >
+                            <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                              <polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/>
+                            </svg>
+                          </button>
+                        </li>
+                      ))}
+                    </ul>
                   )}
-                  <button onClick={saveTTPixel} className="w-full py-2.5 bg-slate-900 hover:bg-slate-800 text-white font-semibold text-sm rounded-xl shadow-md transition-colors">
-                    Activer le Pixel
-                  </button>
-                </div>
-
-                <div className="bg-white rounded-2xl border border-slate-100 p-5 space-y-4">
-                  <h3 className="font-bold text-slate-800">Comment trouver votre Pixel ID</h3>
-                  {[
-                    "Allez sur ads.tiktok.com → Actifs → Événements",
-                    "Cliquez sur votre Pixel Web dans la liste",
-                    "Copiez l'ID affiché (commence par CF…)",
-                    "Collez-le ci-dessus et cliquez Activer",
-                  ].map((s, i) => (
-                    <div key={i} className="flex gap-3">
-                      <span className="w-6 h-6 rounded-full bg-slate-900 text-white text-xs font-bold flex items-center justify-center shrink-0">{i + 1}</span>
-                      <p className="text-sm text-slate-600 pt-0.5">{s}</p>
-                    </div>
-                  ))}
-                </div>
-
-                <div className="bg-slate-50 border border-slate-200 rounded-2xl p-4 flex gap-3">
-                  <span className="text-slate-500 text-lg">📊</span>
-                  <div>
-                    <p className="text-sm font-semibold text-slate-800">Événements trackés automatiquement</p>
-                    <p className="text-sm text-slate-600">Un événement <strong>page()</strong> est envoyé à chaque navigation dans le CRM. Créez des audiences de reciblage dans TikTok Ads Manager.</p>
-                  </div>
                 </div>
               </div>
             )}
