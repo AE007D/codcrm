@@ -372,7 +372,7 @@ export default function Sidebar() {
 
               {/* Dropdown */}
               {showNotifDropdown && (
-                <div className="absolute top-11 right-0 w-80 bg-white rounded-2xl shadow-xl border border-slate-100 z-[100] overflow-hidden">
+                <div className="absolute top-11 left-0 w-80 bg-white rounded-2xl shadow-xl border border-slate-100 z-[100] overflow-hidden">
                   <div className="px-4 py-3 border-b border-slate-100 flex items-center justify-between">
                     <span className="text-sm font-bold text-slate-900">Notifications</span>
                     {notifTotal === 0 && <span className="text-xs text-slate-400">Tout est à jour ✓</span>}
