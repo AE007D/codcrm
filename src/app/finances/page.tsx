@@ -72,16 +72,38 @@ export default function FinancesPage() {
   const [editingCosts, setEditingCosts] = useState(false);
   const [draftCosts, setDraftCosts] = useState<CostSettings>(DEFAULT_COSTS);
 
-  // Load cost settings from localStorage
+  // Load cost settings from Supabase (fallback to localStorage for migration)
   useEffect(() => {
-    const stored = localStorage.getItem(STORAGE_KEY);
-    if (stored) { try { setCosts(JSON.parse(stored)); } catch { /* ignore */ } }
+    async function loadCosts() {
+      try {
+        const res = await fetch("/api/settings");
+        const data = await res.json();
+        const serverCosts = data.settings?.financeCosts;
+        if (serverCosts) {
+          setCosts({ ...DEFAULT_COSTS, ...serverCosts });
+          return;
+        }
+      } catch { /* ignore */ }
+      // Migration fallback: read from localStorage
+      const stored = localStorage.getItem(STORAGE_KEY);
+      if (stored) { try { setCosts(JSON.parse(stored)); } catch { /* ignore */ } }
+    }
+    loadCosts();
   }, []);
 
-  function saveCosts() {
+  async function saveCosts() {
     setCosts(draftCosts);
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(draftCosts));
     setEditingCosts(false);
+    // Save to Supabase
+    try {
+      await fetch("/api/settings", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ financeCosts: draftCosts }),
+      });
+    } catch { /* silent */ }
+    // Also keep localStorage as backup
+    try { localStorage.setItem(STORAGE_KEY, JSON.stringify(draftCosts)); } catch { /* ignore */ }
   }
 
   const fetchData = useCallback(async () => {

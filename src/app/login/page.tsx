@@ -1,7 +1,21 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
+
+declare global {
+  interface Window {
+    google?: {
+      accounts: {
+        id: {
+          initialize: (cfg: object) => void;
+          prompt: () => void;
+          renderButton: (el: HTMLElement, cfg: object) => void;
+        };
+      };
+    };
+  }
+}
 
 type Mode = "login" | "register";
 
@@ -23,12 +37,54 @@ export default function LoginPage() {
 
   const [mode, setMode] = useState<Mode>("login");
   const [checkingAuth, setCheckingAuth] = useState(true);
+  const [googleError, setGoogleError] = useState("");
 
   useEffect(() => {
     fetch("/api/auth/me").then(res => {
       if (res.ok) router.replace("/");
     }).finally(() => setCheckingAuth(false));
   }, [router]);
+
+  const handleGoogleCredential = useCallback(async (credential: string) => {
+    setGoogleError("");
+    try {
+      const res = await fetch("/api/auth/google", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ credential }),
+      });
+      const data = await res.json();
+      if (!res.ok) { setGoogleError(data.error || "Erreur Google."); return; }
+      router.replace("/");
+    } catch {
+      setGoogleError("Erreur réseau, veuillez réessayer.");
+    }
+  }, [router]);
+
+  // Load Google GSI script and initialize
+  useEffect(() => {
+    const clientId = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID;
+    if (!clientId) return;
+    const script = document.createElement("script");
+    script.src = "https://accounts.google.com/gsi/client";
+    script.async = true;
+    script.defer = true;
+    script.onload = () => {
+      window.google?.accounts.id.initialize({
+        client_id: clientId,
+        callback: (resp: { credential: string }) => handleGoogleCredential(resp.credential),
+      });
+      const btn = document.getElementById("google-signin-btn");
+      if (btn) {
+        window.google?.accounts.id.renderButton(btn, {
+          theme: "outline", size: "large", width: 400, text: "signin_with",
+          shape: "rectangular", locale: "fr",
+        });
+      }
+    };
+    document.head.appendChild(script);
+    return () => { document.head.removeChild(script); };
+  }, [handleGoogleCredential]);
 
   async function handleLogin(e: React.FormEvent) {
     e.preventDefault();
@@ -152,6 +208,22 @@ export default function LoginPage() {
                   {loginLoading ? "Connexion..." : "Se connecter"}
                 </button>
               </form>
+
+              {process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID && (
+                <div className="mt-5">
+                  <div className="flex items-center gap-3 mb-4">
+                    <div className="h-px flex-1 bg-slate-200" />
+                    <span className="text-xs text-slate-400 font-medium">ou</span>
+                    <div className="h-px flex-1 bg-slate-200" />
+                  </div>
+                  {googleError && (
+                    <div className="bg-red-50 border border-red-200 text-red-700 text-sm px-4 py-3 rounded-xl mb-3">
+                      {googleError}
+                    </div>
+                  )}
+                  <div id="google-signin-btn" className="flex justify-center" />
+                </div>
+              )}
 
               <div className="mt-5 text-center">
                 <button
