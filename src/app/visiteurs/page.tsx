@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback, useRef } from "react";
 import Sidebar from "@/components/Sidebar";
+import { MOROCCO_PATHS } from "./moroccoPathsData";
 
 /* ─── Types ─────────────────────────────────────────────── */
 type Visitor = {
@@ -29,28 +30,28 @@ type Order = {
 
 /*
  * ─── Morocco city definitions ────────────────────────────────────────────────
- * Coordinate system: 1024×1024 SVG viewBox (matches mapsicon vector.svg)
- * Calibrated against the mapsicon path transform(translate(0,1024) scale(0.1,-0.1)):
- * x = (lon + 17) / 16 * 1024   (lon range -17° W → -1° E)
- * y = (36.3 - lat) / 15.55 * 1024  (lat_north padded to 36.3° to keep cities inside shape)
+ * Coordinate system: d-maps.com marocsahara29.svg — viewBox 3910 2417 12953 14168
+ * x = 4310 + (lon + 17) / 16 * 12153
+ * y = 2817 + (36 - lat) / 15.25 * 13368
+ * r = dot radius in SVG units (r=150 → ~7px on a 620px container)
  */
 const CITIES = [
-  { name: "Casablanca", x: 600, y: 178, size: 16 },
-  { name: "Rabat",      x: 650, y: 151, size: 12 },
-  { name: "Marrakech",  x: 576, y: 308, size: 12 },
-  { name: "Fès",        x: 768, y: 152, size: 11 },
-  { name: "Agadir",     x: 472, y: 387, size: 10 },
-  { name: "Tanger",     x: 717, y: 34,  size: 10 },
-  { name: "Meknès",     x: 733, y: 159, size: 9  },
-  { name: "Oujda",      x: 966, y: 107, size: 9  },
-  { name: "Béni Mellal",x: 681, y: 261, size: 8  },
-  { name: "El Jadida",  x: 543, y: 202, size: 8  },
-  { name: "Nador",      x: 900, y: 74,  size: 8  },
-  { name: "Kénitra",    x: 666, y: 134, size: 8  },
-  { name: "Settat",     x: 600, y: 217, size: 7  },
-  { name: "Laayoune",   x: 243, y: 601, size: 7  },
-  { name: "Ouarzazate", x: 647, y: 354, size: 7  },
-  { name: "Tétouan",    x: 744, y: 48,  size: 7  },
+  { name: "Casablanca", x: 11435, y: 4921,  r: 150 },
+  { name: "Rabat",      x: 12035, y: 4561,  r: 120 },
+  { name: "Marrakech",  x: 11146, y: 6648,  r: 120 },
+  { name: "Fès",        x: 13425, y: 4570,  r: 110 },
+  { name: "Agadir",     x: 9916,  y: 7708,  r: 100 },
+  { name: "Tanger",     x: 12817, y: 3010,  r: 100 },
+  { name: "Meknès",     x: 13007, y: 4667,  r: 90  },
+  { name: "Oujda",      x: 15779, y: 3974,  r: 90  },
+  { name: "Béni Mellal",x: 12392, y: 6025,  r: 80  },
+  { name: "El Jadida",  x: 10759, y: 5236,  r: 80  },
+  { name: "Nador",      x: 14997, y: 3545,  r: 80  },
+  { name: "Kénitra",    x: 12217, y: 4342,  r: 80  },
+  { name: "Settat",     x: 11435, y: 5447,  r: 70  },
+  { name: "Laayoune",   x: 7196,  y: 10557, r: 70  },
+  { name: "Ouarzazate", x: 11989, y: 7261,  r: 70  },
+  { name: "Tétouan",    x: 13144, y: 3194,  r: 70  },
 ];
 
 const SETUP_SQL = `-- Run once in Supabase Dashboard → SQL Editor
@@ -123,7 +124,7 @@ function CityDot({
     : mode === "order" ? "rgba(59,130,246,0.35)"
     : "transparent";
 
-  const r = city.size / 2;
+  const r = city.r; // radius already in SVG units (d-maps coordinate space)
 
   return (
     <g
@@ -136,10 +137,10 @@ function CityDot({
         <circle
           cx={city.x}
           cy={city.y}
-          r={r + 7}
+          r={r + 250}
           fill="none"
           stroke={color}
-          strokeWidth={1.5}
+          strokeWidth={25}
           opacity={0}
           style={{
             animation: "ping 2s cubic-bezier(0,0,0.2,1) infinite",
@@ -152,7 +153,7 @@ function CityDot({
         <circle
           cx={city.x}
           cy={city.y}
-          r={r + 4}
+          r={r + 150}
           fill={ringColor}
           style={{
             animation: "pulse-ring 2.4s ease-in-out infinite",
@@ -172,20 +173,20 @@ function CityDot({
       {hovered && tooltip && (
         <g>
           <rect
-            x={city.x + r + 5}
-            y={city.y - 12}
-            width={city.name.length * 7 + 16}
-            height={22}
-            rx={5}
+            x={city.x + r + 60}
+            y={city.y - 130}
+            width={city.name.length * 110 + 200}
+            height={260}
+            rx={50}
             fill="#1e293b"
             stroke="#475569"
-            strokeWidth={1}
+            strokeWidth={15}
           />
           <text
-            x={city.x + r + 13}
-            y={city.y + 4}
+            x={city.x + r + 160}
+            y={city.y + 70}
             fill="#e2e8f0"
-            fontSize={11}
+            fontSize={180}
             fontFamily="system-ui, sans-serif"
           >
             {city.name}
@@ -501,53 +502,54 @@ export default function LiveViewPage() {
           </svg>
 
           {/*
-           * Morocco map — real outline from djaiss/mapsicon (Natural Earth data)
-           * SVG viewBox 0 0 1024 1024; path in potrace space with
-           * transform="translate(0,1024) scale(0.1,-0.1)" (y-flipped, ÷10)
-           * City dots placed in 1024-unit screen space (outside the transform group)
+           * Morocco map — d-maps.com marocsahara29.svg (CorelDRAW export)
+           * viewBox 3910 2417 12953 14168  (map area + 400px padding all sides)
+           * No transform needed — paths are in direct SVG coordinates
+           * City dots placed in same coordinate space as the paths
            */}
-          <div className="relative" style={{ width: "min(70vw, 75vh, 620px)", height: "min(70vw, 75vh, 620px)" }}>
+          <div className="relative" style={{ width: "min(68vw, 72vh, 580px)", height: "min(68vw, 72vh, 580px)" }}>
             <svg
-              viewBox="0 0 1024 1024"
+              viewBox="3910 2417 12953 14168"
               className="absolute inset-0 w-full h-full"
               style={{ overflow: "visible" }}
               xmlns="http://www.w3.org/2000/svg"
             >
               <defs>
                 <filter id="glow">
-                  <feGaussianBlur stdDeviation="3" result="coloredBlur"/>
+                  <feGaussianBlur stdDeviation="60" result="coloredBlur"/>
                   <feMerge>
                     <feMergeNode in="coloredBlur"/>
                     <feMergeNode in="SourceGraphic"/>
                   </feMerge>
                 </filter>
                 <filter id="map-glow" x="-5%" y="-5%" width="110%" height="110%">
-                  <feGaussianBlur stdDeviation="6" result="coloredBlur"/>
+                  <feGaussianBlur stdDeviation="80" result="coloredBlur"/>
                   <feMerge>
                     <feMergeNode in="coloredBlur"/>
                     <feMergeNode in="SourceGraphic"/>
                   </feMerge>
                 </filter>
-                <linearGradient id="mapGrad" x1="0" y1="0" x2="0.6" y2="1">
-                  <stop offset="0%" stopColor="#1e40af" stopOpacity="0.60"/>
-                  <stop offset="60%" stopColor="#1e3a8a" stopOpacity="0.40"/>
-                  <stop offset="100%" stopColor="#0f2854" stopOpacity="0.22"/>
+                <linearGradient id="mapGrad" x1="0" y1="0" x2="0.5" y2="1">
+                  <stop offset="0%" stopColor="#1e40af" stopOpacity="0.65"/>
+                  <stop offset="55%" stopColor="#1e3a8a" stopOpacity="0.45"/>
+                  <stop offset="100%" stopColor="#0f2854" stopOpacity="0.25"/>
                 </linearGradient>
               </defs>
 
-              {/* Real Morocco + Western Sahara outline from mapsicon/Natural Earth */}
-              <g transform="translate(0,1024) scale(0.1,-0.1)">
+              {/* Morocco + Western Sahara paths from d-maps.com */}
+              {MOROCCO_PATHS.map((p, i) => (
                 <path
-                  d="M6590 9128 c-19 -5 -51 -25 -70 -43 -41 -39 -77 -55 -128 -55 -20 -1 -48 -7 -62 -15 -14 -8 -52 -14 -86 -15 l-62 0 -12 -67 c-16 -99 -45 -192 -105 -338 -29 -71 -56 -152 -60 -180 -4 -27 -27 -89 -51 -136 -25 -50 -52 -126 -65 -180 -24 -103 -33 -124 -122 -278 -33 -57 -110 -198 -172 -312 -132 -244 -201 -332 -300 -381 -33 -17 -71 -38 -85 -48 -14 -10 -54 -30 -90 -45 -36 -15 -81 -42 -100 -60 -19 -18 -50 -37 -69 -44 -19 -6 -49 -22 -67 -36 -21 -16 -46 -25 -68 -25 -27 0 -52 -12 -104 -50 -38 -27 -75 -50 -83 -50 -8 0 -63 -21 -124 -46 -60 -25 -133 -52 -162 -59 -36 -9 -72 -30 -121 -69 -43 -35 -79 -56 -94 -56 -30 0 -87 -58 -119 -122 -11 -24 -47 -70 -79 -103 -31 -33 -86 -94 -122 -135 -74 -87 -150 -160 -262 -250 l-78 -64 5 -51 c3 -27 0 -71 -6 -98 -8 -34 -7 -51 1 -59 17 -17 3 -148 -20 -180 -10 -15 -25 -46 -33 -69 -10 -27 -41 -70 -83 -114 -88 -91 -207 -243 -217 -275 -4 -14 -15 -39 -25 -56 -9 -17 -23 -48 -30 -69 -7 -21 -27 -63 -45 -92 -28 -46 -31 -60 -27 -103 3 -29 -3 -78 -13 -120 -18 -72 -18 -133 1 -337 6 -67 5 -74 -25 -127 -22 -38 -31 -66 -29 -88 3 -29 7 -33 35 -36 24 -2 45 -17 84 -60 52 -57 104 -154 95 -177 -2 -7 -12 -63 -21 -125 -28 -189 -128 -382 -235 -453 -51 -34 -128 -148 -148 -218 -13 -48 -77 -134 -172 -234 -42 -44 -102 -114 -132 -155 -93 -126 -125 -150 -303 -231 -88 -39 -188 -92 -222 -116 -79 -56 -253 -230 -303 -303 -58 -85 -109 -117 -345 -217 -137 -59 -256 -92 -405 -114 -41 -6 -122 -22 -178 -35 -63 -14 -135 -24 -181 -24 -88 0 -176 -14 -239 -37 -34 -13 -48 -26 -72 -69 -32 -55 -80 -103 -130 -129 -25 -13 -50 -42 -50 -58 0 -2 120 -7 268 -10 147 -4 546 -21 887 -37 629 -31 2724 -93 2737 -81 18 16 29 403 19 666 -6 149 -11 282 -11 296 0 22 14 35 83 80 45 29 118 85 162 124 44 39 100 85 125 102 25 17 53 40 64 51 10 12 41 29 70 38 31 10 74 38 109 68 33 28 83 72 112 98 29 25 63 49 76 53 12 4 44 23 70 42 42 30 59 35 124 40 l75 6 50 63 c34 43 79 83 141 125 l91 61 67 -26 c42 -17 86 -26 121 -26 30 0 98 -11 150 -25 l95 -24 32 30 c35 35 63 125 63 204 l0 46 28 -15 c37 -19 177 -14 220 8 23 12 46 15 84 10 39 -4 78 1 149 20 52 14 144 30 205 36 80 8 114 16 129 29 11 11 54 41 96 67 57 36 94 70 141 129 111 138 186 248 213 311 l27 62 116 48 c65 26 134 59 156 72 33 20 46 23 91 17 l53 -6 49 52 c37 39 65 58 109 73 54 19 63 27 104 90 l46 68 164 34 c146 30 168 37 194 63 27 27 29 33 20 73 -7 35 -13 44 -34 46 -14 2 -39 19 -56 39 l-32 37 -33 -29 -34 -28 -3 23 c-3 14 3 29 14 37 16 11 16 18 5 69 l-13 56 31 32 c17 18 31 35 31 39 0 4 -18 16 -40 27 l-40 20 0 103 c0 105 3 114 45 149 19 16 26 16 80 3 85 -20 159 -19 203 4 55 28 140 61 202 78 68 18 127 48 161 80 25 23 26 29 21 89 -5 63 -4 66 28 99 24 24 44 35 79 40 25 3 118 22 206 42 l160 36 185 -12 c102 -6 321 -11 488 -11 l304 0 -7 33 c-4 17 -18 58 -32 90 -21 46 -25 67 -20 107 8 70 20 87 67 95 33 6 46 15 70 50 17 24 30 46 30 48 0 3 -66 50 -147 106 -199 136 -237 172 -253 238 -7 31 -9 73 -5 107 7 52 5 59 -21 93 -16 21 -41 57 -56 80 -15 23 -36 46 -47 52 -32 18 -39 126 -12 197 11 31 21 72 21 91 0 39 -51 137 -76 147 -11 4 -15 20 -14 58 0 29 -3 86 -6 126 -4 43 -2 103 6 148 14 91 6 129 -52 241 -21 41 -38 83 -38 94 0 11 12 38 27 60 l27 41 -68 62 -68 61 30 50 c17 28 34 61 37 75 6 24 1 28 -61 54 -63 26 -89 47 -124 105 -11 17 -36 32 -79 45 -62 21 -64 22 -80 71 l-16 50 -89 32 -90 32 -21 -23 c-13 -14 -43 -28 -74 -35 -48 -10 -59 -8 -159 24 -59 19 -113 39 -120 43 -7 5 -15 26 -18 48 -3 21 -15 71 -26 109 -12 39 -23 77 -25 85 -3 9 -22 -18 -44 -62 -32 -63 -44 -78 -62 -78 -14 0 -40 -18 -67 -46 l-45 -46 -95 6 c-71 4 -116 13 -179 36 -78 29 -85 30 -108 15 -13 -9 -28 -27 -33 -41 -8 -21 -16 -24 -55 -24 -38 0 -45 3 -45 20 0 16 -7 20 -33 20 -18 0 -50 -9 -72 -20 -22 -11 -48 -20 -60 -20 -11 0 -45 -12 -75 -27 -67 -32 -142 -32 -270 -2 -137 33 -183 50 -215 79 -16 15 -68 53 -115 83 -90 58 -247 205 -266 247 -44 100 -57 204 -30 242 9 12 16 26 16 29 0 6 -60 32 -64 28 -1 0 -17 -5 -36 -11z"
+                  key={i}
+                  d={p.d}
                   fill="url(#mapGrad)"
                   stroke="#3b82f6"
-                  strokeOpacity={0.7}
-                  strokeWidth={12}
+                  strokeOpacity={0.6}
+                  strokeWidth={20}
                   filter="url(#map-glow)"
                 />
-              </g>
+              ))}
 
-              {/* City dots — in 1024-unit screen space, outside the path transform */}
+              {/* City dots */}
               {CITIES.map(city => (
                 <CityDot
                   key={city.name}
@@ -558,7 +560,7 @@ export default function LiveViewPage() {
               ))}
             </svg>
 
-            {/* City hover labels — % matches viewBox 0 0 1024 1024 */}
+            {/* City hover labels — viewBox: x0=3910 w=12953, y0=2417 h=14168 */}
             {CITIES.map(city => (
               <div
                 key={city.name + "-label"}
@@ -566,11 +568,11 @@ export default function LiveViewPage() {
                 onMouseLeave={() => setHoveredCity(null)}
                 className="absolute"
                 style={{
-                  left: `${(city.x / 1024) * 100}%`,
-                  top: `${(city.y / 1024) * 100}%`,
+                  left: `${(city.x - 3910) / 12953 * 100}%`,
+                  top:  `${(city.y - 2417) / 14168 * 100}%`,
                   transform: "translate(-50%,-50%)",
-                  width: city.size + 16,
-                  height: city.size + 16,
+                  width: 40,
+                  height: 40,
                   borderRadius: "50%",
                   cursor: "pointer",
                   zIndex: 10,
