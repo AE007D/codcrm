@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useRouter } from "next/navigation";
 
 declare global {
@@ -38,6 +38,7 @@ export default function LoginPage() {
   const [mode, setMode] = useState<Mode>("login");
   const [checkingAuth, setCheckingAuth] = useState(true);
   const [googleError, setGoogleError] = useState("");
+  const googleBtnRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     fetch("/api/auth/me").then(res => {
@@ -61,30 +62,33 @@ export default function LoginPage() {
     }
   }, [router]);
 
-  // Load Google GSI script and initialize
+  // Load Google GSI script and render button using ref (avoids timing issues)
   useEffect(() => {
     const clientId = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID
       || "50528925336-37s476bkh1kn9qf7s1259vfqks95vvvo.apps.googleusercontent.com";
-    if (!clientId) return;
+
+    function initButton() {
+      if (!window.google || !googleBtnRef.current) return;
+      window.google.accounts.id.initialize({
+        client_id: clientId,
+        callback: (resp: { credential: string }) => handleGoogleCredential(resp.credential),
+      });
+      window.google.accounts.id.renderButton(googleBtnRef.current, {
+        theme: "outline", size: "large", width: 352,
+        text: "signin_with", shape: "rectangular", locale: "fr",
+      });
+    }
+
+    // If script already loaded (e.g. hot reload), init immediately
+    if (window.google) { initButton(); return; }
+
     const script = document.createElement("script");
     script.src = "https://accounts.google.com/gsi/client";
     script.async = true;
     script.defer = true;
-    script.onload = () => {
-      window.google?.accounts.id.initialize({
-        client_id: clientId,
-        callback: (resp: { credential: string }) => handleGoogleCredential(resp.credential),
-      });
-      const btn = document.getElementById("google-signin-btn");
-      if (btn) {
-        window.google?.accounts.id.renderButton(btn, {
-          theme: "outline", size: "large", width: 400, text: "signin_with",
-          shape: "rectangular", locale: "fr",
-        });
-      }
-    };
+    script.onload = initButton;
     document.head.appendChild(script);
-    return () => { document.head.removeChild(script); };
+    return () => { if (document.head.contains(script)) document.head.removeChild(script); };
   }, [handleGoogleCredential]);
 
   async function handleLogin(e: React.FormEvent) {
@@ -221,7 +225,7 @@ export default function LoginPage() {
                     {googleError}
                   </div>
                 )}
-                <div id="google-signin-btn" className="flex justify-center min-h-[44px]" />
+                <div ref={googleBtnRef} className="flex justify-center min-h-[44px]" />
               </div>
 
               <div className="mt-5 text-center">
