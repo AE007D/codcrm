@@ -27,24 +27,24 @@ type Order = {
   created_at?: string;
 };
 
-/* ─── Morocco city definitions (x/y in SVG units, viewBox 800×540) ── */
+/* ─── Morocco city definitions (x/y in SVG units, viewBox 800×820) ── */
 const CITIES = [
-  { name: "Casablanca", x: 232, y: 182, size: 16 },
-  { name: "Rabat",      x: 262, y: 158, size: 12 },
-  { name: "Marrakech",  x: 230, y: 272, size: 12 },
-  { name: "Fès",        x: 380, y: 148, size: 11 },
-  { name: "Agadir",     x: 155, y: 330, size: 10 },
-  { name: "Tanger",     x: 298, y: 60,  size: 10 },
-  { name: "Meknès",     x: 348, y: 152, size: 9  },
-  { name: "Oujda",      x: 530, y: 118, size: 9  },
-  { name: "Béni Mellal",x: 318, y: 232, size: 8  },
-  { name: "El Jadida",  x: 200, y: 202, size: 8  },
-  { name: "Nador",      x: 470, y: 74,  size: 8  },
-  { name: "Kénitra",    x: 256, y: 140, size: 8  },
-  { name: "Settat",     x: 248, y: 205, size: 7  },
-  { name: "Laayoune",   x: 56,  y: 466, size: 7  },
-  { name: "Ouarzazate", x: 316, y: 308, size: 7  },
-  { name: "Tétouan",    x: 340, y: 68,  size: 7  },
+  { name: "Casablanca", x: 112, y: 218, size: 16 },
+  { name: "Rabat",      x: 107, y: 178, size: 12 },
+  { name: "Marrakech",  x: 342, y: 304, size: 12 },
+  { name: "Fès",        x: 572, y: 150, size: 11 },
+  { name: "Agadir",     x: 54,  y: 348, size: 10 },
+  { name: "Tanger",     x: 262, y: 28,  size: 10 },
+  { name: "Meknès",     x: 530, y: 154, size: 9  },
+  { name: "Oujda",      x: 740, y: 84,  size: 9  },
+  { name: "Béni Mellal",x: 448, y: 244, size: 8  },
+  { name: "El Jadida",  x: 110, y: 244, size: 8  },
+  { name: "Nador",      x: 558, y: 22,  size: 8  },
+  { name: "Kénitra",    x: 116, y: 154, size: 8  },
+  { name: "Settat",     x: 196, y: 236, size: 7  },
+  { name: "Laayoune",   x: 26,  y: 570, size: 7  },
+  { name: "Ouarzazate", x: 412, y: 344, size: 7  },
+  { name: "Tétouan",    x: 310, y: 30,  size: 7  },
 ];
 
 const SETUP_SQL = `-- Run once in Supabase Dashboard → SQL Editor
@@ -494,10 +494,10 @@ export default function LiveViewPage() {
             <rect width="100%" height="100%" fill="url(#grid)"/>
           </svg>
 
-          {/* Morocco map container */}
-          <div className="relative" style={{ width: "min(85vw, 680px)", aspectRatio: "800/540" }}>
+          {/* Morocco map container — viewBox 800×820, aspect matches real Morocco+WS */}
+          <div className="relative" style={{ width: "min(55vw, 480px)", aspectRatio: "800/820" }}>
             <svg
-              viewBox="0 0 800 540"
+              viewBox="0 0 800 820"
               className="absolute inset-0 w-full h-full"
               xmlns="http://www.w3.org/2000/svg"
             >
@@ -510,53 +510,48 @@ export default function LiveViewPage() {
                   </feMerge>
                 </filter>
                 <filter id="map-glow">
-                  <feGaussianBlur stdDeviation="6" result="coloredBlur"/>
+                  <feGaussianBlur stdDeviation="8" result="coloredBlur"/>
                   <feMerge>
                     <feMergeNode in="coloredBlur"/>
                     <feMergeNode in="SourceGraphic"/>
                   </feMerge>
                 </filter>
-                <linearGradient id="mapGrad" x1="0" y1="0" x2="1" y2="1">
-                  <stop offset="0%" stopColor="#1e3a8a" stopOpacity="0.5"/>
-                  <stop offset="100%" stopColor="#0f2854" stopOpacity="0.2"/>
+                <linearGradient id="mapGrad" x1="0" y1="0" x2="0.8" y2="1">
+                  <stop offset="0%" stopColor="#1e40af" stopOpacity="0.55"/>
+                  <stop offset="60%" stopColor="#1e3a8a" stopOpacity="0.35"/>
+                  <stop offset="100%" stopColor="#0f2854" stopOpacity="0.20"/>
                 </linearGradient>
               </defs>
 
-              {/* Morocco outline — accurate simplified polygon, viewBox 800×540 */}
-              {/* Northern Morocco + Western Sahara */}
+              {/* Morocco + Western Sahara — traced from reference image, viewBox 800×820 */}
               <path
-                d={[
-                  // Start: NW corner, Atlantic coast near Tangier
-                  "M 278,52",
-                  // Mediterranean coast eastward
-                  "L 300,44 L 330,52 L 342,62 L 378,68 L 410,60",
-                  "L 438,62 L 468,70 L 500,100 L 522,112",
-                  "L 548,114 L 568,106",
-                  // East border with Algeria (going south)
-                  "L 576,124 L 578,160 L 572,200",
-                  "L 568,240 L 562,284 L 558,320",
-                  "L 552,360 L 548,400",
-                  // Southeast corner toward Mauritania
-                  "L 540,432 L 520,448",
-                  // Southern border west
-                  "L 460,456 L 380,460 L 300,460",
-                  "L 220,458 L 150,454 L 100,450",
-                  // Western Sahara Atlantic coast — far southwest
-                  "L 58,468 L 42,452 L 36,420",
-                  "L 32,380 L 38,340 L 44,300",
-                  // Atlantic coast going north through Agadir, Essaouira
-                  "L 52,272 L 72,252 L 108,240",
-                  "L 138,228 L 162,214 L 188,200",
-                  // El Jadida → Casablanca → Rabat area
-                  "L 196,195 L 210,185 L 228,172",
-                  "L 248,158 L 268,144 L 280,132",
-                  // Kénitra → back to Tangier
-                  "L 282,108 L 274,82 L 276,60 L 278,52",
-                  "Z",
-                ].join(" ")}
+                d="
+                  M 260,16
+                  L 285,7 L 315,2 L 348,1 L 382,2 L 418,3
+                  L 453,4 L 486,6 L 516,9 L 544,13 L 570,18
+                  L 595,25 L 618,34 L 640,46 L 662,60
+                  L 682,77 L 700,97 L 716,120 L 729,145
+                  L 739,172 L 747,203 L 752,236 L 755,270
+                  L 756,306 L 755,342 L 752,376 L 748,406
+                  L 744,432
+                  L 762,432 L 762,488 L 642,488 L 642,560
+                  L 528,560 L 528,632
+                  L 420,650 L 306,662 L 204,666 L 124,664
+                  L 70,656 L 38,642 L 18,624 L 8,602
+                  L 6,578 L 6,552 L 8,524 L 12,494
+                  L 16,462 L 20,432 L 25,402 L 31,374
+                  L 38,348 L 47,324 L 57,302 L 68,284
+                  L 79,270 L 88,258 L 96,248 L 102,240
+                  L 106,232 L 108,224 L 108,216 L 107,208
+                  L 104,200 L 100,192 L 97,184 L 96,176
+                  L 97,168 L 101,160 L 107,152 L 115,144
+                  L 125,136 L 137,128 L 151,120 L 166,112
+                  L 183,103 L 202,94 L 221,84 L 240,73
+                  L 258,62 L 268,50 L 268,36 L 264,24 L 260,16 Z
+                "
                 fill="url(#mapGrad)"
                 stroke="#3b82f6"
-                strokeOpacity={0.5}
+                strokeOpacity={0.6}
                 strokeWidth={1.5}
                 filter="url(#map-glow)"
               />
@@ -581,7 +576,7 @@ export default function LiveViewPage() {
                 className="absolute"
                 style={{
                   left: `${(city.x / 800) * 100}%`,
-                  top: `${(city.y / 540) * 100}%`,
+                  top: `${(city.y / 820) * 100}%`,
                   transform: "translate(-50%,-50%)",
                   width: city.size + 16,
                   height: city.size + 16,
