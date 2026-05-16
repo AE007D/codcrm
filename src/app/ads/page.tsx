@@ -104,9 +104,20 @@ export default function AdsPage() {
   }
 
   async function syncFacebook() {
-    const raw = typeof window !== "undefined" ? localStorage.getItem(FB_ADS_KEY) : null;
-    if (!raw) { setSyncError("Facebook Ads non configuré. Allez dans Intégrations → Facebook Ads."); return; }
-    const { accessToken, adAccountId } = JSON.parse(raw);
+    // Read from Supabase settings first (source of truth), fall back to localStorage
+    let accessToken = "", adAccountId = "";
+    try {
+      const s = await fetch("/api/settings").then(r => r.json());
+      const fb = s.settings?.facebook ?? {};
+      accessToken = fb.accessToken ?? "";
+      adAccountId = fb.adAccountId ?? "";
+    } catch { /* ignore */ }
+    // Fall back to localStorage if Supabase had nothing
+    if (!accessToken) {
+      const raw = typeof window !== "undefined" ? localStorage.getItem(FB_ADS_KEY) : null;
+      if (raw) { const p = JSON.parse(raw); accessToken = p.accessToken; adAccountId = p.adAccountId; }
+    }
+    if (!accessToken || !adAccountId) { setSyncError("Facebook Ads non configuré. Allez dans Intégrations → Facebook Ads."); return; }
     setSyncing("facebook"); setSyncError("");
     try {
       const res = await fetch("/api/facebook-ads", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ accessToken, adAccountId }) });
