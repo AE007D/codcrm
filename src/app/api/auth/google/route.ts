@@ -29,7 +29,8 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Token Google invalide." }, { status: 401 });
     }
     // Verify audience matches our app (if CLIENT_ID is set)
-    const clientId = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID;
+    const clientId = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID
+      || "50528925336-37s476bkh1kn9qf7s1259vfqks95vvvo.apps.googleusercontent.com";
     if (clientId && data.aud !== clientId) {
       return NextResponse.json({ error: "Token Google invalide (audience)." }, { status: 401 });
     }

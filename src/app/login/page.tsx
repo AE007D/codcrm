@@ -63,7 +63,8 @@ export default function LoginPage() {
 
   // Load Google GSI script and initialize
   useEffect(() => {
-    const clientId = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID;
+    const clientId = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID
+      || "50528925336-37s476bkh1kn9qf7s1259vfqks95vvvo.apps.googleusercontent.com";
     if (!clientId) return;
     const script = document.createElement("script");
     script.src = "https://accounts.google.com/gsi/client";
@@ -209,21 +210,19 @@ export default function LoginPage() {
                 </button>
               </form>
 
-              {process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID && (
-                <div className="mt-5">
-                  <div className="flex items-center gap-3 mb-4">
-                    <div className="h-px flex-1 bg-slate-200" />
-                    <span className="text-xs text-slate-400 font-medium">ou</span>
-                    <div className="h-px flex-1 bg-slate-200" />
-                  </div>
-                  {googleError && (
-                    <div className="bg-red-50 border border-red-200 text-red-700 text-sm px-4 py-3 rounded-xl mb-3">
-                      {googleError}
-                    </div>
-                  )}
-                  <div id="google-signin-btn" className="flex justify-center" />
+              <div className="mt-5">
+                <div className="flex items-center gap-3 mb-4">
+                  <div className="h-px flex-1 bg-slate-200" />
+                  <span className="text-xs text-slate-400 font-medium">ou</span>
+                  <div className="h-px flex-1 bg-slate-200" />
                 </div>
-              )}
+                {googleError && (
+                  <div className="bg-red-50 border border-red-200 text-red-700 text-sm px-4 py-3 rounded-xl mb-3">
+                    {googleError}
+                  </div>
+                )}
+                <div id="google-signin-btn" className="flex justify-center min-h-[44px]" />
+              </div>
 
               <div className="mt-5 text-center">
                 <button
