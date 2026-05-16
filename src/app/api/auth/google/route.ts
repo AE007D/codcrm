@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getUserByEmail, createUser, createSession } from "@/lib/authStore";
+import { syncToSupabaseAuth } from "@/lib/supabaseAuthSync";
 import { cookies } from "next/headers";
 
 const SESSION_COOKIE = "codcrm_session";
@@ -53,6 +54,10 @@ export async function POST(request: NextRequest) {
   } else if (!user.active) {
     return NextResponse.json({ error: "Compte désactivé." }, { status: 403 });
   }
+
+  // Sync to Supabase Auth
+  syncToSupabaseAuth({ email: user.email, name: user.name, role: user.role })
+    .catch(e => console.warn("[supabaseAuthSync/google]", e));
 
   const token = await createSession(user.id);
 

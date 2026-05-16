@@ -4,6 +4,7 @@ import {
   createUser,
   hashPassword,
 } from "@/lib/authStore";
+import { syncToSupabaseAuth } from "@/lib/supabaseAuthSync";
 
 export async function POST(request: NextRequest) {
   let body: { name?: string; email?: string; password?: string; role?: string; workspaceId?: string };
@@ -37,6 +38,10 @@ export async function POST(request: NextRequest) {
       active: true,
       ...(workspaceId ? { workspaceId } : {}), // omit = own workspace (set in createUser)
     });
+
+    // Sync to Supabase Auth so user appears in Authentication → Users
+    syncToSupabaseAuth({ email: user.email, password, name: user.name, role: user.role })
+      .catch(e => console.warn("[supabaseAuthSync]", e));
 
     return NextResponse.json({
       ok: true,
