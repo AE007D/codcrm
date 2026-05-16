@@ -60,13 +60,29 @@ export default function AdsPage() {
   const [filter, setFilter] = useState<"All" | Platform>("All");
   const [syncing, setSyncing] = useState<"facebook" | "tiktok" | null>(null);
   const [syncError, setSyncError] = useState("");
+  const [dateFrom, setDateFrom] = useState("");
+  const [dateTo, setDateTo]     = useState("");
 
-  const filtered = filter === "All" ? campaigns : campaigns.filter(c => c.platform === filter);
+  // Convert campaign date "DD/MM/YYYY" → "YYYY-MM-DD" for comparison
+  function toISO(d: string) {
+    const [dd, mm, yyyy] = d.split("/");
+    return `${yyyy}-${mm}-${dd}`;
+  }
 
-  const totalSpend = campaigns.reduce((a, c) => a + c.spend, 0);
-  const totalRevenue = campaigns.reduce((a, c) => a + c.revenue, 0);
-  const totalOrders = campaigns.reduce((a, c) => a + c.orders, 0);
-  const totalDelivered = campaigns.reduce((a, c) => a + c.delivered, 0);
+  const dateFiltered = campaigns.filter(c => {
+    if (!dateFrom && !dateTo) return true;
+    const iso = toISO(c.date);
+    if (dateFrom && iso < dateFrom) return false;
+    if (dateTo   && iso > dateTo)   return false;
+    return true;
+  });
+
+  const filtered = filter === "All" ? dateFiltered : dateFiltered.filter(c => c.platform === filter);
+
+  const totalSpend    = dateFiltered.reduce((a, c) => a + c.spend, 0);
+  const totalRevenue  = dateFiltered.reduce((a, c) => a + c.revenue, 0);
+  const totalOrders   = dateFiltered.reduce((a, c) => a + c.orders, 0);
+  const totalDelivered = dateFiltered.reduce((a, c) => a + c.delivered, 0);
   const globalCPP = totalOrders ? totalSpend / totalOrders : 0;
   const globalCPD = totalDelivered ? totalSpend / totalDelivered : 0;
   const globalROAS = totalSpend ? totalRevenue / totalSpend : 0;
@@ -120,7 +136,11 @@ export default function AdsPage() {
     if (!accessToken || !adAccountId) { setSyncError("Facebook Ads non configuré. Allez dans Intégrations → Facebook Ads."); return; }
     setSyncing("facebook"); setSyncError("");
     try {
-      const res = await fetch("/api/facebook-ads", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ accessToken, adAccountId }) });
+      const body: Record<string, unknown> = { accessToken, adAccountId };
+      if (dateFrom && dateTo)   body.timeRange = { since: dateFrom, until: dateTo };
+      else if (dateFrom)        body.timeRange = { since: dateFrom, until: dateFrom };
+      else if (dateTo)          body.timeRange = { since: dateTo,   until: dateTo };
+      const res = await fetch("/api/facebook-ads", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
       const data = await res.json();
       if (data.error) { setSyncError(`Facebook: ${data.error}`); return; }
       const today = new Date().toLocaleDateString("fr-MA", { day: "2-digit", month: "2-digit", year: "numeric" }).replace(/\//g, "/");
@@ -199,7 +219,7 @@ export default function AdsPage() {
           {/* Per-platform breakdown */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 lg:gap-5 mb-6">
             {(["Facebook", "TikTok"] as Platform[]).map(platform => {
-              const pc = campaigns.filter(c => c.platform === platform);
+              const pc = dateFiltered.filter(c => c.platform === platform);
               const ps = pc.reduce((a, c) => a + c.spend, 0);
               const po = pc.reduce((a, c) => a + c.orders, 0);
               const pd = pc.reduce((a, c) => a + c.delivered, 0);
@@ -232,8 +252,47 @@ export default function AdsPage() {
 
           {/* Campaigns table */}
           <div className="bg-white rounded-2xl shadow-sm border border-slate-100">
-            <div className="px-6 py-4 border-b border-slate-100 flex items-center gap-3">
+            <div className="px-6 py-4 border-b border-slate-100 flex flex-wrap items-center gap-3">
               <h2 className="text-base font-bold text-slate-900 mr-auto">Campagnes</h2>
+
+              {/* Date shortcuts */}
+              {(() => {
+                const today = new Date().toISOString().slice(0, 10);
+                const yesterday = new Date(Date.now() - 86400000).toISOString().slice(0, 10);
+                const weekStart = new Date(Date.now() - 6 * 86400000).toISOString().slice(0, 10);
+                const monthStart = new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().slice(0, 10);
+                return (
+                  <div className="flex items-center gap-1.5 flex-wrap">
+                    {[
+                      { label: "Aujourd'hui", f: today,      t: today },
+                      { label: "Hier",         f: yesterday,  t: yesterday },
+                      { label: "7 jours",      f: weekStart,  t: today },
+                      { label: "Ce mois",      f: monthStart, t: today },
+                    ].map(({ label, f, t }) => (
+                      <button
+                        key={label}
+                        onClick={() => { setDateFrom(f); setDateTo(t); }}
+                        className={`text-xs font-semibold px-2.5 py-1 rounded-lg transition-colors ${
+                          dateFrom === f && dateTo === t
+                            ? "bg-indigo-600 text-white"
+                            : "bg-slate-100 text-slate-500 hover:bg-slate-200"
+                        }`}
+                      >{label}</button>
+                    ))}
+                    <input type="date" value={dateFrom} onChange={e => setDateFrom(e.target.value)}
+                      className="text-xs border border-slate-200 rounded-lg px-2 py-1 outline-none focus:border-blue-400" />
+                    <span className="text-slate-400 text-xs">→</span>
+                    <input type="date" value={dateTo} onChange={e => setDateTo(e.target.value)}
+                      className="text-xs border border-slate-200 rounded-lg px-2 py-1 outline-none focus:border-blue-400" />
+                    {(dateFrom || dateTo) && (
+                      <button onClick={() => { setDateFrom(""); setDateTo(""); }}
+                        className="text-xs text-red-400 hover:text-red-600 font-medium px-1">✕</button>
+                    )}
+                  </div>
+                );
+              })()}
+
+              {/* Platform filter */}
               {(["All", "Facebook", "TikTok"] as const).map(f => (
                 <button
                   key={f}

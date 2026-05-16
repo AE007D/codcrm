@@ -3,17 +3,18 @@ import { NextRequest, NextResponse } from "next/server";
 const GRAPH = "https://graph.facebook.com/v19.0";
 
 export async function POST(request: NextRequest) {
-  const { accessToken, adAccountId, datePreset = "last_30d" } = await request.json();
+  const { accessToken, adAccountId, datePreset = "last_30d", timeRange } = await request.json();
   if (!accessToken || !adAccountId) {
     return NextResponse.json({ error: "accessToken and adAccountId required" }, { status: 400 });
   }
 
   const accountId = adAccountId.startsWith("act_") ? adAccountId : `act_${adAccountId}`;
 
-  const fields = [
-    "id", "name", "status",
-    "insights.date_preset(" + datePreset + "){spend,impressions,clicks,actions,purchase_roas,action_values}",
-  ].join(",");
+  const insightsParam = timeRange
+    ? `insights.time_range(${JSON.stringify(timeRange)}){spend,impressions,clicks,actions,purchase_roas,action_values}`
+    : `insights.date_preset(${datePreset}){spend,impressions,clicks,actions,purchase_roas,action_values}`;
+
+  const fields = ["id", "name", "status", insightsParam].join(",");
 
   const url = `${GRAPH}/${accountId}/campaigns?fields=${encodeURIComponent(fields)}&limit=50&access_token=${encodeURIComponent(accessToken)}`;
 
