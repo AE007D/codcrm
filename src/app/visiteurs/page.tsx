@@ -106,41 +106,34 @@ function useViewsBuckets(liveCount: number) {
 
 /* ─── Dot component ─────────────────────────────────────── */
 function CityDot({
-  city, mode, tooltip,
+  city, mode,
 }: {
   city: typeof CITIES[0];
   mode: "visitor" | "order" | "idle";
-  tooltip: boolean;
 }) {
-  const [hovered, setHovered] = useState(false);
-
   const color =
     mode === "visitor" ? "#10b981"
-    : mode === "order" ? "#3b82f6"
-    : "#334155";
+    : mode === "order" ? "#60a5fa"
+    : "#64748b";
 
   const ringColor =
-    mode === "visitor" ? "rgba(16,185,129,0.35)"
-    : mode === "order" ? "rgba(59,130,246,0.35)"
+    mode === "visitor" ? "rgba(16,185,129,0.3)"
+    : mode === "order" ? "rgba(96,165,250,0.3)"
     : "transparent";
 
-  const r = city.r; // radius already in SVG units (d-maps coordinate space)
+  const r = city.r;
 
   return (
-    <g
-      onMouseEnter={() => setHovered(true)}
-      onMouseLeave={() => setHovered(false)}
-      style={{ cursor: "default" }}
-    >
-      {/* Ping ring */}
+    <g style={{ cursor: "default" }}>
+      {/* Ping ring — active only */}
       {mode !== "idle" && (
         <circle
           cx={city.x}
           cy={city.y}
-          r={r + 250}
+          r={r + 300}
           fill="none"
           stroke={color}
-          strokeWidth={25}
+          strokeWidth={20}
           opacity={0}
           style={{
             animation: "ping 2s cubic-bezier(0,0,0.2,1) infinite",
@@ -148,12 +141,12 @@ function CityDot({
           }}
         />
       )}
-      {/* Soft glow ring */}
+      {/* Soft glow ring — active only */}
       {mode !== "idle" && (
         <circle
           cx={city.x}
           cy={city.y}
-          r={r + 150}
+          r={r + 180}
           fill={ringColor}
           style={{
             animation: "pulse-ring 2.4s ease-in-out infinite",
@@ -167,32 +160,21 @@ function CityDot({
         cy={city.y}
         r={r}
         fill={color}
+        opacity={mode === "idle" ? 0.5 : 1}
         filter={mode !== "idle" ? "url(#glow)" : undefined}
       />
-      {/* Tooltip */}
-      {hovered && tooltip && (
-        <g>
-          <rect
-            x={city.x + r + 60}
-            y={city.y - 130}
-            width={city.name.length * 110 + 200}
-            height={260}
-            rx={50}
-            fill="#1e293b"
-            stroke="#475569"
-            strokeWidth={15}
-          />
-          <text
-            x={city.x + r + 160}
-            y={city.y + 70}
-            fill="#e2e8f0"
-            fontSize={180}
-            fontFamily="system-ui, sans-serif"
-          >
-            {city.name}
-          </text>
-        </g>
-      )}
+      {/* City label — always visible */}
+      <text
+        x={city.x + r + 80}
+        y={city.y + 60}
+        fill={mode === "idle" ? "#94a3b8" : "#e2e8f0"}
+        fontSize={130}
+        fontFamily="system-ui, sans-serif"
+        fontWeight={mode !== "idle" ? "600" : "400"}
+        style={{ pointerEvents: "none" }}
+      >
+        {city.name}
+      </text>
     </g>
   );
 }
@@ -288,7 +270,6 @@ export default function LiveViewPage() {
   const [updatedAt, setUpdatedAt] = useState(new Date());
   const [sqlCopied, setSqlCopied] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
-  const [hoveredCity, setHoveredCity] = useState<string | null>(null);
 
   /* derived counts */
   const liveCount = visitors.length;
@@ -393,8 +374,6 @@ export default function LiveViewPage() {
       setTimeout(() => setSqlCopied(false), 2000);
     });
   }, []);
-
-  const _ = hoveredCity; // suppress unused warning
 
   return (
     <div className="flex h-screen bg-slate-900 overflow-hidden">
@@ -522,13 +501,6 @@ export default function LiveViewPage() {
                     <feMergeNode in="SourceGraphic"/>
                   </feMerge>
                 </filter>
-                <filter id="map-glow" x="-5%" y="-5%" width="110%" height="110%">
-                  <feGaussianBlur stdDeviation="80" result="coloredBlur"/>
-                  <feMerge>
-                    <feMergeNode in="coloredBlur"/>
-                    <feMergeNode in="SourceGraphic"/>
-                  </feMerge>
-                </filter>
                 <linearGradient id="mapGrad" x1="0" y1="0" x2="0.5" y2="1">
                   <stop offset="0%" stopColor="#1e40af" stopOpacity="0.65"/>
                   <stop offset="55%" stopColor="#1e3a8a" stopOpacity="0.45"/>
@@ -542,10 +514,9 @@ export default function LiveViewPage() {
                   key={i}
                   d={p.d}
                   fill="url(#mapGrad)"
-                  stroke="#3b82f6"
-                  strokeOpacity={0.6}
-                  strokeWidth={20}
-                  filter="url(#map-glow)"
+                  stroke={p.ws ? "#60a5fa" : "#3b82f6"}
+                  strokeOpacity={p.ws ? 0.4 : 0.7}
+                  strokeWidth={15}
                 />
               ))}
 
@@ -555,45 +526,10 @@ export default function LiveViewPage() {
                   key={city.name}
                   city={city}
                   mode={cityModes[city.name] ?? "idle"}
-                  tooltip={true}
                 />
               ))}
             </svg>
 
-            {/* City hover labels — viewBox: x0=3910 w=12953, y0=2417 h=14168 */}
-            {CITIES.map(city => (
-              <div
-                key={city.name + "-label"}
-                onMouseEnter={() => setHoveredCity(city.name)}
-                onMouseLeave={() => setHoveredCity(null)}
-                className="absolute"
-                style={{
-                  left: `${(city.x - 3910) / 12953 * 100}%`,
-                  top:  `${(city.y - 2417) / 14168 * 100}%`,
-                  transform: "translate(-50%,-50%)",
-                  width: 40,
-                  height: 40,
-                  borderRadius: "50%",
-                  cursor: "pointer",
-                  zIndex: 10,
-                }}
-              >
-                {hoveredCity === city.name && (
-                  <div
-                    className="absolute left-full ml-2 top-1/2 -translate-y-1/2 px-2 py-1 rounded-md text-xs text-slate-100 whitespace-nowrap z-20 pointer-events-none border border-slate-600"
-                    style={{ background: "#1e293b" }}
-                  >
-                    {city.name}
-                    {cityModes[city.name] === "visitor" && (
-                      <span className="ml-1 text-emerald-400">• actif</span>
-                    )}
-                    {cityModes[city.name] === "order" && (
-                      <span className="ml-1 text-blue-400">• commande</span>
-                    )}
-                  </div>
-                )}
-              </div>
-            ))}
           </div>
 
           {/* Live count badge */}
