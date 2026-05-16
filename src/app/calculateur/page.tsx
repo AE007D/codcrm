@@ -1,8 +1,20 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import Image from "next/image";
 import Sidebar from "@/components/Sidebar";
+
+type AdCampaign = {
+  id: number;
+  platform: string;
+  name: string;
+  sku: string;
+  spend: number;
+  orders: number;
+  delivered: number;
+  revenue: number;
+  date: string;
+};
 
 type CatalogProduct = {
   id: string;
@@ -121,9 +133,18 @@ function hoursUntilNext(lastRun: number) {
 
 const emptyForm = { name: "", purchasePrice: "", sellPrice: "", shippingCost: "", cpd: "", confirmationCost: "", platform: "Facebook" };
 
+/* ── Match ad campaigns to a product by SKU (exact) or name (fuzzy) ── */
+function matchCampaigns(name: string, sku: string, campaigns: AdCampaign[]) {
+  return campaigns.filter(c => {
+    if (sku && c.sku && c.sku.toLowerCase() === sku.toLowerCase()) return true;
+    return matches(name, c.name);
+  });
+}
+
 export default function CalculateurPage() {
   const [products, setProducts] = useState<Product[]>([]);
   const [catalog, setCatalog] = useState<CatalogProduct[]>([]);
+  const [adCampaigns, setAdCampaigns] = useState<AdCampaign[]>([]);
   const [lastRun, setLastRun] = useState<number>(Date.now() - 86400000);
   const [syncing, setSyncing] = useState(false);
   const [lastSync, setLastSync] = useState<number | null>(null);
@@ -171,6 +192,9 @@ export default function CalculateurPage() {
     const eagleRateMap = new Map<string, ParcelStats>();
 
     const s = await fetch("/api/settings").then(r => r.json()).then(d => d.settings ?? {}).catch(() => ({}));
+
+    // Load ad campaigns
+    if (Array.isArray(s.adCampaigns)) setAdCampaigns(s.adCampaigns);
 
     if (s.ameex) {
       const c = s.ameex;
@@ -243,6 +267,27 @@ export default function CalculateurPage() {
     setForm(emptyForm); setError(""); setShowModal(false);
     setSelectedCatalogId(null); setCatalogSearch("");
   }
+
+  // Build linked ads summary per product
+  const linkedAdsMap = useMemo(() => {
+    const map = new Map<number, { spend: number; orders: number; delivered: number; revenue: number; cpp: number; cpd: number; count: number }>();
+    for (const p of products) {
+      const catalogEntry = catalog.find(c => c.name === p.name);
+      const sku = catalogEntry?.sku ?? "";
+      const matched = matchCampaigns(p.name, sku, adCampaigns);
+      if (matched.length === 0) continue;
+      const spend     = matched.reduce((a, c) => a + c.spend, 0);
+      const orders    = matched.reduce((a, c) => a + c.orders, 0);
+      const delivered = matched.reduce((a, c) => a + c.delivered, 0);
+      const revenue   = matched.reduce((a, c) => a + c.revenue, 0);
+      map.set(p.id, {
+        spend, orders, delivered, revenue, count: matched.length,
+        cpp: orders    ? spend / orders    : 0, // cost per order (paid on every order)
+        cpd: delivered ? spend / delivered : 0, // cost per delivered
+      });
+    }
+    return map;
+  }, [products, catalog, adCampaigns]);
 
   const FALLBACK_RATE = 70;
   const withMetrics = products.map(p => {
@@ -389,6 +434,46 @@ export default function CalculateurPage() {
                     </div>
                   )}
                 </div>
+
+                {/* Linked Ads data */}
+                {(() => {
+                  const ads = linkedAdsMap.get(p.id);
+                  if (!ads) return (
+                    <div className="mb-3 px-3 py-2 bg-slate-50 border border-slate-100 rounded-xl flex items-center gap-2">
+                      <span className="text-slate-300 text-sm">🔗</span>
+                      <p className="text-xs text-slate-400">Aucune campagne liée — même nom/SKU dans Ads Manager</p>
+                    </div>
+                  );
+                  return (
+                    <div className="mb-3 bg-violet-50 border border-violet-100 rounded-xl p-3">
+                      <div className="flex items-center gap-1.5 mb-2">
+                        <span className="text-sm">🔗</span>
+                        <p className="text-xs font-bold text-violet-700">Ads liés ({ads.count} campagne{ads.count > 1 ? "s" : ""})</p>
+                        <span className="ml-auto text-xs text-violet-500 font-semibold">{ads.spend.toLocaleString("fr-MA")} MAD dépensé</span>
+                      </div>
+                      <div className="grid grid-cols-3 gap-1.5 text-center">
+                        <div className="bg-white rounded-lg py-1.5">
+                          <p className="text-[10px] text-slate-400">CPP Ads</p>
+                          <p className="text-xs font-bold text-violet-700">{ads.cpp.toFixed(1)} MAD</p>
+                        </div>
+                        <div className="bg-white rounded-lg py-1.5">
+                          <p className="text-[10px] text-slate-400">ROAS</p>
+                          <p className="text-xs font-bold text-violet-700">×{ads.spend ? (ads.revenue / ads.spend).toFixed(2) : "—"}</p>
+                        </div>
+                        <div className="bg-white rounded-lg py-1.5">
+                          <p className="text-[10px] text-slate-400">Livrés</p>
+                          <p className="text-xs font-bold text-violet-700">{ads.delivered}/{ads.orders}</p>
+                        </div>
+                      </div>
+                      {Math.abs(ads.cpp - p.cpd) > 1 && (
+                        <p className="text-[10px] text-violet-500 mt-1.5">
+                          CPD calculator: {p.cpd.toFixed(1)} MAD · CPP ads: {ads.cpp.toFixed(1)} MAD
+                          {ads.cpp < p.cpd ? " ✓ Ads moins cher" : " ⚠ Ads plus cher"}
+                        </p>
+                      )}
+                    </div>
+                  );
+                })()}
 
                 {/* Breakdown */}
                 <div className="space-y-1.5 mb-4">

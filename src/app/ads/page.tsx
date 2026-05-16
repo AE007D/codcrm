@@ -1,137 +1,192 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useCallback } from "react";
 import Sidebar from "@/components/Sidebar";
 
 type Platform = "Facebook" | "TikTok";
 
-type Campaign = {
+export type Campaign = {
   id: number;
   platform: Platform;
   name: string;
+  sku: string;         // product SKU — used to link with Products & Calculator
   spend: number;
   impressions: number;
   clicks: number;
   orders: number;
   delivered: number;
   revenue: number;
-  date: string;
+  date: string;        // YYYY-MM-DD
 };
 
-const initialCampaigns: Campaign[] = [];
+type CatalogProduct = { id: string; name: string; sku: string; sellPrice: number };
 
 const emptyForm = {
   platform: "Facebook" as Platform,
   name: "",
+  sku: "",
   spend: "",
   impressions: "",
   clicks: "",
   orders: "",
   delivered: "",
   revenue: "",
-  date: "",
+  date: new Date().toISOString().slice(0, 10),
 };
 
 const PLATFORM_CONFIG = {
-  Facebook: { color: "bg-blue-600", light: "bg-blue-50 text-blue-600", icon: (
-    <svg viewBox="0 0 24 24" fill="currentColor" className="w-4 h-4">
-      <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/>
-    </svg>
-  )},
-  TikTok: { color: "bg-slate-900", light: "bg-slate-100 text-slate-800", icon: (
-    <svg viewBox="0 0 24 24" fill="currentColor" className="w-4 h-4">
-      <path d="M19.59 6.69a4.83 4.83 0 01-3.77-4.25V2h-3.45v13.67a2.89 2.89 0 01-2.88 2.5 2.89 2.89 0 01-2.89-2.89 2.89 2.89 0 012.89-2.89c.28 0 .54.04.79.1V9.01a6.27 6.27 0 00-.79-.05 6.34 6.34 0 00-6.34 6.34 6.34 6.34 0 006.34 6.34 6.34 6.34 0 006.33-6.34V8.69a8.18 8.18 0 004.78 1.52V6.75a4.85 4.85 0 01-1.01-.06z"/>
-    </svg>
-  )},
+  Facebook: {
+    color: "bg-blue-600", light: "bg-blue-50 text-blue-600",
+    icon: (
+      <svg viewBox="0 0 24 24" fill="currentColor" className="w-4 h-4">
+        <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/>
+      </svg>
+    ),
+  },
+  TikTok: {
+    color: "bg-slate-900", light: "bg-slate-100 text-slate-800",
+    icon: (
+      <svg viewBox="0 0 24 24" fill="currentColor" className="w-4 h-4">
+        <path d="M19.59 6.69a4.83 4.83 0 01-3.77-4.25V2h-3.45v13.67a2.89 2.89 0 01-2.88 2.5 2.89 2.89 0 01-2.89-2.89 2.89 2.89 0 012.89-2.89c.28 0 .54.04.79.1V9.01a6.27 6.27 0 00-.79-.05 6.34 6.34 0 00-6.34 6.34 6.34 6.34 0 006.34 6.34 6.34 6.34 0 006.33-6.34V8.69a8.18 8.18 0 004.78 1.52V6.75a4.85 4.85 0 01-1.01-.06z"/>
+      </svg>
+    ),
+  },
 };
 
 function fmt(n: number) { return n.toLocaleString("fr-MA"); }
 function mad(n: number) { return `${fmt(n)} MAD`; }
-
+function fmtDate(d: string) {
+  if (!d) return "—";
+  try { return new Date(d).toLocaleDateString("fr-MA", { day: "2-digit", month: "2-digit", year: "numeric" }); }
+  catch { return d; }
+}
 
 export default function AdsPage() {
-  const [campaigns, setCampaigns] = useState<Campaign[]>(initialCampaigns);
+  const [campaigns, setCampaigns] = useState<Campaign[]>([]);
+  const [catalog, setCatalog] = useState<CatalogProduct[]>([]);
+  const [loaded, setLoaded] = useState(false);
   const [showModal, setShowModal] = useState(false);
   const [form, setForm] = useState(emptyForm);
   const [error, setError] = useState("");
   const [filter, setFilter] = useState<"All" | Platform>("All");
   const [dateFrom, setDateFrom] = useState("");
-  const [dateTo, setDateTo]     = useState("");
+  const [dateTo, setDateTo] = useState("");
+  const [productSearch, setProductSearch] = useState("");
+  const [saving, setSaving] = useState(false);
 
-  // Convert campaign date "DD/MM/YYYY" → "YYYY-MM-DD" for comparison
-  function toISO(d: string) {
-    const [dd, mm, yyyy] = d.split("/");
-    return `${yyyy}-${mm}-${dd}`;
-  }
+  // Load campaigns from Supabase settings
+  useEffect(() => {
+    Promise.all([
+      fetch("/api/settings").then(r => r.ok ? r.json() : null),
+      fetch("/api/products").then(r => r.ok ? r.json() : { products: [] }),
+    ]).then(([settingsData, productsData]) => {
+      const saved = settingsData?.settings?.adCampaigns;
+      if (Array.isArray(saved)) setCampaigns(saved);
+      setCatalog(productsData?.products ?? []);
+      setLoaded(true);
+    }).catch(() => setLoaded(true));
+  }, []);
+
+  // Persist campaigns to Supabase whenever they change
+  const saveToServer = useCallback((updated: Campaign[]) => {
+    setSaving(true);
+    fetch("/api/settings", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ adCampaigns: updated }),
+    }).finally(() => setSaving(false));
+  }, []);
 
   const dateFiltered = campaigns.filter(c => {
     if (!dateFrom && !dateTo) return true;
-    const iso = toISO(c.date);
-    if (dateFrom && iso < dateFrom) return false;
-    if (dateTo   && iso > dateTo)   return false;
+    if (dateFrom && c.date < dateFrom) return false;
+    if (dateTo && c.date > dateTo) return false;
     return true;
   });
-
   const filtered = filter === "All" ? dateFiltered : dateFiltered.filter(c => c.platform === filter);
 
-  const totalSpend    = dateFiltered.reduce((a, c) => a + c.spend, 0);
-  const totalRevenue  = dateFiltered.reduce((a, c) => a + c.revenue, 0);
-  const totalOrders   = dateFiltered.reduce((a, c) => a + c.orders, 0);
+  const totalSpend     = dateFiltered.reduce((a, c) => a + c.spend, 0);
+  const totalRevenue   = dateFiltered.reduce((a, c) => a + c.revenue, 0);
+  const totalOrders    = dateFiltered.reduce((a, c) => a + c.orders, 0);
   const totalDelivered = dateFiltered.reduce((a, c) => a + c.delivered, 0);
-  const globalCPP = totalOrders ? totalSpend / totalOrders : 0;
-  const globalCPD = totalDelivered ? totalSpend / totalDelivered : 0;
-  const globalROAS = totalSpend ? totalRevenue / totalSpend : 0;
-  const profit = totalRevenue - totalSpend;
+  const globalCPP  = totalOrders    ? totalSpend / totalOrders    : 0;
+  const globalCPD  = totalDelivered ? totalSpend / totalDelivered : 0;
+  const globalROAS = totalSpend     ? totalRevenue / totalSpend   : 0;
+  const profit     = totalRevenue - totalSpend;
+
+  // Select product from catalog → auto-fill name + sku
+  function selectProduct(p: CatalogProduct) {
+    setForm(f => ({ ...f, name: p.name, sku: p.sku }));
+    setProductSearch("");
+  }
 
   function handleAdd() {
-    const { name, spend, impressions, clicks, orders, delivered, revenue, date } = form;
+    const { name, spend, orders, delivered, revenue, date } = form;
     if (!name || !spend || !orders || !delivered || !revenue || !date) {
-      setError("Veuillez remplir tous les champs obligatoires.");
+      setError("Remplissez les champs obligatoires (*).");
       return;
     }
     if (Number(delivered) > Number(orders)) {
       setError("Les livrés ne peuvent pas dépasser les commandes.");
       return;
     }
-    setCampaigns(prev => [...prev, {
+    const updated = [...campaigns, {
       id: Date.now(),
       platform: form.platform,
-      name,
+      name: name.trim(),
+      sku: form.sku.trim(),
       spend: Number(spend),
-      impressions: Number(impressions) || 0,
-      clicks: Number(clicks) || 0,
+      impressions: Number(form.impressions) || 0,
+      clicks: Number(form.clicks) || 0,
       orders: Number(orders),
       delivered: Number(delivered),
       revenue: Number(revenue),
       date,
-    }]);
+    }];
+    setCampaigns(updated);
+    saveToServer(updated);
     setForm(emptyForm);
     setError("");
     setShowModal(false);
   }
 
   function handleDelete(id: number) {
-    setCampaigns(prev => prev.filter(c => c.id !== id));
+    const updated = campaigns.filter(c => c.id !== id);
+    setCampaigns(updated);
+    saveToServer(updated);
   }
+
+  const filteredCatalog = catalog.filter(p =>
+    !productSearch ||
+    p.name.toLowerCase().includes(productSearch.toLowerCase()) ||
+    p.sku.toLowerCase().includes(productSearch.toLowerCase())
+  );
 
   return (
     <div className="flex min-h-screen bg-[#F0F4FF]">
       <Sidebar />
       <div className="flex-1 flex flex-col">
+
         {/* Header */}
         <header className="bg-white border-b border-slate-100 px-4 lg:px-8 py-4 pl-14 lg:pl-8 flex flex-wrap items-center justify-between gap-2">
           <div>
             <h1 className="text-xl font-bold text-slate-900">Ads Manager</h1>
-            <p className="text-sm text-slate-400 hidden sm:block">Facebook & TikTok — calcul CPP / CPD / ROAS</p>
+            <p className="text-sm text-slate-400 hidden sm:block">Facebook & TikTok — CPP / CPD / ROAS par produit</p>
           </div>
-          <div className="flex items-center gap-2 flex-wrap">
-            <button onClick={() => setShowModal(true)} className="bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold px-4 py-2.5 rounded-xl transition-colors shadow-md shadow-blue-200 whitespace-nowrap">
+          <div className="flex items-center gap-2">
+            {saving && <span className="text-xs text-slate-400 animate-pulse">Sauvegarde…</span>}
+            {!loaded && <span className="text-xs text-slate-400 animate-pulse">Chargement…</span>}
+            <button
+              onClick={() => setShowModal(true)}
+              className="bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold px-4 py-2.5 rounded-xl transition-colors shadow-md shadow-blue-200 whitespace-nowrap"
+            >
               + Ajouter campagne
             </button>
           </div>
         </header>
 
         <main className="flex-1 p-4 lg:p-8 overflow-y-auto">
+
           {/* Global KPIs */}
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 lg:gap-5 mb-6">
             {[
@@ -164,7 +219,7 @@ export default function AdsPage() {
                     <span className="font-bold text-slate-900">{platform} Ads</span>
                     <span className="ml-auto text-xs text-slate-400">{pc.length} campagnes</span>
                   </div>
-                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 lg:gap-3">
+                  <div className="grid grid-cols-4 gap-2">
                     {[
                       { label: "Dépense", value: mad(ps) },
                       { label: "CPP", value: po ? `${(ps/po).toFixed(1)} MAD` : "—" },
@@ -196,29 +251,21 @@ export default function AdsPage() {
                 return (
                   <div className="flex items-center gap-1.5 flex-wrap">
                     {[
-                      { label: "Aujourd'hui", f: today,      t: today },
-                      { label: "Hier",         f: yesterday,  t: yesterday },
-                      { label: "7 jours",      f: weekStart,  t: today },
-                      { label: "Ce mois",      f: monthStart, t: today },
+                      { label: "Aujourd'hui", f: today, t: today },
+                      { label: "Hier", f: yesterday, t: yesterday },
+                      { label: "7 jours", f: weekStart, t: today },
+                      { label: "Ce mois", f: monthStart, t: today },
                     ].map(({ label, f, t }) => (
-                      <button
-                        key={label}
-                        onClick={() => { setDateFrom(f); setDateTo(t); }}
-                        className={`text-xs font-semibold px-2.5 py-1 rounded-lg transition-colors ${
-                          dateFrom === f && dateTo === t
-                            ? "bg-indigo-600 text-white"
-                            : "bg-slate-100 text-slate-500 hover:bg-slate-200"
-                        }`}
-                      >{label}</button>
+                      <button key={label} onClick={() => { setDateFrom(f); setDateTo(t); }}
+                        className={`text-xs font-semibold px-2.5 py-1 rounded-lg transition-colors ${dateFrom === f && dateTo === t ? "bg-indigo-600 text-white" : "bg-slate-100 text-slate-500 hover:bg-slate-200"}`}>
+                        {label}
+                      </button>
                     ))}
-                    <input type="date" value={dateFrom} onChange={e => setDateFrom(e.target.value)}
-                      className="text-xs border border-slate-200 rounded-lg px-2 py-1 outline-none focus:border-blue-400" />
+                    <input type="date" value={dateFrom} onChange={e => setDateFrom(e.target.value)} className="text-xs border border-slate-200 rounded-lg px-2 py-1 outline-none focus:border-blue-400" />
                     <span className="text-slate-400 text-xs">→</span>
-                    <input type="date" value={dateTo} onChange={e => setDateTo(e.target.value)}
-                      className="text-xs border border-slate-200 rounded-lg px-2 py-1 outline-none focus:border-blue-400" />
+                    <input type="date" value={dateTo} onChange={e => setDateTo(e.target.value)} className="text-xs border border-slate-200 rounded-lg px-2 py-1 outline-none focus:border-blue-400" />
                     {(dateFrom || dateTo) && (
-                      <button onClick={() => { setDateFrom(""); setDateTo(""); }}
-                        className="text-xs text-red-400 hover:text-red-600 font-medium px-1">✕</button>
+                      <button onClick={() => { setDateFrom(""); setDateTo(""); }} className="text-xs text-red-400 hover:text-red-600 font-medium px-1">✕</button>
                     )}
                   </div>
                 );
@@ -226,35 +273,35 @@ export default function AdsPage() {
 
               {/* Platform filter */}
               {(["All", "Facebook", "TikTok"] as const).map(f => (
-                <button
-                  key={f}
-                  onClick={() => setFilter(f)}
-                  className={`text-xs font-semibold px-3 py-1.5 rounded-lg transition-colors ${
-                    filter === f ? "bg-blue-600 text-white" : "bg-slate-100 text-slate-500 hover:bg-slate-200"
-                  }`}
-                >
+                <button key={f} onClick={() => setFilter(f)}
+                  className={`text-xs font-semibold px-3 py-1.5 rounded-lg transition-colors ${filter === f ? "bg-blue-600 text-white" : "bg-slate-100 text-slate-500 hover:bg-slate-200"}`}>
                   {f === "All" ? "Toutes" : f}
                 </button>
               ))}
             </div>
+
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>
                   <tr className="text-xs text-slate-400 border-b border-slate-50">
-                    {["Plateforme","Campagne","Dépense","Impressions","Clics","Commandes","Livrés","Revenue","CPP","CPD","ROAS","Date",""].map(h => (
+                    {["Plateforme", "Campagne / Produit", "Dépense", "Impressions", "Clics", "Commandes", "Livrés", "Revenue", "CPP", "CPD", "ROAS", "Date", ""].map(h => (
                       <th key={h} className="text-left px-4 py-3 font-semibold uppercase tracking-wide whitespace-nowrap">{h}</th>
                     ))}
                   </tr>
                 </thead>
                 <tbody>
                   {filtered.length === 0 && (
-                    <tr><td colSpan={13} className="text-center py-16 text-slate-400 text-sm">Aucune campagne — ajoutez manuellement ou synchronisez Facebook / TikTok</td></tr>
+                    <tr>
+                      <td colSpan={13} className="text-center py-16 text-slate-400 text-sm">
+                        {loaded ? 'Aucune campagne — cliquez "+ Ajouter campagne"' : "Chargement…"}
+                      </td>
+                    </tr>
                   )}
                   {filtered.map(c => {
-                    const cpp = c.orders ? c.spend / c.orders : 0;
-                    const cpd = c.delivered ? c.spend / c.delivered : 0;
-                    const roas = c.spend ? c.revenue / c.spend : 0;
-                    const cfg = PLATFORM_CONFIG[c.platform];
+                    const cpp  = c.orders    ? c.spend / c.orders    : 0;
+                    const cpd  = c.delivered ? c.spend / c.delivered : 0;
+                    const roas = c.spend     ? c.revenue / c.spend   : 0;
+                    const cfg  = PLATFORM_CONFIG[c.platform];
                     return (
                       <tr key={c.id} className="border-b border-slate-50 hover:bg-slate-50/60 transition-colors">
                         <td className="px-4 py-3.5">
@@ -262,7 +309,14 @@ export default function AdsPage() {
                             {cfg.icon}{c.platform}
                           </span>
                         </td>
-                        <td className="px-4 py-3.5 font-semibold text-slate-800 max-w-[160px] truncate">{c.name}</td>
+                        <td className="px-4 py-3.5 max-w-[180px]">
+                          <p className="font-semibold text-slate-800 truncate">{c.name}</p>
+                          {c.sku && (
+                            <span className="text-xs bg-violet-50 text-violet-600 font-mono px-1.5 py-0.5 rounded">
+                              {c.sku}
+                            </span>
+                          )}
+                        </td>
                         <td className="px-4 py-3.5 font-bold text-slate-800">{mad(c.spend)}</td>
                         <td className="px-4 py-3.5 text-slate-500">{fmt(c.impressions)}</td>
                         <td className="px-4 py-3.5 text-slate-500">{fmt(c.clicks)}</td>
@@ -282,9 +336,11 @@ export default function AdsPage() {
                             ×{roas.toFixed(2)}
                           </span>
                         </td>
-                        <td className="px-4 py-3.5 text-slate-400 text-xs whitespace-nowrap">{c.date}</td>
+                        <td className="px-4 py-3.5 text-slate-400 text-xs whitespace-nowrap">{fmtDate(c.date)}</td>
                         <td className="px-4 py-3.5">
-                          <button onClick={() => handleDelete(c.id)} className="text-xs text-red-400 hover:text-red-600 font-medium transition-colors">Supprimer</button>
+                          <button onClick={() => handleDelete(c.id)} className="text-xs text-red-400 hover:text-red-600 font-medium transition-colors">
+                            Supprimer
+                          </button>
                         </td>
                       </tr>
                     );
@@ -296,13 +352,14 @@ export default function AdsPage() {
         </main>
       </div>
 
-      {/* Modal */}
+      {/* Add Campaign Modal */}
       {showModal && (
         <div className="fixed inset-0 bg-black/30 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl shadow-xl w-full max-w-lg p-6 max-h-[90vh] overflow-y-auto">
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-lg p-6 max-h-[92vh] overflow-y-auto">
             <div className="flex items-center justify-between mb-5">
               <h2 className="text-lg font-bold text-slate-900">Nouvelle campagne</h2>
-              <button onClick={() => { setShowModal(false); setError(""); setForm(emptyForm); }} className="text-slate-400 hover:text-slate-600">
+              <button onClick={() => { setShowModal(false); setError(""); setForm(emptyForm); setProductSearch(""); }}
+                className="text-slate-400 hover:text-slate-600">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="w-5 h-5"><path d="M18 6L6 18M6 6l12 12"/></svg>
               </button>
             </div>
@@ -316,15 +373,8 @@ export default function AdsPage() {
                 {(["Facebook", "TikTok"] as Platform[]).map(p => {
                   const cfg = PLATFORM_CONFIG[p];
                   return (
-                    <button
-                      key={p}
-                      onClick={() => setForm(f => ({ ...f, platform: p }))}
-                      className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl border-2 text-sm font-semibold transition-all ${
-                        form.platform === p
-                          ? `${cfg.color} text-white border-transparent shadow-md`
-                          : "border-slate-200 text-slate-500 hover:border-slate-300"
-                      }`}
-                    >
+                    <button key={p} onClick={() => setForm(f => ({ ...f, platform: p }))}
+                      className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl border-2 text-sm font-semibold transition-all ${form.platform === p ? `${cfg.color} text-white border-transparent shadow-md` : "border-slate-200 text-slate-500 hover:border-slate-300"}`}>
                       {cfg.icon} {p}
                     </button>
                   );
@@ -332,18 +382,69 @@ export default function AdsPage() {
               </div>
             </div>
 
+            {/* Product selector (links to catalog) */}
+            <div className="mb-4">
+              <label className="text-xs font-semibold text-slate-600 mb-1 block">
+                🔗 Lier à un produit du catalogue
+                <span className="text-slate-400 font-normal ml-1">(remplit automatiquement le nom + SKU)</span>
+              </label>
+              <input
+                type="text"
+                placeholder="Rechercher par nom ou SKU…"
+                value={productSearch}
+                onChange={e => setProductSearch(e.target.value)}
+                className="w-full text-sm border border-slate-200 rounded-xl px-4 py-2.5 outline-none focus:border-violet-400 focus:ring-2 focus:ring-violet-50"
+              />
+              {productSearch && filteredCatalog.length > 0 && (
+                <div className="mt-1 border border-slate-200 rounded-xl overflow-hidden shadow-lg max-h-40 overflow-y-auto">
+                  {filteredCatalog.slice(0, 8).map(p => (
+                    <button key={p.id} onClick={() => selectProduct(p)}
+                      className="w-full flex items-center gap-3 px-4 py-2.5 text-left hover:bg-violet-50 border-b border-slate-50 last:border-0 transition-colors">
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-semibold text-slate-800 truncate">{p.name}</p>
+                        <p className="text-xs text-slate-400 font-mono">{p.sku}</p>
+                      </div>
+                      <span className="text-xs text-violet-600 font-semibold shrink-0">Sélectionner →</span>
+                    </button>
+                  ))}
+                </div>
+              )}
+              {productSearch && filteredCatalog.length === 0 && (
+                <p className="text-xs text-slate-400 mt-1 px-1">Aucun produit trouvé — vous pouvez saisir manuellement ci-dessous.</p>
+              )}
+            </div>
+
+            {/* Manual fields */}
             <div className="grid grid-cols-2 gap-3">
+              <div className="col-span-2">
+                <label className="text-xs font-semibold text-slate-600 mb-1 block">Nom de la campagne / Produit *</label>
+                <input type="text" placeholder="Ex: Ceinture Minceur"
+                  value={form.name}
+                  onChange={e => setForm(f => ({ ...f, name: e.target.value }))}
+                  className="w-full text-sm border border-slate-200 rounded-xl px-4 py-2.5 outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-50"
+                />
+              </div>
+              <div className="col-span-2">
+                <label className="text-xs font-semibold text-slate-600 mb-1 block">SKU Produit
+                  <span className="text-slate-400 font-normal ml-1">(même SKU que Produits & livraison)</span>
+                </label>
+                <input type="text" placeholder="Ex: CEI-001"
+                  value={form.sku}
+                  onChange={e => setForm(f => ({ ...f, sku: e.target.value }))}
+                  className="w-full text-sm border border-slate-200 rounded-xl px-4 py-2.5 outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-50 font-mono"
+                />
+              </div>
+
               {[
-                { key: "name", label: "Nom de la campagne *", placeholder: "Ex: Montre - Casa", full: true },
-                { key: "date", label: "Date *", placeholder: "JJ/MM/AAAA", type: "date" },
-                { key: "spend", label: "Budget dépensé (MAD) *", placeholder: "Ex: 1200" },
-                { key: "revenue", label: "Revenue généré (MAD) *", placeholder: "Ex: 16800" },
-                { key: "orders", label: "Commandes *", placeholder: "Ex: 48" },
-                { key: "delivered", label: "Livrées *", placeholder: "Ex: 41" },
-                { key: "impressions", label: "Impressions", placeholder: "Ex: 85000" },
-                { key: "clicks", label: "Clics", placeholder: "Ex: 1240" },
-              ].map(({ key, label, placeholder, full, type }) => (
-                <div key={key} className={full ? "col-span-2" : ""}>
+                { key: "date",        label: "Date *",                     placeholder: "",        type: "date"   },
+                { key: "spend",       label: "Budget dépensé (MAD) *",     placeholder: "1200"              },
+                { key: "revenue",     label: "Revenue généré (MAD) *",     placeholder: "16800"             },
+                { key: "orders",      label: "Commandes *",                placeholder: "48"                },
+                { key: "delivered",   label: "Livrées *",                  placeholder: "41"                },
+                { key: "impressions", label: "Impressions",                placeholder: "85000"             },
+                { key: "clicks",      label: "Clics",                      placeholder: "1240"              },
+              ].map(({ key, label, placeholder, type }) => (
+                <div key={key}>
                   <label className="text-xs font-semibold text-slate-600 mb-1 block">{label}</label>
                   <input
                     type={type || "text"}
@@ -363,25 +464,27 @@ export default function AdsPage() {
                 <div className="grid grid-cols-3 gap-2 text-center">
                   <div>
                     <p className="text-xs text-blue-500">CPP</p>
-                    <p className="text-sm font-bold text-blue-700">{(Number(form.spend) / Number(form.orders) || 0).toFixed(1)} MAD</p>
+                    <p className="text-sm font-bold text-blue-700">{(Number(form.spend) / (Number(form.orders) || 1)).toFixed(1)} MAD</p>
                   </div>
                   <div>
                     <p className="text-xs text-blue-500">CPD</p>
-                    <p className="text-sm font-bold text-blue-700">{(Number(form.spend) / Number(form.delivered) || 0).toFixed(1)} MAD</p>
+                    <p className="text-sm font-bold text-blue-700">{(Number(form.spend) / (Number(form.delivered) || 1)).toFixed(1)} MAD</p>
                   </div>
                   <div>
                     <p className="text-xs text-blue-500">ROAS</p>
-                    <p className="text-sm font-bold text-blue-700">×{(Number(form.revenue) / Number(form.spend) || 0).toFixed(2)}</p>
+                    <p className="text-sm font-bold text-blue-700">×{(Number(form.revenue) / (Number(form.spend) || 1)).toFixed(2)}</p>
                   </div>
                 </div>
               </div>
             )}
 
             <div className="flex gap-3 mt-5">
-              <button onClick={() => { setShowModal(false); setError(""); setForm(emptyForm); }} className="flex-1 py-2.5 rounded-xl border border-slate-200 text-sm font-semibold text-slate-600 hover:bg-slate-50 transition-colors">
+              <button onClick={() => { setShowModal(false); setError(""); setForm(emptyForm); setProductSearch(""); }}
+                className="flex-1 py-2.5 rounded-xl border border-slate-200 text-sm font-semibold text-slate-600 hover:bg-slate-50 transition-colors">
                 Annuler
               </button>
-              <button onClick={handleAdd} className="flex-1 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold shadow-md shadow-blue-200 transition-colors">
+              <button onClick={handleAdd}
+                className="flex-1 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold shadow-md shadow-blue-200 transition-colors">
                 Ajouter
               </button>
             </div>
