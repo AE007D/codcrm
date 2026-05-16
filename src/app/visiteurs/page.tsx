@@ -484,7 +484,7 @@ export default function LiveViewPage() {
         </div>
 
         {/* Map area */}
-        <div className="flex-1 relative flex items-center justify-center overflow-hidden">
+        <div className="flex-1 relative flex items-center justify-center overflow-visible">
           {/* Radial background glow */}
           <div className="absolute inset-0 pointer-events-none" style={{
             background: "radial-gradient(ellipse 60% 50% at 50% 45%, rgba(30,64,175,0.12) 0%, transparent 70%)",
@@ -506,10 +506,11 @@ export default function LiveViewPage() {
            * transform="translate(0,1024) scale(0.1,-0.1)" (y-flipped, ÷10)
            * City dots placed in 1024-unit screen space (outside the transform group)
            */}
-          <div className="relative" style={{ width: "min(72vw, 70vh, 600px)", aspectRatio: "1" }}>
+          <div className="relative" style={{ width: "min(70vw, 75vh, 620px)", height: "min(70vw, 75vh, 620px)" }}>
             <svg
-              viewBox="-50 -30 1124 1104"
+              viewBox="0 0 1024 1024"
               className="absolute inset-0 w-full h-full"
+              style={{ overflow: "visible" }}
               xmlns="http://www.w3.org/2000/svg"
             >
               <defs>
@@ -557,7 +558,7 @@ export default function LiveViewPage() {
               ))}
             </svg>
 
-            {/* City hover labels — % must match viewBox="-50 -30 1124 1104" */}
+            {/* City hover labels — % matches viewBox 0 0 1024 1024 */}
             {CITIES.map(city => (
               <div
                 key={city.name + "-label"}
@@ -565,8 +566,8 @@ export default function LiveViewPage() {
                 onMouseLeave={() => setHoveredCity(null)}
                 className="absolute"
                 style={{
-                  left: `${(city.x + 50) / 1124 * 100}%`,
-                  top: `${(city.y + 30) / 1104 * 100}%`,
+                  left: `${(city.x / 1024) * 100}%`,
+                  top: `${(city.y / 1024) * 100}%`,
                   transform: "translate(-50%,-50%)",
                   width: city.size + 16,
                   height: city.size + 16,
