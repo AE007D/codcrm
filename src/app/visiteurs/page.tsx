@@ -505,9 +505,9 @@ export default function LiveViewPage() {
            * transform="translate(0,1024) scale(0.1,-0.1)" (y-flipped, ÷10)
            * City dots placed in 1024-unit screen space (outside the transform group)
            */}
-          <div className="relative" style={{ width: "min(65vw, 560px)", aspectRatio: "1" }}>
+          <div className="relative" style={{ width: "min(72vw, 600px)", aspectRatio: "1" }}>
             <svg
-              viewBox="0 0 1024 1024"
+              viewBox="-50 -30 1124 1104"
               className="absolute inset-0 w-full h-full"
               xmlns="http://www.w3.org/2000/svg"
             >
