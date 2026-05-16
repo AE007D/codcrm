@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import Link from "next/link";
 import Sidebar from "@/components/Sidebar";
 
 type Platform = "Facebook" | "TikTok";
@@ -49,8 +48,6 @@ const PLATFORM_CONFIG = {
 function fmt(n: number) { return n.toLocaleString("fr-MA"); }
 function mad(n: number) { return `${fmt(n)} MAD`; }
 
-const FB_ADS_KEY     = "fb_ads_creds";
-const TIKTOK_ADS_KEY = "tiktok_ads_creds";
 
 export default function AdsPage() {
   const [campaigns, setCampaigns] = useState<Campaign[]>(initialCampaigns);
@@ -58,8 +55,6 @@ export default function AdsPage() {
   const [form, setForm] = useState(emptyForm);
   const [error, setError] = useState("");
   const [filter, setFilter] = useState<"All" | Platform>("All");
-  const [syncing, setSyncing] = useState<"facebook" | "tiktok" | null>(null);
-  const [syncError, setSyncError] = useState("");
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo]     = useState("");
 
@@ -119,51 +114,6 @@ export default function AdsPage() {
     setCampaigns(prev => prev.filter(c => c.id !== id));
   }
 
-  async function syncFacebook() {
-    // Read from Supabase settings first (source of truth), fall back to localStorage
-    let accessToken = "", adAccountId = "";
-    try {
-      const s = await fetch("/api/settings").then(r => r.json());
-      const fb = s.settings?.facebook ?? {};
-      accessToken = fb.accessToken ?? "";
-      adAccountId = fb.adAccountId ?? "";
-    } catch { /* ignore */ }
-    // Fall back to localStorage if Supabase had nothing
-    if (!accessToken) {
-      const raw = typeof window !== "undefined" ? localStorage.getItem(FB_ADS_KEY) : null;
-      if (raw) { const p = JSON.parse(raw); accessToken = p.accessToken; adAccountId = p.adAccountId; }
-    }
-    if (!accessToken || !adAccountId) { setSyncError("Facebook Ads non configuré. Allez dans Intégrations → Facebook Ads."); return; }
-    setSyncing("facebook"); setSyncError("");
-    try {
-      const body: Record<string, unknown> = { accessToken, adAccountId };
-      if (dateFrom && dateTo)   body.timeRange = { since: dateFrom, until: dateTo };
-      else if (dateFrom)        body.timeRange = { since: dateFrom, until: dateFrom };
-      else if (dateTo)          body.timeRange = { since: dateTo,   until: dateTo };
-      const res = await fetch("/api/facebook-ads", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
-      const data = await res.json();
-      if (data.error) { setSyncError(`Facebook: ${data.error}`); return; }
-      const today = new Date().toLocaleDateString("fr-MA", { day: "2-digit", month: "2-digit", year: "numeric" }).replace(/\//g, "/");
-      const imported = (data.campaigns ?? []).map((c: Record<string, unknown>) => ({ id: Date.now() + Math.random(), platform: "Facebook" as Platform, name: String(c.name), spend: Number(c.spend), impressions: Number(c.impressions), clicks: Number(c.clicks), orders: Number(c.orders), delivered: 0, revenue: Number(c.revenue), date: today }));
-      setCampaigns(prev => { const ids = new Set(imported.map((c: Campaign) => c.name)); return [...prev.filter(c => !ids.has(c.name) || c.platform !== "Facebook"), ...imported]; });
-    } catch (e) { setSyncError(String(e)); } finally { setSyncing(null); }
-  }
-
-  async function syncTiktok() {
-    const raw = typeof window !== "undefined" ? localStorage.getItem(TIKTOK_ADS_KEY) : null;
-    if (!raw) { setSyncError("TikTok Ads non configuré. Allez dans Intégrations → TikTok Ads."); return; }
-    const { accessToken, advertiserId } = JSON.parse(raw);
-    setSyncing("tiktok"); setSyncError("");
-    try {
-      const res = await fetch("/api/tiktok-ads", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ accessToken, advertiserId }) });
-      const data = await res.json();
-      if (data.error) { setSyncError(`TikTok: ${data.error}`); return; }
-      const today = new Date().toLocaleDateString("fr-MA", { day: "2-digit", month: "2-digit", year: "numeric" }).replace(/\//g, "/");
-      const imported = (data.campaigns ?? []).map((c: Record<string, unknown>) => ({ id: Date.now() + Math.random(), platform: "TikTok" as Platform, name: String(c.name), spend: Number(c.spend), impressions: Number(c.impressions), clicks: Number(c.clicks), orders: Number(c.orders), delivered: 0, revenue: Number(c.revenue), date: today }));
-      setCampaigns(prev => { const ids = new Set(imported.map((c: Campaign) => c.name)); return [...prev.filter(c => !ids.has(c.name) || c.platform !== "TikTok"), ...imported]; });
-    } catch (e) { setSyncError(String(e)); } finally { setSyncing(null); }
-  }
-
   return (
     <div className="flex min-h-screen bg-[#F0F4FF]">
       <Sidebar />
@@ -175,31 +125,13 @@ export default function AdsPage() {
             <p className="text-sm text-slate-400 hidden sm:block">Facebook & TikTok — calcul CPP / CPD / ROAS</p>
           </div>
           <div className="flex items-center gap-2 flex-wrap">
-            <button onClick={syncFacebook} disabled={!!syncing} className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 disabled:opacity-60 text-white text-sm font-semibold px-3 lg:px-4 py-2.5 rounded-xl transition-colors shadow-md shadow-blue-200 whitespace-nowrap">
-              <svg viewBox="0 0 24 24" fill="currentColor" className="w-4 h-4 shrink-0"><path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/></svg>
-              <span className="hidden sm:inline">{syncing === "facebook" ? "Sync…" : "Sync Facebook"}</span>
-              <span className="sm:hidden">FB</span>
-            </button>
-            <button onClick={syncTiktok} disabled={!!syncing} className="flex items-center gap-2 bg-slate-900 hover:bg-slate-800 disabled:opacity-60 text-white text-sm font-semibold px-3 lg:px-4 py-2.5 rounded-xl transition-colors shadow-md shadow-slate-200 whitespace-nowrap">
-              <svg viewBox="0 0 24 24" fill="currentColor" className="w-4 h-4 shrink-0"><path d="M19.59 6.69a4.83 4.83 0 01-3.77-4.25V2h-3.45v13.67a2.89 2.89 0 01-2.88 2.5 2.89 2.89 0 01-2.89-2.89 2.89 2.89 0 012.89-2.89c.28 0 .54.04.79.1V9.01a6.27 6.27 0 00-.79-.05 6.34 6.34 0 00-6.34 6.34 6.34 6.34 0 006.34 6.34 6.34 6.34 0 006.33-6.34V8.69a8.18 8.18 0 004.78 1.52V6.75a4.85 4.85 0 01-1.01-.06z"/></svg>
-              <span className="hidden sm:inline">{syncing === "tiktok" ? "Sync…" : "Sync TikTok"}</span>
-              <span className="sm:hidden">TT</span>
-            </button>
-            <button onClick={() => setShowModal(true)} className="bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 text-sm font-semibold px-3 lg:px-4 py-2.5 rounded-xl transition-colors whitespace-nowrap">
-              + Manuel
+            <button onClick={() => setShowModal(true)} className="bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold px-4 py-2.5 rounded-xl transition-colors shadow-md shadow-blue-200 whitespace-nowrap">
+              + Ajouter campagne
             </button>
           </div>
         </header>
 
         <main className="flex-1 p-4 lg:p-8 overflow-y-auto">
-          {syncError && (
-            <div className="mb-5 flex items-center gap-3 bg-red-50 border border-red-100 rounded-2xl px-4 py-3">
-              <span className="text-red-500 font-bold shrink-0">✕</span>
-              <p className="text-sm text-red-700 flex-1">{syncError}</p>
-              <Link href="/integrations" className="text-xs font-semibold text-red-600 underline underline-offset-2 shrink-0">Config →</Link>
-              <button onClick={() => setSyncError("")} className="text-red-400 hover:text-red-600 ml-1 shrink-0">✕</button>
-            </div>
-          )}
           {/* Global KPIs */}
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 lg:gap-5 mb-6">
             {[
