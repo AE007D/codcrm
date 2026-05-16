@@ -27,24 +27,29 @@ type Order = {
   created_at?: string;
 };
 
-/* ─── Morocco city definitions (x/y in SVG units, viewBox 800×820) ── */
+/*
+ * ─── Morocco city definitions ────────────────────────────────────────────────
+ * Coordinate system: geographic projection into viewBox 0 0 800 780
+ * lon range: -17.1° W (left) → -1.78° W (right) = 15.32° → x = (lon+17.1)/15.32*800
+ * lat range: 35.92° N (top) → 20.77° N (bottom)  = 15.15° → y = (35.92-lat)/15.15*780
+ */
 const CITIES = [
-  { name: "Casablanca", x: 112, y: 218, size: 16 },
-  { name: "Rabat",      x: 107, y: 178, size: 12 },
-  { name: "Marrakech",  x: 342, y: 304, size: 12 },
-  { name: "Fès",        x: 572, y: 150, size: 11 },
-  { name: "Agadir",     x: 54,  y: 348, size: 10 },
-  { name: "Tanger",     x: 262, y: 28,  size: 10 },
-  { name: "Meknès",     x: 530, y: 154, size: 9  },
-  { name: "Oujda",      x: 740, y: 84,  size: 9  },
-  { name: "Béni Mellal",x: 448, y: 244, size: 8  },
-  { name: "El Jadida",  x: 110, y: 244, size: 8  },
-  { name: "Nador",      x: 558, y: 22,  size: 8  },
-  { name: "Kénitra",    x: 116, y: 154, size: 8  },
-  { name: "Settat",     x: 196, y: 236, size: 7  },
-  { name: "Laayoune",   x: 26,  y: 570, size: 7  },
-  { name: "Ouarzazate", x: 412, y: 344, size: 7  },
-  { name: "Tétouan",    x: 310, y: 30,  size: 7  },
+  { name: "Casablanca", x: 497, y: 122, size: 16 },
+  { name: "Rabat",      x: 538, y: 100, size: 12 },
+  { name: "Marrakech",  x: 477, y: 222, size: 12 },
+  { name: "Fès",        x: 634, y: 101, size: 11 },
+  { name: "Agadir",     x: 394, y: 283, size: 10 },
+  { name: "Tanger",     x: 592, y: 10,  size: 10 },
+  { name: "Meknès",     x: 605, y: 106, size: 9  },
+  { name: "Oujda",      x: 793, y: 65,  size: 9  },
+  { name: "Béni Mellal",x: 563, y: 185, size: 8  },
+  { name: "El Jadida",  x: 450, y: 139, size: 8  },
+  { name: "Nador",      x: 742, y: 39,  size: 8  },
+  { name: "Kénitra",    x: 551, y: 87,  size: 8  },
+  { name: "Settat",     x: 497, y: 152, size: 7  },
+  { name: "Laayoune",   x: 204, y: 453, size: 7  },
+  { name: "Ouarzazate", x: 535, y: 258, size: 7  },
+  { name: "Tétouan",    x: 614, y: 20,  size: 7  },
 ];
 
 const SETUP_SQL = `-- Run once in Supabase Dashboard → SQL Editor
@@ -494,10 +499,15 @@ export default function LiveViewPage() {
             <rect width="100%" height="100%" fill="url(#grid)"/>
           </svg>
 
-          {/* Morocco map container — viewBox 800×820, aspect matches real Morocco+WS */}
-          <div className="relative" style={{ width: "min(55vw, 480px)", aspectRatio: "800/820" }}>
+          {/*
+           * Morocco map — geographic projection, viewBox 0 0 800 780
+           * x = (lon + 17.1) / 15.32 * 800   (W is left, E is right)
+           * y = (35.92 - lat) / 15.15 * 780   (N is top, S is bottom)
+           * Morocco proper: upper-right. Western Sahara: lower-left.
+           */}
+          <div className="relative" style={{ width: "min(70vw, 620px)", aspectRatio: "800/780" }}>
             <svg
-              viewBox="0 0 800 820"
+              viewBox="0 0 800 780"
               className="absolute inset-0 w-full h-full"
               xmlns="http://www.w3.org/2000/svg"
             >
@@ -523,31 +533,28 @@ export default function LiveViewPage() {
                 </linearGradient>
               </defs>
 
-              {/* Morocco + Western Sahara — traced from reference image, viewBox 800×820 */}
+              {/*
+               * Morocco + Western Sahara border — geographic projection
+               * Going clockwise from Tangier (NW Atlantic) → Med coast → Algeria border
+               * → WS staircase → Mauritania → Atlantic coast back north to Tangier
+               */}
               <path
                 d="
-                  M 260,16
-                  L 285,7 L 315,2 L 348,1 L 382,2 L 418,3
-                  L 453,4 L 486,6 L 516,9 L 544,13 L 570,18
-                  L 595,25 L 618,34 L 640,46 L 662,60
-                  L 682,77 L 700,97 L 716,120 L 729,145
-                  L 739,172 L 747,203 L 752,236 L 755,270
-                  L 756,306 L 755,342 L 752,376 L 748,406
-                  L 744,432
-                  L 762,432 L 762,488 L 642,488 L 642,560
-                  L 528,560 L 528,632
-                  L 420,650 L 306,662 L 204,666 L 124,664
-                  L 70,656 L 38,642 L 18,624 L 8,602
-                  L 6,578 L 6,552 L 8,524 L 12,494
-                  L 16,462 L 20,432 L 25,402 L 31,374
-                  L 38,348 L 47,324 L 57,302 L 68,284
-                  L 79,270 L 88,258 L 96,248 L 102,240
-                  L 106,232 L 108,224 L 108,216 L 107,208
-                  L 104,200 L 100,192 L 97,184 L 96,176
-                  L 97,168 L 101,160 L 107,152 L 115,144
-                  L 125,136 L 137,128 L 151,120 L 166,112
-                  L 183,103 L 202,94 L 221,84 L 240,73
-                  L 258,62 L 268,50 L 268,36 L 264,24 L 260,16 Z
+                  M 592,7
+                  L 614,0 L 652,4 L 688,10 L 719,14
+                  L 737,32 L 775,38
+                  L 799,60
+                  L 781,98 L 761,150 L 718,178 L 699,219
+                  L 680,264 L 654,312 L 620,360 L 560,413
+                  L 441,425 L 441,664
+                  L 207,750 L 2,778
+                  L 60,630
+                  L 204,453
+                  L 313,388
+                  L 392,283 L 384,227 L 412,187
+                  L 450,139 L 497,122
+                  L 538,100 L 551,87 L 573,38
+                  L 592,7 Z
                 "
                 fill="url(#mapGrad)"
                 stroke="#3b82f6"
@@ -576,7 +583,7 @@ export default function LiveViewPage() {
                 className="absolute"
                 style={{
                   left: `${(city.x / 800) * 100}%`,
-                  top: `${(city.y / 820) * 100}%`,
+                  top: `${(city.y / 780) * 100}%`,
                   transform: "translate(-50%,-50%)",
                   width: city.size + 16,
                   height: city.size + 16,
