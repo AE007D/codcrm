@@ -253,14 +253,15 @@ export default function CalculateurPage() {
   }
 
   function handleAdd() {
-    const { name, purchasePrice, sellPrice, shippingCost, cpd } = form;
-    if (!name || !purchasePrice || !sellPrice || !shippingCost || !cpd) { setError("Veuillez remplir tous les champs obligatoires (*)"); return; }
+    const { name, purchasePrice, sellPrice, shippingCost } = form;
+    const cpdVal = formAdsCpd !== null ? formAdsCpd : Number(form.cpd);
+    if (!name || !purchasePrice || !sellPrice || !shippingCost || !cpdVal) { setError("Veuillez remplir tous les champs obligatoires (*)"); return; }
     setProducts(prev => [...prev, {
       id: Date.now(), name,
-      purchasePrice: Number(purchasePrice),
-      sellPrice: Number(sellPrice),
-      shippingCost: Number(shippingCost),
-      cpd: Number(cpd),
+      purchasePrice: Number(form.purchasePrice),
+      sellPrice: Number(form.sellPrice),
+      shippingCost: Number(form.shippingCost),
+      cpd: cpdVal,
       confirmationCost: Number(form.confirmationCost) || 0,
       platform: form.platform,
     }]);
@@ -289,10 +290,29 @@ export default function CalculateurPage() {
     return map;
   }, [products, catalog, adCampaigns]);
 
+  /* ── Auto-compute CPD from ads for the add-product form ── */
+  const formAdsCpd = useMemo(() => {
+    if (!form.name) return null;
+    const matched = matchCampaigns(form.name, "", adCampaigns);
+    if (matched.length === 0) return null;
+    const spend  = matched.reduce((a, c) => a + c.spend,  0);
+    const orders = matched.reduce((a, c) => a + c.orders, 0);
+    return orders > 0 ? spend / orders : null;
+  }, [form.name, adCampaigns]);
+
+  // Auto-fill form CPD when a matching campaign is found
+  useEffect(() => {
+    if (formAdsCpd !== null) setForm(f => ({ ...f, cpd: formAdsCpd.toFixed(1) }));
+  }, [formAdsCpd]);
+
   const FALLBACK_RATE = 70;
+  // Use ads CPP as effective CPD when campaigns are linked (auto-calculated)
   const withMetrics = products.map(p => {
     const rate = p.realDeliveryRate ?? FALLBACK_RATE;
-    return { ...p, ...calcMetrics(p, rate), effectiveRate: rate };
+    const ads = linkedAdsMap.get(p.id);
+    const effectiveCpd = ads && ads.cpp > 0 ? ads.cpp : p.cpd;
+    const enriched = { ...p, cpd: effectiveCpd };
+    return { ...enriched, ...calcMetrics(enriched, rate), effectiveRate: rate, cpdFromAds: ads && ads.cpp > 0 };
   });
   const winners = withMetrics.filter(p => p.isWinner).length;
   const losers  = withMetrics.length - winners;
@@ -480,7 +500,13 @@ export default function CalculateurPage() {
                   <div className="flex justify-between text-sm"><span className="text-slate-400">Prix de vente</span><span className="font-semibold text-slate-800">+{p.sellPrice} MAD</span></div>
                   <div className="flex justify-between text-sm"><span className="text-slate-400">− Prix d&apos;achat</span><span className="text-red-400 font-medium">−{p.purchasePrice} MAD</span></div>
                   <div className="flex justify-between text-sm"><span className="text-slate-400">− Livraison</span><span className="text-red-400 font-medium">−{p.shippingCost} MAD</span></div>
-                  <div className="flex justify-between text-sm"><span className="text-slate-400">− CPD pub</span><span className="text-red-400 font-medium">−{p.cpd.toFixed(1)} MAD</span></div>
+                  <div className="flex justify-between text-sm">
+                    <span className="text-slate-400 flex items-center gap-1">
+                      − CPD pub
+                      {p.cpdFromAds && <span className="text-[10px] bg-violet-100 text-violet-600 px-1.5 py-0.5 rounded font-semibold">auto</span>}
+                    </span>
+                    <span className="text-red-400 font-medium">−{p.cpd.toFixed(1)} MAD</span>
+                  </div>
                   {(p.confirmationCost || 0) > 0 && (
                     <div className="flex justify-between text-sm"><span className="text-slate-400">− Confirmation</span><span className="text-red-400 font-medium">−{(p.confirmationCost).toFixed(1)} MAD</span></div>
                   )}
@@ -639,7 +665,7 @@ export default function CalculateurPage() {
                 { key: "purchasePrice", label: "Prix d'achat (MAD) *", placeholder: "120" },
                 { key: "sellPrice", label: "Prix de vente (MAD) *", placeholder: "350" },
                 { key: "shippingCost", label: "Frais livraison (MAD) *", placeholder: "25" },
-                { key: "cpd", label: "CPD pub (MAD) *", placeholder: "29.3" },
+                { key: "cpd", label: formAdsCpd !== null ? `CPD pub (MAD) — 🔗 auto ads: ${formAdsCpd.toFixed(1)}` : "CPD pub (MAD) *", placeholder: "29.3" },
                 { key: "confirmationCost", label: "Coût confirmation (MAD)", placeholder: "5" },
               ].map(({ key, label, placeholder, full }) => (
                 <div key={key} className={full ? "col-span-2" : ""}>

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Image from "next/image";
 import Sidebar from "@/components/Sidebar";
 
@@ -60,11 +60,34 @@ const emptyForm = { name: "", logo: "", city: "", address: "", phone: "", manage
 
 export default function BoutiquesPage() {
   const [stores, setStores] = useState<Store[]>([]);
+  const [loaded, setLoaded] = useState(false);
   const [search, setSearch] = useState("");
   const [showModal, setShowModal] = useState(false);
   const [editStore, setEditStore] = useState<Store | null>(null);
   const [form, setForm] = useState(emptyForm);
   const [error, setError] = useState("");
+
+  /* ── Load from Supabase settings on mount ── */
+  useEffect(() => {
+    fetch("/api/settings")
+      .then(r => r.json())
+      .then(d => {
+        const bs = d.settings?.boutiques;
+        if (Array.isArray(bs)) setStores(bs);
+      })
+      .catch(() => {})
+      .finally(() => setLoaded(true));
+  }, []);
+
+  /* ── Persist to Supabase settings whenever stores change ── */
+  useEffect(() => {
+    if (!loaded) return; // don't overwrite DB before initial load
+    fetch("/api/settings", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ boutiques: stores }),
+    }).catch(() => {});
+  }, [stores, loaded]);
 
   const filtered = stores.filter(s =>
     s.name.toLowerCase().includes(search.toLowerCase()) ||
