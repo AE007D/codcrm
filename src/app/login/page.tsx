@@ -62,8 +62,10 @@ export default function LoginPage() {
     }
   }, [router]);
 
-  // Load Google GSI script and render button using ref (avoids timing issues)
+  // Load Google GSI script — only initialize button after auth check completes and form is visible
   useEffect(() => {
+    if (checkingAuth) return; // wait until login form is actually rendered
+
     const clientId = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID
       || "50528925336-37s476bkh1kn9qf7s1259vfqks95vvvo.apps.googleusercontent.com";
 
@@ -89,7 +91,7 @@ export default function LoginPage() {
     script.onload = initButton;
     document.head.appendChild(script);
     return () => { if (document.head.contains(script)) document.head.removeChild(script); };
-  }, [handleGoogleCredential]);
+  }, [checkingAuth, handleGoogleCredential]);
 
   async function handleLogin(e: React.FormEvent) {
     e.preventDefault();
