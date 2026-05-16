@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getUserByEmail, createUser, createSession } from "@/lib/authStore";
+import { getUserByEmail, createUser, updateUser, createSession } from "@/lib/authStore";
 import { syncToSupabaseAuth } from "@/lib/supabaseAuthSync";
 import { cookies } from "next/headers";
 
@@ -43,16 +43,20 @@ export async function POST(request: NextRequest) {
   // Find or create user
   let user = await getUserByEmail(googleUser.email);
   if (!user) {
-    // Create new user with Google account (no password needed)
+    // Brand new user — always admin of their own workspace
     user = await createUser({
       name: googleUser.name,
       email: googleUser.email.toLowerCase(),
-      passwordHash: "GOOGLE_SSO_" + googleUser.sub, // not usable for password login
+      passwordHash: "GOOGLE_SSO_" + googleUser.sub,
       role: "admin",
       active: true,
     });
   } else if (!user.active) {
     return NextResponse.json({ error: "Compte désactivé." }, { status: 403 });
+  } else if (user.role !== "admin" && user.workspaceId === user.id) {
+    // Self-registered user incorrectly stored as agent → promote to admin
+    await updateUser(user.id, { role: "admin" });
+    user = { ...user, role: "admin" };
   }
 
   // Sync to Supabase Auth
