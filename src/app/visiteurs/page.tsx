@@ -30,26 +30,27 @@ type Order = {
 /*
  * ─── Morocco city definitions ────────────────────────────────────────────────
  * Coordinate system: 1024×1024 SVG viewBox (matches mapsicon vector.svg)
+ * Calibrated against the mapsicon path transform(translate(0,1024) scale(0.1,-0.1)):
  * x = (lon + 17) / 16 * 1024   (lon range -17° W → -1° E)
- * y = (35.9 - lat) / 15.15 * 1024  (lat range 35.9° N → 20.75° N)
+ * y = (36.3 - lat) / 15.55 * 1024  (lat_north padded to 36.3° to keep cities inside shape)
  */
 const CITIES = [
-  { name: "Casablanca", x: 600, y: 155, size: 16 },
-  { name: "Rabat",      x: 650, y: 128, size: 12 },
-  { name: "Marrakech",  x: 576, y: 288, size: 12 },
-  { name: "Fès",        x: 768, y: 128, size: 11 },
-  { name: "Agadir",     x: 472, y: 370, size: 10 },
-  { name: "Tanger",     x: 717, y: 8,   size: 10 },
-  { name: "Meknès",     x: 733, y: 136, size: 9  },
-  { name: "Oujda",      x: 966, y: 82,  size: 9  },
-  { name: "Béni Mellal",x: 681, y: 240, size: 8  },
-  { name: "El Jadida",  x: 543, y: 180, size: 8  },
-  { name: "Nador",      x: 900, y: 49,  size: 8  },
-  { name: "Kénitra",    x: 666, y: 111, size: 8  },
-  { name: "Settat",     x: 600, y: 196, size: 7  },
-  { name: "Laayoune",   x: 243, y: 590, size: 7  },
-  { name: "Ouarzazate", x: 647, y: 335, size: 7  },
-  { name: "Tétouan",    x: 744, y: 22,  size: 7  },
+  { name: "Casablanca", x: 600, y: 178, size: 16 },
+  { name: "Rabat",      x: 650, y: 151, size: 12 },
+  { name: "Marrakech",  x: 576, y: 308, size: 12 },
+  { name: "Fès",        x: 768, y: 152, size: 11 },
+  { name: "Agadir",     x: 472, y: 387, size: 10 },
+  { name: "Tanger",     x: 717, y: 34,  size: 10 },
+  { name: "Meknès",     x: 733, y: 159, size: 9  },
+  { name: "Oujda",      x: 966, y: 107, size: 9  },
+  { name: "Béni Mellal",x: 681, y: 261, size: 8  },
+  { name: "El Jadida",  x: 543, y: 202, size: 8  },
+  { name: "Nador",      x: 900, y: 74,  size: 8  },
+  { name: "Kénitra",    x: 666, y: 134, size: 8  },
+  { name: "Settat",     x: 600, y: 217, size: 7  },
+  { name: "Laayoune",   x: 243, y: 601, size: 7  },
+  { name: "Ouarzazate", x: 647, y: 354, size: 7  },
+  { name: "Tétouan",    x: 744, y: 48,  size: 7  },
 ];
 
 const SETUP_SQL = `-- Run once in Supabase Dashboard → SQL Editor
@@ -505,7 +506,7 @@ export default function LiveViewPage() {
            * transform="translate(0,1024) scale(0.1,-0.1)" (y-flipped, ÷10)
            * City dots placed in 1024-unit screen space (outside the transform group)
            */}
-          <div className="relative" style={{ width: "min(72vw, 600px)", aspectRatio: "1" }}>
+          <div className="relative" style={{ width: "min(72vw, 70vh, 600px)", aspectRatio: "1" }}>
             <svg
               viewBox="-50 -30 1124 1104"
               className="absolute inset-0 w-full h-full"
@@ -556,7 +557,7 @@ export default function LiveViewPage() {
               ))}
             </svg>
 
-            {/* City hover labels — positioned using SVG viewBox percentages (1024×1024) */}
+            {/* City hover labels — % must match viewBox="-50 -30 1124 1104" */}
             {CITIES.map(city => (
               <div
                 key={city.name + "-label"}
@@ -564,8 +565,8 @@ export default function LiveViewPage() {
                 onMouseLeave={() => setHoveredCity(null)}
                 className="absolute"
                 style={{
-                  left: `${(city.x / 1024) * 100}%`,
-                  top: `${(city.y / 1024) * 100}%`,
+                  left: `${(city.x + 50) / 1124 * 100}%`,
+                  top: `${(city.y + 30) / 1104 * 100}%`,
                   transform: "translate(-50%,-50%)",
                   width: city.size + 16,
                   height: city.size + 16,
