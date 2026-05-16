@@ -27,24 +27,24 @@ type Order = {
   created_at?: string;
 };
 
-/* ─── Morocco city definitions ──────────────────────────── */
+/* ─── Morocco city definitions (x/y in SVG units, viewBox 800×540) ── */
 const CITIES = [
-  { name: "Casablanca", x: 44, y: 26, size: 16 },
-  { name: "Rabat",      x: 50, y: 21, size: 12 },
-  { name: "Marrakech",  x: 38, y: 47, size: 12 },
-  { name: "Fès",        x: 65, y: 21, size: 11 },
-  { name: "Agadir",     x: 30, y: 59, size: 10 },
-  { name: "Tanger",     x: 57, y: 2,  size: 10 },
-  { name: "Meknès",     x: 63, y: 22, size: 9  },
-  { name: "Oujda",      x: 84, y: 14, size: 9  },
-  { name: "Béni Mellal",x: 58, y: 39, size: 8  },
-  { name: "El Jadida",  x: 38, y: 29, size: 8  },
-  { name: "Nador",      x: 77, y: 9,  size: 8  },
-  { name: "Kénitra",    x: 51, y: 19, size: 8  },
-  { name: "Settat",     x: 44, y: 32, size: 7  },
-  { name: "Laayoune",   x: 8,  y: 87, size: 7  },
-  { name: "Ouarzazate", x: 55, y: 54, size: 7  },
-  { name: "Tétouan",    x: 63, y: 5,  size: 7  },
+  { name: "Casablanca", x: 232, y: 182, size: 16 },
+  { name: "Rabat",      x: 262, y: 158, size: 12 },
+  { name: "Marrakech",  x: 230, y: 272, size: 12 },
+  { name: "Fès",        x: 380, y: 148, size: 11 },
+  { name: "Agadir",     x: 155, y: 330, size: 10 },
+  { name: "Tanger",     x: 298, y: 60,  size: 10 },
+  { name: "Meknès",     x: 348, y: 152, size: 9  },
+  { name: "Oujda",      x: 530, y: 118, size: 9  },
+  { name: "Béni Mellal",x: 318, y: 232, size: 8  },
+  { name: "El Jadida",  x: 200, y: 202, size: 8  },
+  { name: "Nador",      x: 470, y: 74,  size: 8  },
+  { name: "Kénitra",    x: 256, y: 140, size: 8  },
+  { name: "Settat",     x: 248, y: 205, size: 7  },
+  { name: "Laayoune",   x: 56,  y: 466, size: 7  },
+  { name: "Ouarzazate", x: 316, y: 308, size: 7  },
+  { name: "Tétouan",    x: 340, y: 68,  size: 7  },
 ];
 
 const SETUP_SQL = `-- Run once in Supabase Dashboard → SQL Editor
@@ -128,36 +128,36 @@ function CityDot({
       {/* Ping ring */}
       {mode !== "idle" && (
         <circle
-          cx={`${city.x}%`}
-          cy={`${city.y}%`}
-          r={r + 6}
+          cx={city.x}
+          cy={city.y}
+          r={r + 7}
           fill="none"
           stroke={color}
           strokeWidth={1.5}
           opacity={0}
           style={{
             animation: "ping 2s cubic-bezier(0,0,0.2,1) infinite",
-            transformOrigin: `${city.x}% ${city.y}%`,
+            transformOrigin: `${city.x}px ${city.y}px`,
           }}
         />
       )}
-      {/* Second ring */}
+      {/* Soft glow ring */}
       {mode !== "idle" && (
         <circle
-          cx={`${city.x}%`}
-          cy={`${city.y}%`}
-          r={r + 3}
+          cx={city.x}
+          cy={city.y}
+          r={r + 4}
           fill={ringColor}
           style={{
-            animation: "pulse-ring 2s ease-in-out infinite",
-            transformOrigin: `${city.x}% ${city.y}%`,
+            animation: "pulse-ring 2.4s ease-in-out infinite",
+            transformOrigin: `${city.x}px ${city.y}px`,
           }}
         />
       )}
       {/* Core dot */}
       <circle
-        cx={`${city.x}%`}
-        cy={`${city.y}%`}
+        cx={city.x}
+        cy={city.y}
         r={r}
         fill={color}
         filter={mode !== "idle" ? "url(#glow)" : undefined}
@@ -166,18 +166,18 @@ function CityDot({
       {hovered && tooltip && (
         <g>
           <rect
-            x={`calc(${city.x}% + ${r + 4}px)`}
-            y={`calc(${city.y}% - 12px)`}
-            width={city.name.length * 7 + 12}
+            x={city.x + r + 5}
+            y={city.y - 12}
+            width={city.name.length * 7 + 16}
             height={22}
-            rx={4}
+            rx={5}
             fill="#1e293b"
-            stroke="#334155"
+            stroke="#475569"
             strokeWidth={1}
           />
           <text
-            x={`calc(${city.x}% + ${r + 10}px)`}
-            y={`calc(${city.y}% + 4px)`}
+            x={city.x + r + 13}
+            y={city.y + 4}
             fill="#e2e8f0"
             fontSize={11}
             fontFamily="system-ui, sans-serif"
@@ -495,9 +495,9 @@ export default function LiveViewPage() {
           </svg>
 
           {/* Morocco map container */}
-          <div className="relative" style={{ width: "min(85vw, 700px)", aspectRatio: "800/520" }}>
+          <div className="relative" style={{ width: "min(85vw, 680px)", aspectRatio: "800/540" }}>
             <svg
-              viewBox="0 0 800 520"
+              viewBox="0 0 800 540"
               className="absolute inset-0 w-full h-full"
               xmlns="http://www.w3.org/2000/svg"
             >
@@ -510,21 +510,53 @@ export default function LiveViewPage() {
                   </feMerge>
                 </filter>
                 <filter id="map-glow">
-                  <feGaussianBlur stdDeviation="8" result="coloredBlur"/>
+                  <feGaussianBlur stdDeviation="6" result="coloredBlur"/>
                   <feMerge>
                     <feMergeNode in="coloredBlur"/>
                     <feMergeNode in="SourceGraphic"/>
                   </feMerge>
                 </filter>
+                <linearGradient id="mapGrad" x1="0" y1="0" x2="1" y2="1">
+                  <stop offset="0%" stopColor="#1e3a8a" stopOpacity="0.5"/>
+                  <stop offset="100%" stopColor="#0f2854" stopOpacity="0.2"/>
+                </linearGradient>
               </defs>
 
-              {/* Morocco map fill */}
+              {/* Morocco outline — accurate simplified polygon, viewBox 800×540 */}
+              {/* Northern Morocco + Western Sahara */}
               <path
-                d="M 457,13 L 520,10 L 580,18 L 616,46 L 673,73 L 710,120 L 722,180 L 724,260 L 720,330 L 718,400 L 710,461 L 600,461 L 480,461 L 370,461 L 250,461 L 160,455 L 90,448 L 50,445 L 38,420 L 55,400 L 100,408 L 162,419 L 213,368 L 245,309 L 232,249 L 306,153 L 357,134 L 399,110 L 413,97 L 437,45 L 457,13 Z"
-                fill="#0f2854"
-                fillOpacity={0.3}
-                stroke="#1e40af"
-                strokeOpacity={0.4}
+                d={[
+                  // Start: NW corner, Atlantic coast near Tangier
+                  "M 278,52",
+                  // Mediterranean coast eastward
+                  "L 300,44 L 330,52 L 342,62 L 378,68 L 410,60",
+                  "L 438,62 L 468,70 L 500,100 L 522,112",
+                  "L 548,114 L 568,106",
+                  // East border with Algeria (going south)
+                  "L 576,124 L 578,160 L 572,200",
+                  "L 568,240 L 562,284 L 558,320",
+                  "L 552,360 L 548,400",
+                  // Southeast corner toward Mauritania
+                  "L 540,432 L 520,448",
+                  // Southern border west
+                  "L 460,456 L 380,460 L 300,460",
+                  "L 220,458 L 150,454 L 100,450",
+                  // Western Sahara Atlantic coast — far southwest
+                  "L 58,468 L 42,452 L 36,420",
+                  "L 32,380 L 38,340 L 44,300",
+                  // Atlantic coast going north through Agadir, Essaouira
+                  "L 52,272 L 72,252 L 108,240",
+                  "L 138,228 L 162,214 L 188,200",
+                  // El Jadida → Casablanca → Rabat area
+                  "L 196,195 L 210,185 L 228,172",
+                  "L 248,158 L 268,144 L 280,132",
+                  // Kénitra → back to Tangier
+                  "L 282,108 L 274,82 L 276,60 L 278,52",
+                  "Z",
+                ].join(" ")}
+                fill="url(#mapGrad)"
+                stroke="#3b82f6"
+                strokeOpacity={0.5}
                 strokeWidth={1.5}
                 filter="url(#map-glow)"
               />
@@ -533,19 +565,14 @@ export default function LiveViewPage() {
               {CITIES.map(city => (
                 <CityDot
                   key={city.name}
-                  city={{
-                    ...city,
-                    // convert percentage to absolute SVG units for calc()-free SVG
-                    x: city.x,
-                    y: city.y,
-                  }}
+                  city={city}
                   mode={cityModes[city.name] ?? "idle"}
                   tooltip={true}
                 />
               ))}
             </svg>
 
-            {/* City hover labels — positioned absolutely over map */}
+            {/* City hover labels — positioned using SVG viewBox percentages (800×540) */}
             {CITIES.map(city => (
               <div
                 key={city.name + "-label"}
@@ -553,8 +580,8 @@ export default function LiveViewPage() {
                 onMouseLeave={() => setHoveredCity(null)}
                 className="absolute"
                 style={{
-                  left: `${city.x}%`,
-                  top: `${city.y}%`,
+                  left: `${(city.x / 800) * 100}%`,
+                  top: `${(city.y / 540) * 100}%`,
                   transform: "translate(-50%,-50%)",
                   width: city.size + 16,
                   height: city.size + 16,

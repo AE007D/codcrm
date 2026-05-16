@@ -11,7 +11,7 @@ type LandingPage = {
   urgencyText: string; ctaText: string;
   primaryColor: string; theme: "light" | "dark";
   showTrustBadges: boolean; showStickyBar: boolean; requireAddress: boolean;
-  active: boolean;
+  active: boolean; ownerId?: string;
 };
 
 const TRUST_BADGES = [
@@ -119,7 +119,7 @@ export default function LandingPageView() {
 
   return (
     <div className={`min-h-screen ${bg} font-sans`}>
-      <LiveTracker page={`/lp/${slug}`} pageTitle={page.title} />
+      <LiveTracker page={`/lp/${slug}`} pageTitle={page.title} workspaceId={page.ownerId} />
       {/* Urgency top bar */}
       {page.urgencyText && (
         <div className="text-white text-center py-3 px-4 text-sm font-bold" style={{ backgroundColor: page.primaryColor }} dir="rtl">
