@@ -139,6 +139,15 @@ export default function CommandesPage() {
   const [ameexProductIds, setAmeexProductIds] = useState<Record<string, string>>({}); // orderId → ameex product id
   const [ameexStockProducts, setAmeexStockProducts] = useState<{ id: string; ref: string; name: string }[]>([]); // Ameex warehouse products
 
+  // Current user role
+  const [userRole, setUserRole] = useState<"admin" | "agent" | "viewer">("agent");
+  const isAdmin = userRole === "admin";
+  useEffect(() => {
+    fetch("/api/auth/me").then(r => r.ok ? r.json() : null).then(d => {
+      if (d?.role) setUserRole(d.role);
+    }).catch(() => {});
+  }, []);
+
   // Edit mode for drawer
   const [editMode, setEditMode] = useState(false);
   const [editForm, setEditForm] = useState<{ customer: string; phone: string; city: string; address: string; product: string; amount: string }>({ customer: "", phone: "", city: "", address: "", product: "", amount: "" });
@@ -242,6 +251,16 @@ export default function CommandesPage() {
     setDrawer(prev => prev?.id === id ? { ...prev, status } : prev);
     invalidateCache("/api/orders");
     fetch("/api/orders", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id, status }) }).catch(() => {});
+  }
+
+  function deleteOrder(id: string) {
+    if (!window.confirm("Supprimer cette commande ? Cette action est irréversible.")) return;
+    setOrders(prev => prev.filter(o => o.id !== id));
+    if (drawer?.id === id) setDrawer(null);
+    invalidateCache("/api/orders");
+    fetch("/api/orders", { method: "DELETE", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id }) })
+      .then(r => r.ok ? showToast("Commande supprimée.") : showToast("Erreur lors de la suppression.", false))
+      .catch(() => showToast("Erreur réseau.", false));
   }
 
   function incrementAttempt(id: string) {
@@ -744,13 +763,17 @@ export default function CommandesPage() {
             <div className="bg-slate-900 text-white rounded-2xl px-5 py-3 mb-4 flex items-center gap-4 flex-wrap">
               <span className="text-sm font-semibold">{selected.size} sélectionné(s)</span>
               <div className="flex gap-2 flex-wrap">
-                <button onClick={() => { openShipModal(); }}
-                  className="bg-indigo-500 hover:bg-indigo-600 text-white text-xs font-semibold px-4 py-2 rounded-xl transition-colors flex items-center gap-1.5">
-                  📦 Envoyer au transporteur
-                </button>
+                {/* Ship — admin only */}
+                {isAdmin && (
+                  <button onClick={() => { openShipModal(); }}
+                    className="bg-indigo-500 hover:bg-indigo-600 text-white text-xs font-semibold px-4 py-2 rounded-xl transition-colors flex items-center gap-1.5">
+                    📦 Envoyer au transporteur
+                  </button>
+                )}
+                {/* Agent + admin */}
                 <button onClick={() => { selected.forEach(id => setStatus(id, "confirmé")); setSelected(new Set()); }}
                   className="bg-emerald-500 hover:bg-emerald-600 text-white text-xs font-semibold px-4 py-2 rounded-xl transition-colors">
-                  ✓ Confirmer tout
+                  ✓ Confirmer
                 </button>
                 <button onClick={() => { selected.forEach(id => setStatus(id, "annulé")); setSelected(new Set()); }}
                   className="bg-red-500 hover:bg-red-600 text-white text-xs font-semibold px-4 py-2 rounded-xl transition-colors">
@@ -764,6 +787,22 @@ export default function CommandesPage() {
                   className="bg-purple-500 hover:bg-purple-600 text-white text-xs font-semibold px-4 py-2 rounded-xl transition-colors">
                   Fausse
                 </button>
+                {/* Delete — admin only */}
+                {isAdmin && (
+                  <button onClick={() => {
+                    if (!window.confirm(`Supprimer ${selected.size} commande(s) ? Action irréversible.`)) return;
+                    selected.forEach(id => {
+                      setOrders(prev => prev.filter(o => o.id !== id));
+                      invalidateCache("/api/orders");
+                      fetch("/api/orders", { method: "DELETE", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id }) }).catch(() => {});
+                    });
+                    setSelected(new Set());
+                    showToast(`${selected.size} commande(s) supprimée(s).`);
+                  }}
+                    className="bg-rose-700 hover:bg-rose-800 text-white text-xs font-semibold px-4 py-2 rounded-xl transition-colors">
+                    🗑 Supprimer
+                  </button>
+                )}
               </div>
               <button onClick={() => setSelected(new Set())} className="ml-auto text-slate-400 hover:text-white text-xs">✕ Désélectionner</button>
             </div>
@@ -860,13 +899,13 @@ export default function CommandesPage() {
                         ↩ Rappeler
                       </button>
                     )}
-                    {o.status === "confirmé" && (
+                    {o.status === "confirmé" && isAdmin && (
                       <button onClick={() => { openShipModal([o.id]); }}
                         className="flex items-center gap-1 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold px-2.5 py-1.5 rounded-xl transition-colors shadow-sm shadow-indigo-200">
                         📦 Expédier
                       </button>
                     )}
-                    {o.status === "expédié" && (
+                    {o.status === "expédié" && isAdmin && (
                       <>
                         <button onClick={() => setStatus(o.id, "livré")} className="bg-teal-600 hover:bg-teal-700 text-white text-xs font-bold px-2.5 py-1.5 rounded-xl transition-colors">Livré</button>
                         <button onClick={() => setStatus(o.id, "retourné")} className="bg-orange-500 hover:bg-orange-600 text-white text-xs font-bold px-2.5 py-1.5 rounded-xl transition-colors">Retour</button>
@@ -876,6 +915,13 @@ export default function CommandesPage() {
                       className="ml-auto text-slate-400 hover:text-slate-600 border border-slate-200 hover:bg-slate-50 p-1.5 rounded-xl transition-colors">
                       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="w-3.5 h-3.5"><path d="M9 18l6-6-6-6"/></svg>
                     </button>
+                    {isAdmin && (
+                      <button onClick={() => deleteOrder(o.id)}
+                        className="text-rose-400 hover:text-rose-600 hover:bg-rose-50 p-1.5 rounded-xl transition-colors border border-transparent hover:border-rose-100"
+                        title="Supprimer">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="w-3.5 h-3.5"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/><path d="M10 11v6M14 11v6M9 6V4h6v2"/></svg>
+                      </button>
+                    )}
                   </div>
                 </div>
               );
@@ -991,14 +1037,14 @@ export default function CommandesPage() {
                                 ↩ Rappeler
                               </button>
                             )}
-                            {o.status === "confirmé" && (
+                            {o.status === "confirmé" && isAdmin && (
                               <button onClick={() => { openShipModal([o.id]); }}
                                 className="flex items-center gap-1 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold px-2.5 py-1.5 rounded-xl transition-colors shadow-sm shadow-indigo-200 whitespace-nowrap">
                                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="w-3.5 h-3.5"><path d="M21 16V8a2 2 0 00-1-1.73l-7-4a2 2 0 00-2 0l-7 4A2 2 0 003 8v8a2 2 0 001 1.73l7 4a2 2 0 002 0l7-4A2 2 0 0021 16z"/></svg>
                                 Expédier
                               </button>
                             )}
-                            {o.status === "expédié" && (
+                            {o.status === "expédié" && isAdmin && (
                               <>
                                 <button onClick={() => setStatus(o.id, "livré")} className="bg-teal-600 hover:bg-teal-700 text-white text-xs font-bold px-2.5 py-1.5 rounded-xl transition-colors whitespace-nowrap">Livré</button>
                                 <button onClick={() => setStatus(o.id, "retourné")} className="bg-orange-500 hover:bg-orange-600 text-white text-xs font-bold px-2.5 py-1.5 rounded-xl transition-colors whitespace-nowrap">Retour</button>
@@ -1008,6 +1054,13 @@ export default function CommandesPage() {
                               className="text-slate-400 hover:text-slate-600 border border-slate-200 hover:bg-slate-50 p-1.5 rounded-xl transition-colors">
                               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="w-3.5 h-3.5"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
                             </button>
+                            {isAdmin && (
+                              <button onClick={() => deleteOrder(o.id)}
+                                title="Supprimer"
+                                className="text-rose-400 hover:text-rose-600 hover:bg-rose-50 p-1.5 rounded-xl transition-colors border border-transparent hover:border-rose-100">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="w-3.5 h-3.5"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/><path d="M10 11v6M14 11v6M9 6V4h6v2"/></svg>
+                              </button>
+                            )}
                           </div>
                         </td>
                       </tr>
@@ -1512,17 +1565,35 @@ export default function CommandesPage() {
 
               {/* Status changer */}
               <div className="space-y-3">
-                <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider">Statut</h3>
+                <div className="flex items-center justify-between">
+                  <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider">Statut</h3>
+                  {/* Agent badge */}
+                  {!isAdmin && (
+                    <span className="text-[10px] font-semibold text-amber-600 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded-full">
+                      Agent — statuts limités
+                    </span>
+                  )}
+                </div>
                 <div className="grid grid-cols-2 gap-2">
                   {PIPELINE.map(s => {
                     const cfg = STATUS_CONFIG[s];
                     const active = drawer.status === s;
+                    // Statuses only admin can set
+                    const adminOnly = (["expédié", "livré", "retourné"] as OrderStatus[]).includes(s);
+                    const disabled = !isAdmin && adminOnly;
                     return (
-                      <button key={s} onClick={() => setStatus(drawer.id, s)}
-                        className={`flex items-center gap-2.5 py-2.5 px-3 rounded-xl border-2 text-sm font-semibold transition-all ${active ? `${cfg.bg} ${cfg.border} ${cfg.color}` : "bg-slate-50 border-slate-100 text-slate-500 hover:border-slate-200 hover:bg-white"}`}>
+                      <button key={s}
+                        disabled={disabled}
+                        onClick={() => !disabled && setStatus(drawer.id, s)}
+                        title={disabled ? "Réservé à l'admin" : undefined}
+                        className={`flex items-center gap-2.5 py-2.5 px-3 rounded-xl border-2 text-sm font-semibold transition-all
+                          ${disabled ? "opacity-30 cursor-not-allowed bg-slate-50 border-slate-100 text-slate-400" :
+                            active ? `${cfg.bg} ${cfg.border} ${cfg.color}` :
+                            "bg-slate-50 border-slate-100 text-slate-500 hover:border-slate-200 hover:bg-white"}`}>
                         <span className={`w-2 h-2 rounded-full shrink-0 ${active ? cfg.dot : "bg-slate-300"}`} />
                         {cfg.label}
-                        {active && <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} className="w-3.5 h-3.5 ml-auto"><polyline points="20 6 9 17 4 12"/></svg>}
+                        {active && !disabled && <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} className="w-3.5 h-3.5 ml-auto"><polyline points="20 6 9 17 4 12"/></svg>}
+                        {disabled && <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="w-3 h-3 ml-auto opacity-50"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0110 0v4"/></svg>}
                       </button>
                     );
                   })}
@@ -1550,18 +1621,26 @@ export default function CommandesPage() {
                   </button>
                 </div>
               )}
-              {drawer.status === "confirmé" && (
+              {drawer.status === "confirmé" && isAdmin && (
                 <button onClick={() => { openShipModal([drawer.id]); setDrawer(null); }}
                   className="w-full py-3 rounded-2xl bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-bold shadow-md shadow-indigo-200 transition-colors flex items-center justify-center gap-2">
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="w-4 h-4"><path d="M21 16V8a2 2 0 00-1-1.73l-7-4a2 2 0 00-2 0l-7 4A2 2 0 003 8v8a2 2 0 001 1.73l7 4a2 2 0 002 0l7-4A2 2 0 0021 16z"/></svg>
                   Envoyer au transporteur
                 </button>
               )}
-              {drawer.status === "expédié" && (
+              {drawer.status === "expédié" && isAdmin && (
                 <div className="flex gap-2">
                   <button onClick={() => setStatus(drawer.id, "livré")} className="flex-1 py-3 rounded-2xl bg-teal-600 hover:bg-teal-700 text-white text-sm font-bold shadow-md shadow-teal-200">✓ Livré</button>
                   <button onClick={() => setStatus(drawer.id, "retourné")} className="flex-1 py-3 rounded-2xl bg-orange-500 hover:bg-orange-600 text-white text-sm font-bold shadow-md shadow-orange-200">↩ Retourné</button>
                 </div>
+              )}
+              {/* Delete — admin only */}
+              {isAdmin && (
+                <button onClick={() => deleteOrder(drawer.id)}
+                  className="w-full py-2.5 rounded-2xl border border-rose-200 bg-rose-50 hover:bg-rose-100 text-rose-600 text-sm font-semibold transition-colors flex items-center justify-center gap-2">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="w-4 h-4"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/><path d="M10 11v6M14 11v6M9 6V4h6v2"/></svg>
+                  Supprimer la commande
+                </button>
               )}
 
               <div className="space-y-2">
