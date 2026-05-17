@@ -474,16 +474,19 @@ export default function CommandesPage() {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
-              action: "addParcel",
+              action: "add",
               tk: creds.tk ?? "",
               sk: creds.sk ?? "",
-              reference: order.orderNumber || order.id.slice(-8),
-              name: order.customer,
+              fullname: order.customer,
               phone: order.phone,
               city: order.city,
               address: order.address || order.city,
               price: order.amount,
               product: order.product,
+              qty: "1",
+              note: order.orderNumber || order.id.slice(-8),
+              change: "0",
+              openpackage: "0",
             }),
           });
         }
