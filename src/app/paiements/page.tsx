@@ -77,7 +77,12 @@ export default function PaiementsPage() {
   }, []);
 
   async function submitRequest() {
-    if (!amount || parseFloat(amount) <= 0) return;
+    const parsed = parseFloat(amount);
+    if (!amount || parsed <= 0) return;
+    if (parsed > availableBalance) {
+      alert(`Montant trop élevé. Solde disponible : ${availableBalance} MAD`);
+      return;
+    }
     setSubmitting(true);
     try {
       const res = await fetch("/api/payment-requests", {
@@ -113,6 +118,8 @@ export default function PaiementsPage() {
   const pendingTotal = requests.filter(r => r.status === "pending").reduce((s, r) => s + r.amount, 0);
   const paidTotal = requests.filter(r => r.status === "paid").reduce((s, r) => s + r.amount, 0);
   const estimatedEarnings = orderSummary.livré * commissionRate;
+  // Available = earnings minus already requested/paid amounts
+  const availableBalance = Math.max(0, estimatedEarnings - pendingTotal - paidTotal);
 
   if (loading) return (
     <div className="flex h-screen bg-[#F0F4FF]">
@@ -168,9 +175,9 @@ export default function PaiementsPage() {
                   <p className="text-xs text-slate-400 mt-0.5">commandes</p>
                 </div>
                 <div className="bg-gradient-to-br from-blue-600 to-blue-700 rounded-2xl p-4 shadow-md shadow-blue-200">
-                  <p className="text-xs font-semibold text-blue-200 uppercase tracking-wide mb-1">Gains estimés</p>
-                  <p className="text-2xl font-bold text-white">{estimatedEarnings} MAD</p>
-                  <p className="text-xs text-blue-200 mt-0.5">{commissionRate} MAD × {orderSummary.livré} livrées</p>
+                  <p className="text-xs font-semibold text-blue-200 uppercase tracking-wide mb-1">Disponible</p>
+                  <p className="text-2xl font-bold text-white">{availableBalance} MAD</p>
+                  <p className="text-xs text-blue-200 mt-0.5">Gains {estimatedEarnings} − demandé {pendingTotal + paidTotal}</p>
                 </div>
               </div>
 
@@ -207,14 +214,39 @@ export default function PaiementsPage() {
                   </h3>
                   <div className="space-y-3">
                     <div>
-                      <label className="text-xs font-semibold text-slate-600 mb-1 block">Montant demandé (MAD) *</label>
-                      <input
-                        type="number"
-                        placeholder="Ex: 500"
-                        value={amount}
-                        onChange={e => setAmount(e.target.value)}
-                        className="w-full text-sm border border-slate-200 rounded-xl px-4 py-2.5 outline-none focus:border-orange-400 focus:ring-2 focus:ring-orange-50"
-                      />
+                      <div className="flex items-center justify-between mb-1">
+                        <label className="text-xs font-semibold text-slate-600">Montant demandé (MAD) *</label>
+                        <span className="text-xs text-emerald-600 font-semibold">Dispo : {availableBalance} MAD</span>
+                      </div>
+                      <div className="flex gap-2">
+                        <input
+                          type="number"
+                          placeholder="Ex: 500"
+                          min={1}
+                          max={availableBalance}
+                          value={amount}
+                          onChange={e => {
+                            const v = parseFloat(e.target.value);
+                            if (!isNaN(v) && v > availableBalance) setAmount(String(availableBalance));
+                            else setAmount(e.target.value);
+                          }}
+                          className={`flex-1 text-sm border rounded-xl px-4 py-2.5 outline-none focus:ring-2 focus:ring-orange-50 ${parseFloat(amount) > availableBalance ? "border-red-400 focus:border-red-400" : "border-slate-200 focus:border-orange-400"}`}
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setAmount(String(availableBalance))}
+                          disabled={availableBalance <= 0}
+                          className="px-3 py-2 text-xs font-bold bg-blue-50 text-blue-600 hover:bg-blue-100 border border-blue-200 rounded-xl disabled:opacity-40 disabled:cursor-not-allowed transition-colors whitespace-nowrap"
+                        >
+                          Max
+                        </button>
+                      </div>
+                      {parseFloat(amount) > availableBalance && (
+                        <p className="text-xs text-red-500 mt-1">⚠ Dépasse le solde disponible ({availableBalance} MAD)</p>
+                      )}
+                      {availableBalance <= 0 && (
+                        <p className="text-xs text-amber-600 mt-1">Aucun solde disponible pour le moment.</p>
+                      )}
                     </div>
                     <div>
                       <label className="text-xs font-semibold text-slate-600 mb-1 block">Message (optionnel)</label>
@@ -231,7 +263,7 @@ export default function PaiementsPage() {
                     <button onClick={() => setShowForm(false)} className="flex-1 py-2.5 rounded-xl border border-slate-200 text-sm font-semibold text-slate-600 hover:bg-slate-50">Annuler</button>
                     <button
                       onClick={submitRequest}
-                      disabled={submitting || !amount}
+                      disabled={submitting || !amount || parseFloat(amount) <= 0 || parseFloat(amount) > availableBalance || availableBalance <= 0}
                       className="flex-1 py-2.5 rounded-xl bg-orange-500 hover:bg-orange-600 text-white text-sm font-bold disabled:opacity-50 shadow-md shadow-orange-200"
                     >
                       {submitting ? "Envoi…" : "🚨 Envoyer"}
