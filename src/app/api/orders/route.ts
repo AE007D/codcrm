@@ -6,6 +6,7 @@ import {
   updateOrderFields,
   deleteOrder,
 } from "@/lib/supabaseOrderStore";
+import { sendPushToWorkspace } from "@/app/api/push/route";
 import crypto from "crypto";
 
 export const dynamic = "force-dynamic";
@@ -54,6 +55,14 @@ export async function POST(request: NextRequest) {
   });
 
   if (!order) return NextResponse.json({ error: "Erreur création commande." }, { status: 500 });
+
+  sendPushToWorkspace(user.workspaceId, {
+    title: "Nouvelle commande 🛍️",
+    body: `${String(customer)} — ${String(product)} (${parseFloat(amount) || 0} MAD)`,
+    url: "/commandes",
+    tag: `order-${id}`,
+  }).catch(() => {});
+
   return NextResponse.json({ ok: true, order });
 }
 
