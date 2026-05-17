@@ -73,6 +73,7 @@ export default function AdsPage() {
   const [dateTo, setDateTo] = useState("");
   const [productSearch, setProductSearch] = useState("");
   const [saving, setSaving] = useState(false);
+  const [viewMode, setViewMode] = useState<"campaigns" | "daily">("campaigns");
 
   // Load campaigns from Supabase settings
   useEffect(() => {
@@ -155,6 +156,21 @@ export default function AdsPage() {
     setCampaigns(updated);
     saveToServer(updated);
   }
+
+  // Daily grouped view
+  const dailyMap = new Map<string, { date: string; spend: number; orders: number; delivered: number; revenue: number; campaigns: number }>();
+  dateFiltered.forEach(c => {
+    const existing = dailyMap.get(c.date) ?? { date: c.date, spend: 0, orders: 0, delivered: 0, revenue: 0, campaigns: 0 };
+    dailyMap.set(c.date, {
+      date: c.date,
+      spend: existing.spend + c.spend,
+      orders: existing.orders + c.orders,
+      delivered: existing.delivered + c.delivered,
+      revenue: existing.revenue + c.revenue,
+      campaigns: existing.campaigns + 1,
+    });
+  });
+  const dailyRows = Array.from(dailyMap.values()).sort((a, b) => b.date.localeCompare(a.date));
 
   const filteredCatalog = catalog.filter(p =>
     !productSearch ||
@@ -240,7 +256,24 @@ export default function AdsPage() {
           {/* Campaigns table */}
           <div className="bg-white rounded-2xl shadow-sm border border-slate-100">
             <div className="px-6 py-4 border-b border-slate-100 flex flex-wrap items-center gap-3">
-              <h2 className="text-base font-bold text-slate-900 mr-auto">Campagnes</h2>
+              {/* View mode toggle */}
+              <div className="flex rounded-xl overflow-hidden border border-slate-200 mr-2">
+                <button
+                  onClick={() => setViewMode("campaigns")}
+                  className={`px-3 py-1.5 text-xs font-semibold transition-colors ${viewMode === "campaigns" ? "bg-blue-600 text-white" : "bg-white text-slate-500 hover:bg-slate-50"}`}
+                >
+                  Campagnes
+                </button>
+                <button
+                  onClick={() => setViewMode("daily")}
+                  className={`px-3 py-1.5 text-xs font-semibold transition-colors ${viewMode === "daily" ? "bg-indigo-600 text-white" : "bg-white text-slate-500 hover:bg-slate-50"}`}
+                >
+                  📅 Par jour
+                </button>
+              </div>
+              <h2 className="text-base font-bold text-slate-900 mr-auto">
+                {viewMode === "daily" ? "Livrées par jour" : "Campagnes"}
+              </h2>
 
               {/* Date shortcuts */}
               {(() => {
@@ -280,74 +313,131 @@ export default function AdsPage() {
               ))}
             </div>
 
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="text-xs text-slate-400 border-b border-slate-50">
-                    {["Plateforme", "Campagne / Produit", "Dépense", "Impressions", "Clics", "Commandes", "Livrés", "Revenue", "CPP", "CPD", "ROAS", "Date", ""].map(h => (
-                      <th key={h} className="text-left px-4 py-3 font-semibold uppercase tracking-wide whitespace-nowrap">{h}</th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  {filtered.length === 0 && (
-                    <tr>
-                      <td colSpan={13} className="text-center py-16 text-slate-400 text-sm">
-                        {loaded ? 'Aucune campagne — cliquez "+ Ajouter campagne"' : "Chargement…"}
-                      </td>
+            {/* Daily view */}
+            {viewMode === "daily" && (
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="text-xs text-slate-400 border-b border-slate-50">
+                      {["Date", "Campagnes", "Budget", "Commandes", "Livrées ✅", "Taux livraison", "CPP", "CPD", "Revenue", "ROAS"].map(h => (
+                        <th key={h} className="text-left px-4 py-3 font-semibold uppercase tracking-wide whitespace-nowrap">{h}</th>
+                      ))}
                     </tr>
-                  )}
-                  {filtered.map(c => {
-                    const cpp  = c.orders    ? c.spend / c.orders    : 0;
-                    const cpd  = c.delivered ? c.spend / c.delivered : 0;
-                    const roas = c.spend     ? c.revenue / c.spend   : 0;
-                    const cfg  = PLATFORM_CONFIG[c.platform];
-                    return (
-                      <tr key={c.id} className="border-b border-slate-50 hover:bg-slate-50/60 transition-colors">
-                        <td className="px-4 py-3.5">
-                          <span className={`inline-flex items-center gap-1.5 text-xs font-semibold px-2.5 py-1 rounded-lg ${cfg.light}`}>
-                            {cfg.icon}{c.platform}
-                          </span>
-                        </td>
-                        <td className="px-4 py-3.5 max-w-[180px]">
-                          <p className="font-semibold text-slate-800 truncate">{c.name}</p>
-                          {c.sku && (
-                            <span className="text-xs bg-violet-50 text-violet-600 font-mono px-1.5 py-0.5 rounded">
-                              {c.sku}
+                  </thead>
+                  <tbody>
+                    {dailyRows.length === 0 && (
+                      <tr><td colSpan={10} className="text-center py-16 text-slate-400 text-sm">Aucune donnée pour cette période</td></tr>
+                    )}
+                    {dailyRows.map(d => {
+                      const cpp  = d.orders    ? d.spend / d.orders    : 0;
+                      const cpd  = d.delivered ? d.spend / d.delivered : 0;
+                      const roas = d.spend     ? d.revenue / d.spend   : 0;
+                      const rate = d.orders    ? (d.delivered / d.orders) * 100 : 0;
+                      return (
+                        <tr key={d.date} className="border-b border-slate-50 hover:bg-indigo-50/30 transition-colors">
+                          <td className="px-4 py-3.5 font-semibold text-slate-800 whitespace-nowrap">{fmtDate(d.date)}</td>
+                          <td className="px-4 py-3.5 text-slate-400 text-xs">{d.campaigns} camp.</td>
+                          <td className="px-4 py-3.5 font-bold text-slate-800">{mad(d.spend)}</td>
+                          <td className="px-4 py-3.5 text-slate-600 font-medium">{d.orders}</td>
+                          <td className="px-4 py-3.5">
+                            <span className="bg-emerald-100 text-emerald-700 text-sm font-bold px-3 py-1 rounded-lg">{d.delivered}</span>
+                          </td>
+                          <td className="px-4 py-3.5">
+                            <span className={`text-xs font-semibold px-2 py-0.5 rounded-lg ${rate >= 80 ? "bg-emerald-50 text-emerald-600" : rate >= 60 ? "bg-amber-50 text-amber-600" : "bg-red-50 text-red-500"}`}>
+                              {rate.toFixed(0)}%
                             </span>
-                          )}
-                        </td>
-                        <td className="px-4 py-3.5 font-bold text-slate-800">{mad(c.spend)}</td>
-                        <td className="px-4 py-3.5 text-slate-500">{fmt(c.impressions)}</td>
-                        <td className="px-4 py-3.5 text-slate-500">{fmt(c.clicks)}</td>
-                        <td className="px-4 py-3.5 text-slate-600 font-medium">{c.orders}</td>
-                        <td className="px-4 py-3.5">
-                          <span className="bg-emerald-50 text-emerald-600 text-xs font-semibold px-2 py-0.5 rounded-lg">{c.delivered}</span>
-                        </td>
-                        <td className="px-4 py-3.5 font-bold text-slate-800">{mad(c.revenue)}</td>
-                        <td className="px-4 py-3.5">
-                          <span className="bg-blue-50 text-blue-600 text-xs font-bold px-2 py-0.5 rounded-lg">{cpp.toFixed(1)} MAD</span>
-                        </td>
-                        <td className="px-4 py-3.5">
-                          <span className="bg-indigo-50 text-indigo-600 text-xs font-bold px-2 py-0.5 rounded-lg">{cpd.toFixed(1)} MAD</span>
-                        </td>
-                        <td className="px-4 py-3.5">
-                          <span className={`text-xs font-bold px-2 py-0.5 rounded-lg ${roas >= 2 ? "bg-emerald-50 text-emerald-600" : roas >= 1 ? "bg-amber-50 text-amber-600" : "bg-red-50 text-red-500"}`}>
-                            ×{roas.toFixed(2)}
-                          </span>
-                        </td>
-                        <td className="px-4 py-3.5 text-slate-400 text-xs whitespace-nowrap">{fmtDate(c.date)}</td>
-                        <td className="px-4 py-3.5">
-                          <button onClick={() => handleDelete(c.id)} className="text-xs text-red-400 hover:text-red-600 font-medium transition-colors">
-                            Supprimer
-                          </button>
+                          </td>
+                          <td className="px-4 py-3.5">
+                            <span className="bg-blue-50 text-blue-600 text-xs font-bold px-2 py-0.5 rounded-lg">{cpp.toFixed(1)} MAD</span>
+                          </td>
+                          <td className="px-4 py-3.5">
+                            <span className="bg-indigo-50 text-indigo-600 text-xs font-bold px-2 py-0.5 rounded-lg">{cpd.toFixed(1)} MAD</span>
+                          </td>
+                          <td className="px-4 py-3.5 font-bold text-slate-800">{mad(d.revenue)}</td>
+                          <td className="px-4 py-3.5">
+                            <span className={`text-xs font-bold px-2 py-0.5 rounded-lg ${roas >= 2 ? "bg-emerald-50 text-emerald-600" : roas >= 1 ? "bg-amber-50 text-amber-600" : "bg-red-50 text-red-500"}`}>
+                              ×{roas.toFixed(2)}
+                            </span>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            )}
+
+            {/* Campaigns view */}
+            {viewMode === "campaigns" && (
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="text-xs text-slate-400 border-b border-slate-50">
+                      {["Plateforme", "Campagne / Produit", "Dépense", "Impressions", "Clics", "Commandes", "Livrés", "Revenue", "CPP", "CPD", "ROAS", "Date", ""].map(h => (
+                        <th key={h} className="text-left px-4 py-3 font-semibold uppercase tracking-wide whitespace-nowrap">{h}</th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {filtered.length === 0 && (
+                      <tr>
+                        <td colSpan={13} className="text-center py-16 text-slate-400 text-sm">
+                          {loaded ? 'Aucune campagne — cliquez "+ Ajouter campagne"' : "Chargement…"}
                         </td>
                       </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
+                    )}
+                    {filtered.map(c => {
+                      const cpp  = c.orders    ? c.spend / c.orders    : 0;
+                      const cpd  = c.delivered ? c.spend / c.delivered : 0;
+                      const roas = c.spend     ? c.revenue / c.spend   : 0;
+                      const cfg  = PLATFORM_CONFIG[c.platform];
+                      return (
+                        <tr key={c.id} className="border-b border-slate-50 hover:bg-slate-50/60 transition-colors">
+                          <td className="px-4 py-3.5">
+                            <span className={`inline-flex items-center gap-1.5 text-xs font-semibold px-2.5 py-1 rounded-lg ${cfg.light}`}>
+                              {cfg.icon}{c.platform}
+                            </span>
+                          </td>
+                          <td className="px-4 py-3.5 max-w-[180px]">
+                            <p className="font-semibold text-slate-800 truncate">{c.name}</p>
+                            {c.sku && (
+                              <span className="text-xs bg-violet-50 text-violet-600 font-mono px-1.5 py-0.5 rounded">
+                                {c.sku}
+                              </span>
+                            )}
+                          </td>
+                          <td className="px-4 py-3.5 font-bold text-slate-800">{mad(c.spend)}</td>
+                          <td className="px-4 py-3.5 text-slate-500">{fmt(c.impressions)}</td>
+                          <td className="px-4 py-3.5 text-slate-500">{fmt(c.clicks)}</td>
+                          <td className="px-4 py-3.5 text-slate-600 font-medium">{c.orders}</td>
+                          <td className="px-4 py-3.5">
+                            <span className="bg-emerald-50 text-emerald-600 text-xs font-semibold px-2 py-0.5 rounded-lg">{c.delivered}</span>
+                          </td>
+                          <td className="px-4 py-3.5 font-bold text-slate-800">{mad(c.revenue)}</td>
+                          <td className="px-4 py-3.5">
+                            <span className="bg-blue-50 text-blue-600 text-xs font-bold px-2 py-0.5 rounded-lg">{cpp.toFixed(1)} MAD</span>
+                          </td>
+                          <td className="px-4 py-3.5">
+                            <span className="bg-indigo-50 text-indigo-600 text-xs font-bold px-2 py-0.5 rounded-lg">{cpd.toFixed(1)} MAD</span>
+                          </td>
+                          <td className="px-4 py-3.5">
+                            <span className={`text-xs font-bold px-2 py-0.5 rounded-lg ${roas >= 2 ? "bg-emerald-50 text-emerald-600" : roas >= 1 ? "bg-amber-50 text-amber-600" : "bg-red-50 text-red-500"}`}>
+                              ×{roas.toFixed(2)}
+                            </span>
+                          </td>
+                          <td className="px-4 py-3.5 text-slate-400 text-xs whitespace-nowrap">{fmtDate(c.date)}</td>
+                          <td className="px-4 py-3.5">
+                            <button onClick={() => handleDelete(c.id)} className="text-xs text-red-400 hover:text-red-600 font-medium transition-colors">
+                              Supprimer
+                            </button>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            )}
           </div>
         </main>
       </div>
