@@ -83,10 +83,11 @@ export default function ProductPage() {
       const data = await res.json();
       if (!res.ok) { setError(data.error || "حدث خطأ، يرجى المحاولة مجدداً"); return; }
       if (product?.facebookPixelId) {
-        trackFBEvent("Lead", {
+        trackFBEvent("Purchase", {
           value: product.price * (parseInt(form.quantity) || 1),
           currency: "MAD",
           content_name: product.name,
+          content_type: "product",
         });
       }
       setSubmitted(true);
