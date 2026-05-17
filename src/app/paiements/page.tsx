@@ -13,13 +13,6 @@ type PayRequest = {
   created_at: string;
 };
 
-type OrderSummary = {
-  total: number;
-  nouveau: number;
-  confirmé: number;
-  livré: number;
-};
-
 const STATUS_LABELS: Record<string, { label: string; color: string; bg: string }> = {
   pending:  { label: "En attente", color: "text-amber-700",  bg: "bg-amber-50 border-amber-200" },
   paid:     { label: "Payé ✓",    color: "text-emerald-700", bg: "bg-emerald-50 border-emerald-200" },
@@ -28,10 +21,7 @@ const STATUS_LABELS: Record<string, { label: string; color: string; bg: string }
 
 export default function PaiementsPage() {
   const [role, setRole] = useState<"admin" | "agent" | "viewer" | null>(null);
-  const [userId, setUserId] = useState<string>("");
   const [requests, setRequests] = useState<PayRequest[]>([]);
-  const [orderSummary, setOrderSummary] = useState<OrderSummary>({ total: 0, nouveau: 0, confirmé: 0, livré: 0 });
-  const [commissionRate, setCommissionRate] = useState(15); // MAD per livré order
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [amount, setAmount] = useState("");
@@ -45,30 +35,11 @@ export default function PaiementsPage() {
       if (meRes.status === 401) { window.location.href = "/login"; return; }
       const me = await meRes.json();
       setRole(me.role);
-      setUserId(me.id);
 
-      const [reqRes, ordRes] = await Promise.all([
-        fetch("/api/payment-requests"),
-        fetch("/api/orders"),
-      ]);
-
+      const reqRes = await fetch("/api/payment-requests");
       if (reqRes.ok) {
         const d = await reqRes.json();
         setRequests(d.requests ?? []);
-      }
-
-      if (ordRes.ok) {
-        const d = await ordRes.json();
-        const orders: { status: string; attempts?: number }[] = d.orders ?? [];
-
-        // For agents: only count their own activity (all workspace orders for now)
-        const summary: OrderSummary = {
-          total: orders.length,
-          nouveau: orders.filter(o => o.status === "nouveau").length,
-          confirmé: orders.filter(o => o.status === "confirmé").length,
-          livré: orders.filter(o => o.status === "livré").length,
-        };
-        setOrderSummary(summary);
       }
 
       setLoading(false);
@@ -117,9 +88,8 @@ export default function PaiementsPage() {
 
   const pendingTotal = requests.filter(r => r.status === "pending").reduce((s, r) => s + r.amount, 0);
   const paidTotal = requests.filter(r => r.status === "paid").reduce((s, r) => s + r.amount, 0);
-  const estimatedEarnings = orderSummary.livré * commissionRate;
-  // Available = earnings minus already requested/paid amounts
-  const availableBalance = Math.max(0, estimatedEarnings - pendingTotal - paidTotal);
+  const totalEarned = pendingTotal + paidTotal;
+  const availableBalance = pendingTotal;
 
   if (loading) return (
     <div className="flex h-screen bg-[#F0F4FF]">
@@ -158,26 +128,21 @@ export default function PaiementsPage() {
           {role === "agent" && (
             <>
               {/* Stats cards */}
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+              <div className="grid grid-cols-2 md:grid-cols-3 gap-4 mb-6">
                 <div className="bg-white rounded-2xl p-4 shadow-sm border border-slate-100">
-                  <p className="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-1">Nouveau</p>
-                  <p className="text-2xl font-bold text-blue-600">{orderSummary.nouveau}</p>
-                  <p className="text-xs text-slate-400 mt-0.5">à traiter</p>
+                  <p className="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-1">Total gagné</p>
+                  <p className="text-2xl font-bold text-slate-700">{totalEarned} MAD</p>
+                  <p className="text-xs text-slate-400 mt-0.5">{requests.length} commission(s)</p>
                 </div>
                 <div className="bg-white rounded-2xl p-4 shadow-sm border border-slate-100">
-                  <p className="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-1">Confirmés</p>
-                  <p className="text-2xl font-bold text-emerald-600">{orderSummary.confirmé}</p>
-                  <p className="text-xs text-slate-400 mt-0.5">commandes</p>
-                </div>
-                <div className="bg-white rounded-2xl p-4 shadow-sm border border-slate-100">
-                  <p className="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-1">Livrées</p>
-                  <p className="text-2xl font-bold text-teal-600">{orderSummary.livré}</p>
-                  <p className="text-xs text-slate-400 mt-0.5">commandes</p>
+                  <p className="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-1">Déjà payé</p>
+                  <p className="text-2xl font-bold text-emerald-600">{paidTotal} MAD</p>
+                  <p className="text-xs text-slate-400 mt-0.5">{requests.filter(r => r.status === "paid").length} virement(s)</p>
                 </div>
                 <div className="bg-gradient-to-br from-blue-600 to-blue-700 rounded-2xl p-4 shadow-md shadow-blue-200">
                   <p className="text-xs font-semibold text-blue-200 uppercase tracking-wide mb-1">Disponible</p>
                   <p className="text-2xl font-bold text-white">{availableBalance} MAD</p>
-                  <p className="text-xs text-blue-200 mt-0.5">Gains {estimatedEarnings} − demandé {pendingTotal + paidTotal}</p>
+                  <p className="text-xs text-blue-200 mt-0.5">{requests.filter(r => r.status === "pending").length} en attente</p>
                 </div>
               </div>
 

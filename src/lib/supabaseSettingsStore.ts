@@ -9,6 +9,8 @@ export type UserSettings = {
   tiktok?: { accessToken: string };
   productPixels?: Record<string, string>;
   pagePixels?: Record<string, string>;
+  productCommissions?: Record<string, { boutiqueNom: string; agentId: string; agentName: string; commissionAmount: number }>;
+  boutiques?: string[];
   [key: string]: unknown;
 };
 

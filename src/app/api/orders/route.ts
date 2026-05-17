@@ -7,6 +7,9 @@ import {
   deleteOrder,
 } from "@/lib/supabaseOrderStore";
 import { sendPushToWorkspace } from "@/app/api/push/route";
+import { getProducts } from "@/lib/supabaseProductStore";
+import { getSettings } from "@/lib/supabaseSettingsStore";
+import { supabase } from "@/lib/supabase";
 import crypto from "crypto";
 
 export const dynamic = "force-dynamic";
@@ -74,8 +77,46 @@ export async function PATCH(request: NextRequest) {
   const { id, ...patch } = body;
   if (!id) return NextResponse.json({ error: "ID requis." }, { status: 400 });
 
+  const { data: currentRow } = await supabase
+    .from("crm_orders")
+    .select("status, product")
+    .eq("id", id)
+    .eq("workspace_id", user.workspaceId)
+    .maybeSingle();
+
   const updated = await updateOrderFields(id, user.workspaceId, patch);
   if (!updated) return NextResponse.json({ error: "Commande introuvable." }, { status: 404 });
+
+  if (patch.status === "livré" && currentRow?.status !== "livré") {
+    try {
+      const [products, settings] = await Promise.all([
+        getProducts(user.workspaceId),
+        getSettings(user.workspaceId),
+      ]);
+      const productName = String(currentRow?.product ?? updated.product ?? "").trim();
+      const matched = products.find(p => p.name.trim() === productName);
+      if (matched) {
+        type CR = { boutiqueNom: string; agentId: string; agentName: string; commissionAmount: number };
+        const commissions = (settings.productCommissions as Record<string, CR>) ?? {};
+        const commission = commissions[matched.id];
+        if (commission?.agentId && commission.commissionAmount > 0) {
+          await supabase.from("crm_payment_requests").insert({
+            id: crypto.randomUUID(),
+            workspace_id: user.workspaceId,
+            agent_id: commission.agentId,
+            agent_name: commission.agentName,
+            amount: commission.commissionAmount,
+            message: `Commission · ${productName}`,
+            status: "pending",
+            created_at: new Date().toISOString(),
+          });
+        }
+      }
+    } catch (e) {
+      console.error("auto-commission:", e);
+    }
+  }
+
   return NextResponse.json({ ok: true, order: updated });
 }
 
