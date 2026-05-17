@@ -9,12 +9,26 @@ import { useEffect } from "react";
 
 function getVisitorId(): string {
   const KEY = "codcrm_vid";
-  let vid = sessionStorage.getItem(KEY);
-  if (!vid) {
-    vid = Math.random().toString(36).slice(2) + Date.now().toString(36);
-    sessionStorage.setItem(KEY, vid);
+  // sessionStorage can throw in Facebook/Instagram in-app browsers
+  try {
+    let vid = sessionStorage.getItem(KEY);
+    if (!vid) {
+      vid = Math.random().toString(36).slice(2) + Date.now().toString(36);
+      sessionStorage.setItem(KEY, vid);
+    }
+    return vid;
+  } catch {
+    try {
+      let vid = localStorage.getItem(KEY);
+      if (!vid) {
+        vid = Math.random().toString(36).slice(2) + Date.now().toString(36);
+        localStorage.setItem(KEY, vid);
+      }
+      return vid;
+    } catch {
+      return Math.random().toString(36).slice(2) + Date.now().toString(36);
+    }
   }
-  return vid;
 }
 
 function getDevice(): "mobile" | "tablet" | "desktop" {
@@ -36,12 +50,14 @@ export default function LiveTracker({ page, pageTitle, productId, workspaceId }:
     const visitorId = getVisitorId();
     const device = getDevice();
     const referrer = document.referrer || "";
+    const urlParams = new URLSearchParams(window.location.search);
+    const utmSource = urlParams.get("utm_source") || urlParams.get("fbclid") ? "facebook" : "";
 
     function ping() {
       fetch("/api/track", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ visitorId, page, pageTitle, productId, workspaceId, referrer, device }),
+        body: JSON.stringify({ visitorId, page, pageTitle, productId, workspaceId, referrer: utmSource || referrer, device }),
       }).catch(() => {});
     }
 
