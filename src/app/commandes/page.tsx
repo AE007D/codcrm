@@ -397,30 +397,73 @@ export default function CommandesPage() {
         const cityList = rawC.map((c: Record<string,unknown>) => ({ id: String(c.id ?? c.city_id ?? ""), name: String(c.name ?? c.city_name ?? c.ville ?? "") })).filter((c: {id:string;name:string}) => c.id && c.name);
         if (cityList.length) { setAmeexCities(cityList); try { localStorage.setItem("codcrm_ameex_cities", JSON.stringify(cityList)); } catch { /* */ } }
 
-        // Load hubs from Cnfg/App (confirmed endpoint that contains ameex_hubs)
+        // Load stock depots via /Stock/Depots (GET) — gives us hub IDs for this account
+        let resolvedDepotId = creds.depotId ?? ameexDepot ?? "";
         try {
-          const cfg = await fetch("/api/ameex", {
+          const sd = await fetch("/api/ameex", {
             method: "POST", headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ action: "cnfgApp", apiId: creds.apiId, apiKey: creds.apiKey }),
+            body: JSON.stringify({ action: "stocks", apiId: creds.apiId, apiKey: creds.apiKey }),
           }).then(r => r.json());
-          const rawHubs = cfg?.data?.ameex_hubs ?? cfg?.ameex_hubs ?? cfg?.data?.hubs ?? cfg?.hubs ?? [];
-          const hubList = (Array.isArray(rawHubs) ? rawHubs : Object.values(rawHubs))
-            .map((h: unknown) => {
-              const hub = h as Record<string,unknown>;
-              return { id: String(hub.id ?? hub.HUB_ID ?? hub.hub_id ?? ""), name: String(hub.name ?? hub.HUB_NAME ?? hub.hub_name ?? hub.label ?? "") };
-            })
-            .filter((h: {id:string;name:string}) => h.id && h.name);
-          if (hubList.length) {
-            setAmeexDepots(hubList);
-            if (!ameexDepot) setAmeexDepot(hubList[0].id);
+          // Also try /Delivery/Depots if stocks empty
+          const rawSD: unknown[] = Array.isArray(sd) ? sd
+            : Array.isArray(sd?.api?.data) ? sd.api.data
+            : Array.isArray(sd?.data) ? sd.data
+            : Array.isArray(sd?.result) ? sd.result
+            : [];
+          const depotList = rawSD.map((h: unknown) => {
+            const hub = h as Record<string,unknown>;
+            return {
+              id: String(hub.id ?? hub.depot_id ?? hub.ID ?? hub.HUB_ID ?? ""),
+              name: String(hub.name ?? hub.depot_name ?? hub.Name ?? hub.HUB_NAME ?? hub.label ?? ""),
+            };
+          }).filter(h => h.id && h.name);
+          if (depotList.length) {
+            setAmeexDepots(depotList);
+            if (!resolvedDepotId) {
+              resolvedDepotId = depotList[0].id;
+              setAmeexDepot(depotList[0].id);
+            }
           }
         } catch { /* silent */ }
 
-        // Load stock products so we can get the numeric Ameex product ID by Réf
+        // If /Stock/Depots returned nothing, try /Delivery/Depots
+        if (!ameexDepots.length) {
+          try {
+            const dd = await fetch("/api/ameex", {
+              method: "POST", headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ action: "depots", apiId: creds.apiId, apiKey: creds.apiKey }),
+            }).then(r => r.json());
+            const rawDD: unknown[] = Array.isArray(dd) ? dd
+              : Array.isArray(dd?.api?.data) ? dd.api.data
+              : Array.isArray(dd?.data) ? dd.data
+              : [];
+            const depList = rawDD.map((h: unknown) => {
+              const hub = h as Record<string,unknown>;
+              return {
+                id: String(hub.id ?? hub.depot_id ?? hub.ID ?? ""),
+                name: String(hub.name ?? hub.depot_name ?? hub.Name ?? hub.label ?? ""),
+              };
+            }).filter(h => h.id && h.name);
+            if (depList.length) {
+              setAmeexDepots(depList);
+              if (!resolvedDepotId) { resolvedDepotId = depList[0].id; setAmeexDepot(depList[0].id); }
+            }
+          } catch { /* silent */ }
+        }
+
+        // Load stock products — pass depot ID so Ameex can filter by hub
+        const hubForProducts = resolvedDepotId || "34";
         try {
           const sp = await fetch("/api/ameex", {
             method: "POST", headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ action: "stockProducts", apiId: creds.apiId, apiKey: creds.apiKey }),
+            body: JSON.stringify({
+              action: "stockProducts",
+              apiId: creds.apiId,
+              apiKey: creds.apiKey,
+              depot: hubForProducts,
+              hub: hubForProducts,
+              p_hub: hubForProducts,
+            }),
           }).then(r => r.json());
           // Response shape: {api:{data:[{id,ref,name,...}]}} or [{id,ref,...}]
           const rawSP: unknown[] = Array.isArray(sp) ? sp
@@ -432,8 +475,8 @@ export default function CommandesPage() {
             const pr = p as Record<string,unknown>;
             return {
               id:   String(pr.id   ?? pr.product_id ?? pr.ID ?? ""),
-              ref:  String(pr.ref  ?? pr.Ref ?? pr.sku ?? pr.SKU ?? pr.reference ?? ""),
-              name: String(pr.name ?? pr.Name ?? pr.label ?? pr.product_name ?? ""),
+              ref:  String(pr.ref  ?? pr.Ref ?? pr.sku ?? pr.SKU ?? pr.reference ?? pr.REF ?? ""),
+              name: String(pr.name ?? pr.Name ?? pr.label ?? pr.product_name ?? pr.NAME ?? ""),
             };
           }).filter(p => p.id);
           if (spList.length) setAmeexStockProducts(spList);
@@ -1178,7 +1221,48 @@ export default function CommandesPage() {
                         const selectedOrders = orders.filter(o => selected.has(o.id));
                         return (
                           <div className="space-y-1.5 pt-1">
-                            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Produit Ameex (ID numérique) :</p>
+                            <div className="flex items-center justify-between">
+                              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+                                Produit Ameex {ameexStockProducts.length > 0 ? `(${ameexStockProducts.length} chargés)` : "(non chargés)"} :
+                              </p>
+                              {ameexStockProducts.length === 0 && (
+                                <button
+                                  type="button"
+                                  onClick={async () => {
+                                    try {
+                                      const sd = await fetch("/api/settings").then(r => r.json());
+                                      const cr = sd.settings?.ameex ?? {};
+                                      if (!cr.apiId) return;
+                                      const hub = cr.depotId ?? ameexDepot ?? "34";
+                                      const sp = await fetch("/api/ameex", {
+                                        method: "POST", headers: { "Content-Type": "application/json" },
+                                        body: JSON.stringify({ action: "stockProducts", apiId: cr.apiId, apiKey: cr.apiKey, depot: hub, hub, p_hub: hub }),
+                                      }).then(r => r.json());
+                                      // Try every known response shape
+                                      const rawSP: unknown[] = Array.isArray(sp) ? sp
+                                        : Array.isArray(sp?.api?.data) ? sp.api.data
+                                        : Array.isArray(sp?.data) ? sp.data
+                                        : Array.isArray(sp?.result) ? sp.result
+                                        : typeof sp === "object" && sp !== null ? Object.values(sp as object).find(v => Array.isArray(v)) ?? []
+                                        : [];
+                                      const spList = rawSP.map((p: unknown) => {
+                                        const pr = p as Record<string,unknown>;
+                                        return {
+                                          id:   String(pr.id ?? pr.product_id ?? pr.ID ?? ""),
+                                          ref:  String(pr.ref ?? pr.Ref ?? pr.sku ?? pr.SKU ?? pr.reference ?? pr.REF ?? ""),
+                                          name: String(pr.name ?? pr.Name ?? pr.label ?? pr.product_name ?? pr.NAME ?? ""),
+                                        };
+                                      }).filter(p => p.id);
+                                      if (spList.length) setAmeexStockProducts(spList);
+                                      else alert("Réponse Ameex:\n" + JSON.stringify(sp, null, 2).slice(0, 800));
+                                    } catch (e) { alert(String(e)); }
+                                  }}
+                                  className="text-[10px] text-blue-600 underline"
+                                >
+                                  Recharger
+                                </button>
+                              )}
+                            </div>
                             {selectedOrders.map(o => {
                               // Match CRM catalog to get SKU/Réf
                               const catalogMatch = catalog.find(p =>
@@ -1212,12 +1296,17 @@ export default function CommandesPage() {
                                   </div>
                                   {ameexMatch && (
                                     <p className="text-[10px] text-emerald-600 pl-[4.5rem]">
-                                      ✓ {ameexMatch.name} — ID: {ameexMatch.id}
+                                      ✓ {ameexMatch.name} — ID Ameex: {ameexMatch.id}
                                     </p>
                                   )}
-                                  {!ameexMatch && autoSku && (
+                                  {!ameexMatch && autoSku && ameexStockProducts.length > 0 && (
                                     <p className="text-[10px] text-amber-500 pl-[4.5rem]">
-                                      Réf SKU: {autoSku} (produits Ameex non chargés)
+                                      ⚠ Réf {autoSku} introuvable dans les {ameexStockProducts.length} produits Ameex
+                                    </p>
+                                  )}
+                                  {!ameexMatch && autoSku && ameexStockProducts.length === 0 && (
+                                    <p className="text-[10px] text-amber-500 pl-[4.5rem]">
+                                      Réf CRM: {autoSku} — cliquer &quot;Recharger&quot; pour obtenir l&apos;ID Ameex
                                     </p>
                                   )}
                                 </div>
