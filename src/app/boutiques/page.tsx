@@ -68,6 +68,7 @@ export default function BoutiquesPage() {
   const [editStore, setEditStore] = useState<Store | null>(null);
   const [form, setForm] = useState(emptyForm);
   const [error, setError] = useState("");
+  const [fetchOk, setFetchOk] = useState(false);
 
   // Product assignment panel
   const [assignBoutique, setAssignBoutique] = useState<Store | null>(null);
@@ -82,7 +83,11 @@ export default function BoutiquesPage() {
       .then(r => r.json())
       .then(d => {
         const bs = d.settings?.boutiques;
-        if (Array.isArray(bs)) setStores(bs);
+        if (Array.isArray(bs)) {
+          // normalize: old data may mix Store objects and plain strings
+          setStores(bs.map((b: unknown) => typeof b === "object" && b !== null ? b as Store : { id: Date.now() + Math.random(), name: String(b), logo: "", city: "", address: "", phone: "", manager: "", shippingMode: "ramassage" as ShippingMode, status: "Active" as const }));
+        }
+        setFetchOk(true);
       })
       .catch(() => {})
       .finally(() => setLoaded(true));
@@ -90,13 +95,13 @@ export default function BoutiquesPage() {
 
   /* ── Persist to Supabase settings whenever stores change ── */
   useEffect(() => {
-    if (!loaded) return; // don't overwrite DB before initial load
+    if (!loaded || !fetchOk) return; // don't overwrite DB before successful initial load
     fetch("/api/settings", {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ boutiques: stores }),
     }).catch(() => {});
-  }, [stores, loaded]);
+  }, [stores, loaded, fetchOk]);
 
   const filtered = stores.filter(s =>
     s.name.toLowerCase().includes(search.toLowerCase()) ||
@@ -229,7 +234,7 @@ export default function BoutiquesPage() {
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
               {filtered.map(s => {
-                const mode = SHIPPING_MODE_LABELS[s.shippingMode];
+                const mode = SHIPPING_MODE_LABELS[s.shippingMode] ?? SHIPPING_MODE_LABELS["ramassage"];
                 return (
                   <div key={s.id} className="bg-white rounded-2xl border border-slate-100 shadow-sm hover:shadow-md transition-shadow flex flex-col">
                     {/* Card header */}

@@ -82,12 +82,6 @@ export async function POST(request: NextRequest) {
           commissionAmount: parseFloat(String(commissionAmount ?? "0")) || 0,
         };
         settingsPatch.productCommissions = commissions;
-
-        const boutiqueName = String(boutiqueNom ?? "").trim();
-        if (boutiqueName) {
-          const boutiques: string[] = Array.isArray(settings.boutiques) ? settings.boutiques : [];
-          if (!boutiques.includes(boutiqueName)) settingsPatch.boutiques = [...boutiques, boutiqueName];
-        }
       }
       await saveSettings(user.workspaceId, settingsPatch);
     }
@@ -149,12 +143,6 @@ export async function PATCH(request: NextRequest) {
           commissionAmount: rest.commissionAmount !== undefined ? parseFloat(String(rest.commissionAmount)) || 0 : existing.commissionAmount,
         };
         settingsPatch.productCommissions = commissions;
-
-        const boutiqueName = commissions[id].boutiqueNom.trim();
-        if (boutiqueName) {
-          const boutiques: string[] = Array.isArray(settings.boutiques) ? settings.boutiques : [];
-          if (!boutiques.includes(boutiqueName)) settingsPatch.boutiques = [...boutiques, boutiqueName];
-        }
       }
 
       await saveSettings(user.workspaceId, settingsPatch);
