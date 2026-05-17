@@ -137,6 +137,7 @@ export default function CommandesPage() {
   const [ameexDepots, setAmeexDepots] = useState<{ id: string; name: string }[]>([]);
   const [ameexDepot, setAmeexDepot] = useState<string>("");
   const [ameexProductIds, setAmeexProductIds] = useState<Record<string, string>>({}); // orderId → ameex product id
+  const [ameexStockProducts, setAmeexStockProducts] = useState<{ id: string; ref: string; name: string }[]>([]); // Ameex warehouse products
 
   // Edit mode for drawer
   const [editMode, setEditMode] = useState(false);
@@ -415,6 +416,29 @@ export default function CommandesPage() {
           }
         } catch { /* silent */ }
 
+        // Load stock products so we can get the numeric Ameex product ID by Réf
+        try {
+          const sp = await fetch("/api/ameex", {
+            method: "POST", headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ action: "stockProducts", apiId: creds.apiId, apiKey: creds.apiKey }),
+          }).then(r => r.json());
+          // Response shape: {api:{data:[{id,ref,name,...}]}} or [{id,ref,...}]
+          const rawSP: unknown[] = Array.isArray(sp) ? sp
+            : Array.isArray(sp?.api?.data) ? sp.api.data
+            : Array.isArray(sp?.data) ? sp.data
+            : Array.isArray(sp?.result) ? sp.result
+            : [];
+          const spList = rawSP.map((p: unknown) => {
+            const pr = p as Record<string,unknown>;
+            return {
+              id:   String(pr.id   ?? pr.product_id ?? pr.ID ?? ""),
+              ref:  String(pr.ref  ?? pr.Ref ?? pr.sku ?? pr.SKU ?? pr.reference ?? ""),
+              name: String(pr.name ?? pr.Name ?? pr.label ?? pr.product_name ?? ""),
+            };
+          }).filter(p => p.id);
+          if (spList.length) setAmeexStockProducts(spList);
+        } catch { /* silent */ }
+
       }
     } catch { /* silent */ }
   }
@@ -476,8 +500,9 @@ export default function CommandesPage() {
               type: shipType,
               ...(shipType === "STOCK" ? (() => {
                 const hub = depotId || "34";
-                // Product ID: manual override > auto-match SKU from catalog
-                const manualProd = ameexProductIds[order.id]?.trim();
+                // Resolve product: manual input (orderId key) > auto-match from catalog SKU/Ref
+                const manualVal = ameexProductIds[order.id]?.trim() ?? "";
+                // Auto-match SKU from CRM catalog by order product name
                 const autoSku = (() => {
                   const m = catalog.find(p =>
                     p.name.toLowerCase() === (order.product ?? "").toLowerCase() ||
@@ -486,12 +511,23 @@ export default function CommandesPage() {
                   );
                   return m?.sku ?? "";
                 })();
-                const productId = manualProd || autoSku;
+                const resolvedRef = manualVal || autoSku;
+                // Try to resolve numeric Ameex product ID from the fetched stock products list
+                // matching by Réf (= CRM SKU) — Ameex needs the numeric ID, not the Réf string
+                const numericId = (() => {
+                  if (!resolvedRef || !ameexStockProducts.length) return "";
+                  const found = ameexStockProducts.find(p =>
+                    p.ref.toLowerCase() === resolvedRef.toLowerCase() ||
+                    p.name.toLowerCase() === (order.product ?? "").toLowerCase() ||
+                    (order.product ?? "").toLowerCase().includes(p.name.toLowerCase())
+                  );
+                  return found?.id ?? "";
+                })();
+                // Use numeric ID if found, otherwise fall back to Réf string
+                const productId = numericId || resolvedRef;
                 return {
-                  // Send all hub field variants — one of them will work
-                  p_hub: hub, hub: hub, depot: hub,
-                  // Send product ref in all possible field name variants
-                  ...(productId ? { p_product: productId, product_id: productId, ref: productId, product_ref: productId } : {}),
+                  p_hub: hub,
+                  ...(productId ? { p_product: productId } : {}),
                 };
               })() : {}),
               open: "NO",
@@ -1137,31 +1173,53 @@ export default function CommandesPage() {
                           <span className="text-xs text-slate-400 self-center shrink-0">🏭 Hub</span>
                         </div>
                       )}
-                      {/* Product ID per order (auto-matched SKU + manual override) */}
+                      {/* Product ID per order (auto-matched from Ameex stock + manual override) */}
                       {ameexShipType === "STOCK" && (() => {
                         const selectedOrders = orders.filter(o => selected.has(o.id));
                         return (
                           <div className="space-y-1.5 pt-1">
-                            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">ID Produit Ameex (SKU) :</p>
+                            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Produit Ameex (ID numérique) :</p>
                             {selectedOrders.map(o => {
-                              const match = catalog.find(p =>
+                              // Match CRM catalog to get SKU/Réf
+                              const catalogMatch = catalog.find(p =>
                                 p.name.toLowerCase() === (o.product ?? "").toLowerCase() ||
                                 (o.product ?? "").toLowerCase().includes(p.name.toLowerCase()) ||
                                 p.name.toLowerCase().includes((o.product ?? "").toLowerCase())
                               );
-                              const autoSku = match?.sku ?? "";
-                              const current = ameexProductIds[o.id] ?? autoSku;
+                              const autoSku = catalogMatch?.sku ?? "";
+                              // Match Ameex stock products by Réf or name to get numeric ID
+                              const ameexMatch = ameexStockProducts.find(p =>
+                                (autoSku && p.ref.toLowerCase() === autoSku.toLowerCase()) ||
+                                p.name.toLowerCase() === (o.product ?? "").toLowerCase() ||
+                                (o.product ?? "").toLowerCase().includes(p.name.toLowerCase())
+                              );
+                              const autoId = ameexMatch?.id ?? "";
+                              // Display value: manual override > resolved numeric ID > SKU ref
+                              const current = ameexProductIds[o.id] ?? autoId ?? autoSku;
+                              const isResolved = !!(ameexMatch || current);
                               return (
-                                <div key={o.id} className="flex items-center gap-2">
-                                  <span className="text-xs text-slate-600 w-16 truncate shrink-0">{o.customer}</span>
-                                  <input
-                                    type="text"
-                                    placeholder="ID produit Ameex…"
-                                    value={current}
-                                    onChange={e => setAmeexProductIds(prev => ({ ...prev, [o.id]: e.target.value }))}
-                                    className={`flex-1 text-xs font-mono border rounded-lg px-2 py-1.5 outline-none focus:border-blue-400 ${current ? "border-emerald-300 bg-emerald-50" : "border-amber-300 bg-amber-50"}`}
-                                  />
-                                  {current && <span className="text-emerald-600 text-xs shrink-0">✓</span>}
+                                <div key={o.id} className="space-y-0.5">
+                                  <div className="flex items-center gap-2">
+                                    <span className="text-xs text-slate-600 w-16 truncate shrink-0">{o.customer}</span>
+                                    <input
+                                      type="text"
+                                      placeholder="ID produit Ameex…"
+                                      value={current}
+                                      onChange={e => setAmeexProductIds(prev => ({ ...prev, [o.id]: e.target.value }))}
+                                      className={`flex-1 text-xs font-mono border rounded-lg px-2 py-1.5 outline-none focus:border-blue-400 ${isResolved ? "border-emerald-300 bg-emerald-50" : "border-amber-300 bg-amber-50"}`}
+                                    />
+                                    {isResolved && <span className="text-emerald-600 text-xs shrink-0">✓</span>}
+                                  </div>
+                                  {ameexMatch && (
+                                    <p className="text-[10px] text-emerald-600 pl-[4.5rem]">
+                                      ✓ {ameexMatch.name} — ID: {ameexMatch.id}
+                                    </p>
+                                  )}
+                                  {!ameexMatch && autoSku && (
+                                    <p className="text-[10px] text-amber-500 pl-[4.5rem]">
+                                      Réf SKU: {autoSku} (produits Ameex non chargés)
+                                    </p>
+                                  )}
                                 </div>
                               );
                             })}
