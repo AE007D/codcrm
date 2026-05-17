@@ -15,8 +15,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "COD CRM",
-  description: "Gestion des commandes e-commerce Maroc",
+  title: "COD CRM — Commandez. Expédiez. Encaissez.",
+  description: "La plateforme tout-en-un pour les e-commerçants COD au Maroc — gestion des commandes, livraisons, équipe et finances.",
 };
 
 export default function RootLayout({

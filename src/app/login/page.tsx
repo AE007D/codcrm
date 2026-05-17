@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback, useRef } from "react";
 import { useRouter } from "next/navigation";
+import { CodCrmLogo } from "@/components/CodCrmLogo";
 
 declare global {
   interface Window {
@@ -187,22 +188,22 @@ export default function LoginPage() {
 
         {/* Logo */}
         <div className="relative z-10">
-          <div className="flex items-center gap-3 mb-2">
-            <div className="w-10 h-10 bg-blue-600 rounded-xl flex items-center justify-center shadow-lg shadow-blue-900">
-              <svg viewBox="0 0 24 24" fill="white" className="w-5 h-5">
-                <path d="M3 3h7v7H3zM14 3h7v7h-7zM3 14h7v7H3zM14 14h7v7h-7z"/>
-              </svg>
+          <div className="flex items-center gap-3.5 mb-1">
+            <div className="shadow-xl shadow-blue-950/50 rounded-[11px]">
+              <CodCrmLogo size={44} />
             </div>
-            <span className="text-2xl font-bold text-white tracking-tight">COD CRM</span>
+            <div>
+              <span className="text-2xl font-extrabold text-white tracking-tight leading-none block">COD CRM</span>
+              <span className="text-blue-300/70 text-xs font-medium mt-0.5 block">Commandez. Expédiez. Encaissez.</span>
+            </div>
           </div>
-          <p className="text-blue-300/70 text-sm ml-[52px]">e-commerce Maroc</p>
         </div>
 
         {/* Hero */}
         <div className="relative z-10">
           <h2 className="text-4xl font-bold text-white leading-tight mb-4">
-            Gérez votre business<br />
-            <span className="text-blue-400">COD comme un pro</span>
+            Votre business COD,<br />
+            <span className="text-blue-400">enfin sous contrôle.</span>
           </h2>
           <p className="text-slate-400 text-base mb-10 max-w-sm">
             La plateforme tout-en-un pour les e-commerçants marocains — commandes, livraisons, équipe et finances.
@@ -233,11 +234,14 @@ export default function LoginPage() {
       {/* Right panel — form */}
       <div className="flex-1 flex flex-col items-center justify-center p-6 sm:p-12 bg-slate-50">
         {/* Mobile logo */}
-        <div className="lg:hidden flex items-center gap-2 mb-8">
-          <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center">
-            <svg viewBox="0 0 24 24" fill="white" className="w-4 h-4"><path d="M3 3h7v7H3zM14 3h7v7h-7zM3 14h7v7H3zM14 14h7v7h-7z"/></svg>
+        <div className="lg:hidden flex items-center gap-2.5 mb-8">
+          <div className="shadow-md shadow-blue-200 rounded-[9px]">
+            <CodCrmLogo size={32} />
           </div>
-          <span className="text-xl font-bold text-slate-900">COD CRM</span>
+          <div>
+            <span className="text-xl font-extrabold text-slate-900 tracking-tight leading-none block">COD CRM</span>
+            <span className="text-[10px] text-slate-400 font-medium block">Commandez. Expédiez. Encaissez.</span>
+          </div>
         </div>
 
         <div className="w-full max-w-[420px]">

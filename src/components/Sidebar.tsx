@@ -4,6 +4,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { usePathname, useRouter } from "next/navigation";
 import { useState, useEffect, useRef } from "react";
+import { CodCrmLogo } from "@/components/CodCrmLogo";
 
 type CurrentUser = {
   id: string;
@@ -348,14 +349,12 @@ export default function Sidebar() {
       `}>
         <div className="px-4 py-4 border-b border-slate-100">
           <div className="flex items-center gap-3">
-            <div className="w-9 h-9 bg-blue-600 rounded-xl flex items-center justify-center shadow-md shadow-blue-200 shrink-0">
-              <svg viewBox="0 0 24 24" fill="white" className="w-5 h-5">
-                <path d="M3 3h7v7H3zM14 3h7v7h-7zM3 14h7v7H3zM14 14h7v7h-7z"/>
-              </svg>
+            <div className="shrink-0 shadow-md shadow-blue-200 rounded-[10px]">
+              <CodCrmLogo size={36} />
             </div>
             <div className="flex-1 min-w-0">
-              <span className="text-base font-bold text-slate-900 leading-none">COD CRM</span>
-              <p className="text-xs text-slate-400 mt-0.5">e-commerce Maroc</p>
+              <span className="text-base font-extrabold text-slate-900 leading-none tracking-tight">COD CRM</span>
+              <p className="text-[10px] text-slate-400 mt-0.5 font-medium">Commandez. Expédiez. Encaissez.</p>
             </div>
 
             {/* Notification Bell */}
