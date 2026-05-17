@@ -136,8 +136,6 @@ export default function CommandesPage() {
   const [ameexShipType, setAmeexShipType] = useState<"SIMPLE"|"STOCK">("SIMPLE");
   const [ameexDepots, setAmeexDepots] = useState<{ id: string; name: string }[]>([]);
   const [ameexDepot, setAmeexDepot] = useState<string>("");
-  const [ameexStockItems, setAmeexStockItems] = useState<{ id: string; name: string; qty?: number }[]>([]);
-  const [stockItemOverrides, setStockItemOverrides] = useState<Record<string, string>>({}); // orderId → ameex stock product id
 
   // Edit mode for drawer
   const [editMode, setEditMode] = useState(false);
@@ -415,25 +413,6 @@ export default function CommandesPage() {
           }
         } catch { /* silent */ }
 
-        // Load stock items from hub for STOCK type
-        if (creds.defaultType === "STOCK" || ameexShipType === "STOCK") {
-          const hubId = creds.depotId || ameexDepot || "34";
-          try {
-            const sd = await fetch("/api/ameex", {
-              method: "POST", headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ action: "stocks", apiId: creds.apiId, apiKey: creds.apiKey, hub: hubId }),
-            }).then(r => r.json());
-            const rawItems = sd?.data ?? sd?.products ?? sd?.items ?? sd ?? [];
-            const itemList = (Array.isArray(rawItems) ? rawItems : [])
-              .map((it: Record<string,unknown>) => ({
-                id: String(it.id ?? it.product_id ?? it.p_product ?? ""),
-                name: String(it.name ?? it.product_name ?? it.label ?? ""),
-                qty: Number(it.qty ?? it.quantity ?? it.stock ?? 0),
-              }))
-              .filter((it: {id:string;name:string}) => it.id && it.name);
-            if (itemList.length) setAmeexStockItems(itemList);
-          } catch { /* silent */ }
-        }
       }
     } catch { /* silent */ }
   }
@@ -495,8 +474,14 @@ export default function CommandesPage() {
               type: shipType,
               ...(shipType === "STOCK" ? {
                 p_hub: depotId || "34",
-                // stock product ID selected in modal (or auto-matched)
-                ...(stockItemOverrides[order.id] ? { p_product: stockItemOverrides[order.id] } : {}),
+                // Auto-match product SKU from catalog → Ameex stock product ID
+                ...(() => {
+                  const match = catalog.find(p =>
+                    p.name.toLowerCase() === (order.product ?? "").toLowerCase() ||
+                    (order.product ?? "").toLowerCase().includes(p.name.toLowerCase())
+                  );
+                  return match?.sku ? { p_product: match.sku } : {};
+                })(),
               } : {}),
               open: "NO",
               try: "NO",
@@ -1141,27 +1126,25 @@ export default function CommandesPage() {
                           <span className="text-xs text-slate-400 self-center shrink-0">🏭 Hub</span>
                         </div>
                       )}
-                      {/* Stock product selector per order */}
-                      {ameexStockItems.length > 0 && (() => {
+                      {/* SKU auto-match info */}
+                      {ameexShipType === "STOCK" && (() => {
                         const selectedOrders = orders.filter(o => selected.has(o.id));
                         return (
-                          <div className="space-y-1.5 pt-1">
-                            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Produit du stock à expédier :</p>
-                            {selectedOrders.map(o => (
-                              <div key={o.id} className="flex items-center gap-2">
-                                <span className="text-xs text-slate-600 font-medium w-20 truncate shrink-0">{o.customer}</span>
-                                <select
-                                  value={stockItemOverrides[o.id] ?? ""}
-                                  onChange={e => setStockItemOverrides(prev => ({ ...prev, [o.id]: e.target.value }))}
-                                  className="flex-1 text-xs border border-blue-200 bg-blue-50 rounded-lg px-2 py-1.5 outline-none focus:border-blue-400 font-medium"
-                                >
-                                  <option value="">— Sélectionner produit stock —</option>
-                                  {ameexStockItems.map(it => (
-                                    <option key={it.id} value={it.id}>{it.name}{it.qty !== undefined ? ` (stock: ${it.qty})` : ""}</option>
-                                  ))}
-                                </select>
-                              </div>
-                            ))}
+                          <div className="space-y-1 pt-1">
+                            {selectedOrders.map(o => {
+                              const match = catalog.find(p =>
+                                p.name.toLowerCase() === (o.product ?? "").toLowerCase() ||
+                                (o.product ?? "").toLowerCase().includes(p.name.toLowerCase())
+                              );
+                              return (
+                                <div key={o.id} className={`flex items-center gap-2 text-xs px-2 py-1.5 rounded-lg ${match?.sku ? "bg-emerald-50 text-emerald-700" : "bg-amber-50 text-amber-700"}`}>
+                                  <span className="font-medium truncate">{o.customer}</span>
+                                  <span className="ml-auto font-mono shrink-0">
+                                    {match?.sku ? `SKU: ${match.sku} ✓` : "⚠ SKU introuvable"}
+                                  </span>
+                                </div>
+                              );
+                            })}
                           </div>
                         );
                       })()}
