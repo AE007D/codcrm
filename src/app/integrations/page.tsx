@@ -98,9 +98,10 @@ export default function IntegrationsPage() {
   const [ameexSaved, setAmeexSaved] = useState<AmeexCreds | null>(null);
   const [ameexParcels, setAmeexParcels] = useState<Parcel[]>([]);
   const [ameexForm, setAmeexForm] = useState({ receiver: "", phone: "", city: "", address: "", cod: "", product: "", order_num: "", comment: "", type: "SIMPLE", open: "NO", try: "NO", fragile: "0", replace: "false" });
-  const [ameexTab, setAmeexTab] = useState<"config"|"add"|"parcels"|"track"|"cities">("config");
+  const [ameexTab, setAmeexTab] = useState<"config"|"add"|"parcels"|"track"|"cities"|"stock">("config");
   const [ameexTrack, setAmeexTrack] = useState(""); const [ameexTrackRes, setAmeexTrackRes] = useState<Parcel | null>(null);
   const [ameexCities, setAmeexCities] = useState<Parcel[]>([]); const [ameexCitySearch, setAmeexCitySearch] = useState(""); const [ameexCitiesRaw, setAmeexCitiesRaw] = useState<string>("");
+  const [ameexStockDebug, setAmeexStockDebug] = useState<{ depots: string; products: string; trackCode: string; trackResult: string }>({ depots: "", products: "", trackCode: "", trackResult: "" });
 
   /* Eagle state */
   const [eagle, setEagle] = useState<EagleCreds>({ tk: "", sk: "" });
@@ -427,9 +428,9 @@ export default function IntegrationsPage() {
                   <Badge connected={connected.ameex} />
                 </div>
                 <div className="flex gap-2 flex-wrap">
-                  {(["config","add","parcels","track","cities"] as const).map(t => (
+                  {(["config","add","parcels","track","cities","stock"] as const).map(t => (
                     <button key={t} onClick={() => setAmeexTab(t)} className={`text-sm font-semibold px-4 py-2 rounded-xl transition-colors ${ameexTab === t ? "bg-blue-700 text-white shadow-md shadow-blue-200" : "bg-white text-slate-500 border border-slate-200 hover:bg-slate-50"}`}>
-                      {t === "config" ? "⚙️ Config" : t === "add" ? "➕ Ajouter" : t === "parcels" ? `📦 Colis${ameexParcels.length ? ` (${ameexParcels.length})` : ""}` : t === "track" ? "🔍 Track" : "🏙️ Villes"}
+                      {t === "config" ? "⚙️ Config" : t === "add" ? "➕ Ajouter" : t === "parcels" ? `📦 Colis${ameexParcels.length ? ` (${ameexParcels.length})` : ""}` : t === "track" ? "🔍 Track" : t === "cities" ? "🏙️ Villes" : "🏭 Stock Debug"}
                     </button>
                   ))}
                 </div>
@@ -549,6 +550,72 @@ export default function IntegrationsPage() {
                             </details>
                           )}
                         </>
+                      )}
+                    </div>
+                  </div>
+                )}
+                {ameexTab === "stock" && (
+                  <div className="bg-white rounded-2xl border border-slate-100 p-5 space-y-4">
+                    <p className="text-sm font-semibold text-slate-700">🔍 Diagnostic Stock Ameex — voir les IDs réels de vos dépôts et produits</p>
+                    <div className="grid grid-cols-2 gap-3">
+                      <button
+                        onClick={async () => {
+                          if (!ameexSaved) return;
+                          const r1 = await ameexCall("stocks", ameexSaved);
+                          const r2 = await ameexCall("depots", ameexSaved);
+                          setAmeexStockDebug(d => ({ ...d, depots: JSON.stringify({ stocks: r1, depots: r2 }, null, 2) }));
+                        }}
+                        className="px-4 py-2.5 bg-blue-700 text-white text-sm font-semibold rounded-xl"
+                      >
+                        1. Charger dépôts (/Stock/Depots + /Delivery/Depots)
+                      </button>
+                      <button
+                        onClick={async () => {
+                          if (!ameexSaved) return;
+                          const hub = ameexSaved.depotId || "34";
+                          const r = await ameexCall("stockProducts", ameexSaved, { depot: hub, hub, p_hub: hub });
+                          setAmeexStockDebug(d => ({ ...d, products: JSON.stringify(r, null, 2) }));
+                        }}
+                        className="px-4 py-2.5 bg-purple-600 text-white text-sm font-semibold rounded-xl"
+                      >
+                        2. Charger produits stock (/Stock/Products)
+                      </button>
+                    </div>
+                    {ameexStockDebug.depots && (
+                      <div>
+                        <p className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">Dépôts :</p>
+                        <pre className="text-xs bg-slate-50 border border-slate-200 rounded-xl p-4 overflow-auto max-h-64 text-slate-700 whitespace-pre-wrap">{ameexStockDebug.depots}</pre>
+                      </div>
+                    )}
+                    {ameexStockDebug.products && (
+                      <div>
+                        <p className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">Produits stock :</p>
+                        <pre className="text-xs bg-slate-50 border border-slate-200 rounded-xl p-4 overflow-auto max-h-64 text-slate-700 whitespace-pre-wrap">{ameexStockDebug.products}</pre>
+                      </div>
+                    )}
+                    <div className="border-t pt-3 space-y-2">
+                      <p className="text-xs font-bold text-slate-500 uppercase tracking-wider">Tracker un colis existant (ex: CSA0526B23336LV6307977) :</p>
+                      <div className="flex gap-2">
+                        <input
+                          type="text"
+                          placeholder="Code d'un colis avec hub badge…"
+                          value={ameexStockDebug.trackCode}
+                          onChange={e => setAmeexStockDebug(d => ({ ...d, trackCode: e.target.value }))}
+                          className="flex-1 text-sm border border-slate-200 rounded-xl px-3 py-2 outline-none focus:border-blue-400 font-mono"
+                        />
+                        <button
+                          onClick={async () => {
+                            if (!ameexSaved || !ameexStockDebug.trackCode) return;
+                            const r = await ameexCall("trackParcel", ameexSaved, { code: ameexStockDebug.trackCode });
+                            setAmeexStockDebug(d => ({ ...d, trackResult: JSON.stringify(r, null, 2) }));
+                          }}
+                          className="px-4 py-2 bg-slate-700 text-white text-sm font-semibold rounded-xl"
+                        >
+                          Tracker
+                        </button>
+                      </div>
+                      {ameexStockDebug.trackResult && (
+                        <pre className="text-xs bg-slate-50 border border-slate-200 rounded-xl p-4 overflow-auto max-h-64 text-slate-700 whitespace-pre-wrap">{ameexStockDebug.trackResult}</pre>
                       )}
                     </div>
                   </div>
