@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import Image from "next/image";
 import { useParams } from "next/navigation";
 import LiveTracker from "@/components/LiveTracker";
-import { initFBPixel, initTTPixel, trackFBEvent, trackTTEvent } from "@/lib/pixelEvents";
+import { initFBPixel, trackFBEvent } from "@/lib/pixelEvents";
 
 type ProductInfo = {
   id: string;
@@ -13,7 +13,6 @@ type ProductInfo = {
   price: number;
   ownerId?: string;
   facebookPixelId?: string;
-  tiktokPixelId?: string;
 };
 
 export default function ProductPage() {
@@ -56,7 +55,6 @@ export default function ProductPage() {
       .then(d => {
         setProduct(d);
         if (d.facebookPixelId) initFBPixel(d.facebookPixelId);
-        if (d.tiktokPixelId) initTTPixel(d.tiktokPixelId);
       })
       .catch(() => setNotFound(true))
       .finally(() => setLoading(false));
@@ -84,13 +82,13 @@ export default function ProductPage() {
       });
       const data = await res.json();
       if (!res.ok) { setError(data.error || "حدث خطأ، يرجى المحاولة مجدداً"); return; }
-      const qty = parseInt(form.quantity) || 1;
-      const value = product.price * qty;
       if (product?.facebookPixelId) {
-        trackFBEvent("Purchase", { value, currency: "MAD", content_name: product.name, content_type: "product" });
-      }
-      if (product?.tiktokPixelId) {
-        trackTTEvent("PlaceAnOrder", { value, currency: "MAD", content_name: product.name });
+        trackFBEvent("Purchase", {
+          value: product.price * (parseInt(form.quantity) || 1),
+          currency: "MAD",
+          content_name: product.name,
+          content_type: "product",
+        });
       }
       setSubmitted(true);
       window.scrollTo({ top: 0, behavior: "smooth" });

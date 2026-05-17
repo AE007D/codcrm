@@ -25,20 +25,14 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
 
   // Per-product pixel takes priority; fall back to first workspace FB pixel
   let facebookPixelId = productPixels[id] ?? "";
-  let tiktokPixelId = "";
 
   if (!facebookPixelId) {
     type PixelEntry = { pixelId: string; platform: string; productName: string };
     const pixels: PixelEntry[] = Array.isArray(settings.pixels) ? (settings.pixels as PixelEntry[]) : [];
     const productName = (data.name as string).trim().toLowerCase();
-    // prefer matching by product name, then any FB pixel
     const matched = pixels.find(p => p.platform === "facebook" && p.productName.trim().toLowerCase() === productName)
       ?? pixels.find(p => p.platform === "facebook");
     if (matched) facebookPixelId = matched.pixelId;
-
-    const matchedTT = pixels.find(p => p.platform === "tiktok" && p.productName.trim().toLowerCase() === productName)
-      ?? pixels.find(p => p.platform === "tiktok");
-    if (matchedTT) tiktokPixelId = matchedTT.pixelId;
   }
 
   return NextResponse.json({
@@ -48,7 +42,6 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
     price: parseFloat(data.sell_price ?? "0"),
     ownerId: data.owner_id,
     facebookPixelId,
-    tiktokPixelId,
   });
 }
 
