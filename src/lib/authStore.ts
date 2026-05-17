@@ -146,24 +146,40 @@ export async function createSession(userId: string): Promise<string> {
   return token;
 }
 
+// ── Session cache (in-memory, per serverless instance) ───────────────────
+// Avoids 2 Supabase roundtrips per API call for the same token.
+// TTL: 60s — short enough to reflect logouts/role changes quickly.
+const SESSION_CACHE = new Map<string, { user: User; cachedAt: number }>();
+const SESSION_CACHE_TTL_MS = 60_000;
+
 export async function getSession(token: string): Promise<User | null> {
+  // Check in-memory cache first
+  const cached = SESSION_CACHE.get(token);
+  if (cached && Date.now() - cached.cachedAt < SESSION_CACHE_TTL_MS) {
+    return cached.user;
+  }
+
   const { data, error } = await supabase
     .from("crm_sessions")
     .select("user_id, expires_at")
     .eq("token", token)
     .maybeSingle();
 
-  if (error || !data) return null;
+  if (error || !data) { SESSION_CACHE.delete(token); return null; }
 
   if (new Date(data.expires_at) < new Date()) {
     await supabase.from("crm_sessions").delete().eq("token", token);
+    SESSION_CACHE.delete(token);
     return null;
   }
 
-  return (await getUserById(data.user_id)) ?? null;
+  const user = (await getUserById(data.user_id)) ?? null;
+  if (user) SESSION_CACHE.set(token, { user, cachedAt: Date.now() });
+  return user;
 }
 
 export async function deleteSession(token: string): Promise<void> {
+  SESSION_CACHE.delete(token); // evict immediately on logout
   await supabase.from("crm_sessions").delete().eq("token", token);
 }
 

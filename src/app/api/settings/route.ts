@@ -8,7 +8,9 @@ export async function GET() {
   const user = await getRequestUser();
   if (!user) return NextResponse.json({ error: "Non authentifié." }, { status: 401 });
   const settings = await getSettings(user.workspaceId);
-  return NextResponse.json({ settings });
+  return NextResponse.json({ settings }, {
+    headers: { "Cache-Control": "private, max-age=30, stale-while-revalidate=60" },
+  });
 }
 
 export async function PATCH(request: NextRequest) {

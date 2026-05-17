@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { resolveCity, resolveAmeexCityId, AMEEX_CITIES_FALLBACK } from "@/lib/moroccanCities";
+import { cachedFetch, invalidateCache } from "@/lib/clientCache";
 import Sidebar from "@/components/Sidebar";
 
 type OrderStatus = "nouveau" | "confirmé" | "annulé" | "injoignable" | "fausse" | "expédié" | "livré" | "retourné";
@@ -147,7 +148,7 @@ export default function CommandesPage() {
   // ── Fetch all orders from Supabase ────────────────────────────────────────
   const fetchOrders = useCallback(async () => {
     try {
-      const res = await fetch("/api/orders");
+      const res = await cachedFetch("/api/orders", 20_000);
       if (res.status === 401) { window.location.href = "/login"; return; }
       if (!res.ok) return;
       const data = await res.json();
@@ -237,6 +238,7 @@ export default function CommandesPage() {
     }
     setOrders(prev => prev.map(o => o.id === id ? { ...o, status } : o));
     setDrawer(prev => prev?.id === id ? { ...prev, status } : prev);
+    invalidateCache("/api/orders");
     fetch("/api/orders", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id, status }) }).catch(() => {});
   }
 

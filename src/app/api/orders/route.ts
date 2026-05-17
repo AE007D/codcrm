@@ -14,7 +14,9 @@ export async function GET() {
   const user = await getRequestUser();
   if (!user) return NextResponse.json({ error: "Non authentifié." }, { status: 401 });
   const orders = await getOrdersByWorkspace(user.workspaceId);
-  return NextResponse.json({ orders });
+  return NextResponse.json({ orders }, {
+    headers: { "Cache-Control": "private, max-age=15, stale-while-revalidate=30" },
+  });
 }
 
 export async function POST(request: NextRequest) {

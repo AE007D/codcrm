@@ -272,7 +272,7 @@ export default function Sidebar() {
     }
 
     checkOrders();
-    const interval = setInterval(checkOrders, 30_000);
+    const interval = setInterval(checkOrders, 60_000);
     return () => clearInterval(interval);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [soundEnabled]);
