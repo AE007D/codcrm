@@ -21,7 +21,7 @@ type Product = {
 type OrderProduct = { name: string; unitsSold: number; orderCount: number; revenue: number };
 
 const emptyForm = {
-  name: "", sku: "", image: "", sellPrice: "", purchasePrice: "", stock: "", minStock: "5",
+  name: "", sku: "", image: "", sellPrice: "", purchasePrice: "", stock: "", minStock: "5", facebookPixelId: "",
 };
 
 function ProductImage({ image, name, size = 48 }: { image: string; name: string; size?: number }) {
@@ -109,7 +109,7 @@ export default function ProduitsPage() {
   }
   function openEdit(p: Product) {
     setEditProduct(p);
-    setForm({ name: p.name, sku: p.sku, image: p.image, sellPrice: String(p.sellPrice), purchasePrice: String(p.purchasePrice), stock: String(p.stock), minStock: String(p.minStock) });
+    setForm({ name: p.name, sku: p.sku, image: p.image, sellPrice: String(p.sellPrice), purchasePrice: String(p.purchasePrice), stock: String(p.stock), minStock: String(p.minStock), facebookPixelId: p.facebookPixelId ?? "" });
     setFormError(""); setShowModal(true);
   }
 
@@ -501,6 +501,22 @@ export default function ProduitsPage() {
                     <input type="number" placeholder="5" min="0" value={form.minStock} onChange={e => setForm(f => ({ ...f, minStock: e.target.value }))}
                       className="w-full text-sm border border-slate-200 rounded-xl px-4 py-2.5 outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-50 bg-white" />
                   </div>
+                </div>
+              </div>
+
+              {/* Facebook Pixel */}
+              <div className="bg-blue-50 rounded-2xl p-4">
+                <p className="text-xs font-bold text-blue-600 uppercase tracking-wider mb-3">🔵 Facebook Pixel</p>
+                <div>
+                  <label className="text-xs font-semibold text-slate-600 mb-1.5 block">Pixel ID (facultatif)</label>
+                  <input
+                    type="text"
+                    placeholder="Ex: 1234567890123456"
+                    value={form.facebookPixelId}
+                    onChange={e => setForm(f => ({ ...f, facebookPixelId: e.target.value.trim() }))}
+                    className="w-full text-sm border border-blue-200 rounded-xl px-4 py-2.5 outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-50 bg-white font-mono"
+                  />
+                  <p className="text-xs text-slate-400 mt-1.5">Se déclenche automatiquement sur la page produit et envoie un événement Lead à chaque commande.</p>
                 </div>
               </div>
 

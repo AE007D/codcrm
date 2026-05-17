@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { useParams } from "next/navigation";
 import LiveTracker from "@/components/LiveTracker";
+import { initFBPixel, trackFBEvent } from "@/lib/pixelEvents";
 
 type LandingPage = {
   id: string; slug: string; title: string; subtitle: string;
@@ -11,7 +12,7 @@ type LandingPage = {
   urgencyText: string; ctaText: string;
   primaryColor: string; theme: "light" | "dark";
   showTrustBadges: boolean; showStickyBar: boolean; requireAddress: boolean;
-  active: boolean; ownerId?: string;
+  active: boolean; ownerId?: string; facebookPixelId?: string;
 };
 
 const TRUST_BADGES = [
@@ -43,7 +44,10 @@ export default function LandingPageView() {
     if (!slug) return;
     fetch(`/api/lp-pages?slug=${slug}`)
       .then(r => r.ok ? r.json() : Promise.reject())
-      .then(data => setPage(data))
+      .then(data => {
+        setPage(data);
+        if (data.facebookPixelId) initFBPixel(data.facebookPixelId);
+      })
       .catch(() => setNotFound(true));
   }, [slug]);
 
@@ -62,6 +66,13 @@ export default function LandingPageView() {
       });
       const data = await res.json();
       if (!data.ok) { setFormError(data.error || "Erreur"); return; }
+      if (page?.facebookPixelId) {
+        trackFBEvent("Lead", {
+          value: page.price,
+          currency: page.currency,
+          content_name: page.title,
+        });
+      }
       setSubmitted(true);
       window.scrollTo({ top: 0, behavior: "smooth" });
     } catch { setFormError("Erreur réseau. Réessayez."); }

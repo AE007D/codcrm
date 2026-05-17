@@ -36,7 +36,7 @@ export async function POST(request: NextRequest) {
 
   try {
     const body = await request.json();
-    const { name, sku, image, sellPrice, purchasePrice, stock, minStock } = body;
+    const { name, sku, image, sellPrice, purchasePrice, stock, minStock, facebookPixelId } = body;
     if (!name) return NextResponse.json({ error: "Le nom est requis." }, { status: 400 });
 
     const product = await createProduct({
@@ -48,6 +48,7 @@ export async function POST(request: NextRequest) {
       purchasePrice: parseFloat(purchasePrice) || 0,
       stock: parseInt(stock) || 0,
       minStock: parseInt(minStock) || 5,
+      facebookPixelId: String(facebookPixelId ?? "").trim(),
     });
 
     return NextResponse.json({ ok: true, product });
@@ -81,6 +82,7 @@ export async function PATCH(request: NextRequest) {
     if (rest.purchasePrice !== undefined) patch.purchasePrice = parseFloat(rest.purchasePrice) || 0;
     if (rest.stock !== undefined) patch.stock = parseInt(rest.stock) || 0;
     if (rest.minStock !== undefined) patch.minStock = parseInt(rest.minStock) || 5;
+    if (rest.facebookPixelId !== undefined) patch.facebookPixelId = String(rest.facebookPixelId).trim();
 
     const updated = await updateProduct(id, user.workspaceId, patch);
     if (!updated) return NextResponse.json({ error: "Produit introuvable." }, { status: 404 });

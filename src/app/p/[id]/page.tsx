@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import Image from "next/image";
 import { useParams } from "next/navigation";
 import LiveTracker from "@/components/LiveTracker";
+import { initFBPixel, trackFBEvent } from "@/lib/pixelEvents";
 
 type ProductInfo = {
   id: string;
@@ -11,6 +12,7 @@ type ProductInfo = {
   image: string;
   price: number;
   ownerId?: string;
+  facebookPixelId?: string;
 };
 
 export default function ProductPage() {
@@ -50,7 +52,10 @@ export default function ProductPage() {
     if (!id) return;
     fetch(`/api/p/${id}`)
       .then(r => r.ok ? r.json() : Promise.reject(r.status))
-      .then(d => setProduct(d))
+      .then(d => {
+        setProduct(d);
+        if (d.facebookPixelId) initFBPixel(d.facebookPixelId);
+      })
       .catch(() => setNotFound(true))
       .finally(() => setLoading(false));
   }, [id]);
@@ -77,6 +82,13 @@ export default function ProductPage() {
       });
       const data = await res.json();
       if (!res.ok) { setError(data.error || "حدث خطأ، يرجى المحاولة مجدداً"); return; }
+      if (product?.facebookPixelId) {
+        trackFBEvent("Lead", {
+          value: product.price * (parseInt(form.quantity) || 1),
+          currency: "MAD",
+          content_name: product.name,
+        });
+      }
       setSubmitted(true);
       window.scrollTo({ top: 0, behavior: "smooth" });
     } catch {

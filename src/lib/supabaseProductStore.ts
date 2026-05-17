@@ -14,6 +14,7 @@ export type Product = {
   minStock: number;
   createdAt: string;
   pageViews?: number;
+  facebookPixelId?: string;
 };
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -30,6 +31,7 @@ function rowToProduct(row: any): Product {
     minStock: row.min_stock ?? 5,
     createdAt: row.created_at,
     pageViews: row.page_views ?? 0,
+    facebookPixelId: row.facebook_pixel_id ?? "",
   };
 }
 
@@ -56,6 +58,7 @@ export async function createProduct(p: Omit<Product, "id" | "createdAt">): Promi
       purchase_price: p.purchasePrice,
       stock: p.stock,
       min_stock: p.minStock,
+      facebook_pixel_id: p.facebookPixelId ?? "",
       created_at: new Date().toISOString(),
     })
     .select()
@@ -73,6 +76,7 @@ export async function updateProduct(id: string, ownerId: string, patch: Partial<
   if (patch.purchasePrice !== undefined) dbPatch.purchase_price = patch.purchasePrice;
   if (patch.stock !== undefined) dbPatch.stock = patch.stock;
   if (patch.minStock !== undefined) dbPatch.min_stock = patch.minStock;
+  if (patch.facebookPixelId !== undefined) dbPatch.facebook_pixel_id = patch.facebookPixelId;
 
   const { data, error } = await supabase
     .from("crm_products")
