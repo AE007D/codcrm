@@ -540,6 +540,12 @@ export default function CommandesPage() {
   const needsCall = counts["nouveau"];
   const confirmedCount = counts["confirmé"];
 
+  // Repeat customer detection: count orders per phone number
+  const phoneCounts = orders.reduce((acc, o) => {
+    if (o.phone) acc[o.phone] = (acc[o.phone] ?? 0) + 1;
+    return acc;
+  }, {} as Record<string, number>);
+
   return (
     <div className="flex min-h-screen bg-[#F0F4FF]">
       <Sidebar />
@@ -570,7 +576,7 @@ export default function CommandesPage() {
 
         <main className="flex-1 overflow-y-auto p-4 lg:p-8">
           {/* Pipeline counters */}
-          <div className="grid grid-cols-4 lg:grid-cols-8 gap-2 lg:gap-3 mb-5">
+          <div className="grid grid-cols-4 sm:grid-cols-4 lg:grid-cols-8 gap-2 lg:gap-3 mb-5">
             {PIPELINE.map(s => {
               const cfg = STATUS_CONFIG[s];
               const active = filter === s;
@@ -614,7 +620,7 @@ export default function CommandesPage() {
           )}
 
           {/* Search + filter */}
-          <div className="flex gap-3 mb-4">
+          <div className="flex flex-col sm:flex-row gap-3 mb-4">
             <div className="relative flex-1">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
               <input type="text" placeholder="Rechercher client, téléphone, produit…" value={search} onChange={e => setSearch(e.target.value)}
@@ -657,8 +663,121 @@ export default function CommandesPage() {
             </div>
           )}
 
-          {/* Table */}
-          <div className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
+          {/* Mobile card layout */}
+          <div className="sm:hidden space-y-3">
+            {displayed.length === 0 && (
+              <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-12 text-center text-slate-400 text-sm">Aucune commande trouvée</div>
+            )}
+            {displayed.map(o => {
+              const cfg = STATUS_CONFIG[o.status];
+              const isSelected = selected.has(o.id);
+              const repeatCount = phoneCounts[o.phone] ?? 1;
+              const cardBg = isSelected ? "bg-blue-50 border-blue-200"
+                : o.status === "injoignable" ? "bg-amber-50/60 border-amber-200"
+                : o.status === "fausse" ? "bg-purple-50/60 border-purple-200"
+                : o.status === "annulé" ? "bg-red-50/40 border-red-100"
+                : "bg-white border-slate-100";
+              return (
+                <div key={o.id} className={`rounded-2xl border shadow-sm p-4 ${cardBg}`}>
+                  {/* Top row: order number + status + date */}
+                  <div className="flex items-center gap-2 mb-3">
+                    <input type="checkbox" checked={isSelected} onChange={() => toggleSelect(o.id)}
+                      className="w-4 h-4 rounded accent-blue-600 cursor-pointer shrink-0" />
+                    <span className="font-mono text-xs text-slate-400 flex-1 truncate">{o.orderNumber}</span>
+                    <span className={`inline-flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-bold border shrink-0 ${cfg.bg} ${cfg.color} ${cfg.border}`}>
+                      <span className={`w-1.5 h-1.5 rounded-full ${cfg.dot}`} />
+                      {cfg.label}
+                    </span>
+                    <span className="text-xs text-slate-400 shrink-0">{o.date}</span>
+                  </div>
+
+                  {/* Customer + phone + repeat badge */}
+                  <div className="flex items-start gap-2 mb-2" onClick={() => setDrawer(o)}>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <p className="font-bold text-slate-900">{o.customer}</p>
+                        {repeatCount > 1 && (
+                          <span className="inline-flex items-center gap-1 text-xs font-semibold bg-indigo-100 text-indigo-700 px-2 py-0.5 rounded-full">
+                            🔁 {repeatCount} commandes
+                          </span>
+                        )}
+                      </div>
+                      <a href={`tel:${o.phone}`} onClick={e => { e.stopPropagation(); incrementAttempt(o.id); }}
+                        className="flex items-center gap-1 text-blue-600 text-sm font-medium mt-0.5">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="w-3.5 h-3.5 shrink-0"><path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07 19.5 19.5 0 01-6-6A19.79 19.79 0 012.12 4.18 2 2 0 014.11 2h3a2 2 0 012 1.72c.127.96.361 1.903.7 2.81a2 2 0 01-.45 2.11L8.09 9.91a16 16 0 006 6l1.27-1.27a2 2 0 012.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0122 16.92z"/></svg>
+                        {o.phone}
+                      </a>
+                      {o.noAnswer > 0 && (
+                        <span className={`mt-1 inline-flex items-center gap-1 text-xs font-semibold px-2 py-0.5 rounded-lg ${o.noAnswer >= 3 ? "bg-amber-100 text-amber-700" : "bg-slate-100 text-slate-500"}`}>
+                          📵 {o.noAnswer}× sans réponse
+                        </span>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* City, product, amount */}
+                  <div className="flex items-center gap-2 text-sm text-slate-600 mb-2 flex-wrap" onClick={() => setDrawer(o)}>
+                    {o.city && <span className="text-slate-400">{o.city}</span>}
+                    {o.city && <span className="text-slate-200">·</span>}
+                    <span className="truncate flex-1">{o.product}</span>
+                    <span className="font-black text-slate-900 shrink-0">{o.amount} {o.currency}</span>
+                  </div>
+
+                  {/* Source + action buttons */}
+                  <div className="flex items-center gap-2 flex-wrap mt-2">
+                    <SourceBadge source={o.source} />
+                    {o.status === "nouveau" && (
+                      <>
+                        <button onClick={() => setStatus(o.id, "confirmé")}
+                          className="flex items-center gap-1 bg-emerald-500 hover:bg-emerald-600 text-white text-xs font-bold px-2.5 py-1.5 rounded-xl transition-colors shadow-sm shadow-emerald-200">
+                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} className="w-3 h-3"><polyline points="20 6 9 17 4 12"/></svg>
+                          Confirmer
+                        </button>
+                        <button onClick={() => setStatus(o.id, "annulé")}
+                          className="flex items-center gap-1 bg-red-500 hover:bg-red-600 text-white text-xs font-bold px-2.5 py-1.5 rounded-xl transition-colors shadow-sm shadow-red-200">
+                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} className="w-3 h-3"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                          Annuler
+                        </button>
+                        <button onClick={() => setStatus(o.id, "injoignable")}
+                          className="flex items-center gap-1 bg-amber-500 hover:bg-amber-600 text-white text-xs font-bold px-2.5 py-1.5 rounded-xl transition-colors shadow-sm shadow-amber-200">
+                          Injoignable
+                        </button>
+                        <button onClick={() => setStatus(o.id, "fausse")}
+                          className="flex items-center gap-1 bg-purple-500 hover:bg-purple-600 text-white text-xs font-bold px-2.5 py-1.5 rounded-xl transition-colors shadow-sm shadow-purple-200">
+                          Fausse
+                        </button>
+                      </>
+                    )}
+                    {o.status === "injoignable" && (
+                      <button onClick={() => setStatus(o.id, "nouveau")}
+                        className="text-xs font-semibold px-2.5 py-1.5 rounded-xl border border-slate-200 text-slate-600 hover:bg-slate-50">
+                        ↩ Rappeler
+                      </button>
+                    )}
+                    {o.status === "confirmé" && (
+                      <button onClick={() => { openShipModal([o.id]); }}
+                        className="flex items-center gap-1 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold px-2.5 py-1.5 rounded-xl transition-colors shadow-sm shadow-indigo-200">
+                        📦 Expédier
+                      </button>
+                    )}
+                    {o.status === "expédié" && (
+                      <>
+                        <button onClick={() => setStatus(o.id, "livré")} className="bg-teal-600 hover:bg-teal-700 text-white text-xs font-bold px-2.5 py-1.5 rounded-xl transition-colors">Livré</button>
+                        <button onClick={() => setStatus(o.id, "retourné")} className="bg-orange-500 hover:bg-orange-600 text-white text-xs font-bold px-2.5 py-1.5 rounded-xl transition-colors">Retour</button>
+                      </>
+                    )}
+                    <button onClick={() => setDrawer(o)}
+                      className="ml-auto text-slate-400 hover:text-slate-600 border border-slate-200 hover:bg-slate-50 p-1.5 rounded-xl transition-colors">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="w-3.5 h-3.5"><path d="M9 18l6-6-6-6"/></svg>
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+
+          {/* Desktop Table */}
+          <div className="hidden sm:block bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
             <div className="overflow-x-auto">
               <table className="w-full text-sm min-w-[800px]">
                 <thead>
@@ -681,6 +800,7 @@ export default function CommandesPage() {
                   {displayed.map(o => {
                     const cfg = STATUS_CONFIG[o.status];
                     const isSelected = selected.has(o.id);
+                    const repeatCount = phoneCounts[o.phone] ?? 1;
                     const rowBg = isSelected ? "bg-blue-50 border-blue-100"
                       : o.status === "injoignable" ? "bg-amber-50/40 hover:bg-amber-50/60 border-amber-100"
                       : o.status === "fausse" ? "bg-purple-50/40 hover:bg-purple-50/60 border-purple-100"
@@ -694,7 +814,14 @@ export default function CommandesPage() {
                         </td>
                         <td className="px-5 py-3.5 font-mono text-xs text-slate-400 whitespace-nowrap" onClick={() => setDrawer(o)}>{o.orderNumber}</td>
                         <td className="px-5 py-3.5" onClick={() => setDrawer(o)}>
-                          <p className="font-semibold text-slate-800">{o.customer}</p>
+                          <div className="flex items-center gap-2">
+                            <p className="font-semibold text-slate-800">{o.customer}</p>
+                            {repeatCount > 1 && (
+                              <span className="inline-flex items-center gap-1 text-xs font-semibold bg-indigo-100 text-indigo-700 px-2 py-0.5 rounded-full whitespace-nowrap">
+                                🔁 {repeatCount}
+                              </span>
+                            )}
+                          </div>
                           {o.notes && <p className="text-xs text-slate-400 truncate max-w-[140px]">{o.notes}</p>}
                         </td>
                         <td className="px-5 py-3.5 text-slate-500 whitespace-nowrap" onClick={() => setDrawer(o)}>{o.city}</td>
@@ -1292,6 +1419,42 @@ export default function CommandesPage() {
                   className="w-full text-sm border border-slate-200 rounded-xl px-4 py-3 outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-50 resize-none bg-white" />
                 <p className="text-xs text-slate-400">Sauvegardé automatiquement au clic</p>
               </div>
+
+              {/* Order history for repeat customers */}
+              {drawer.phone && (phoneCounts[drawer.phone] ?? 1) > 1 && (() => {
+                const history = orders.filter(o => o.phone === drawer.phone && o.id !== drawer.id);
+                if (!history.length) return null;
+                return (
+                  <div className="space-y-2">
+                    <div className="flex items-center gap-2">
+                      <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider">Historique client</h3>
+                      <span className="inline-flex items-center gap-1 text-xs font-semibold bg-indigo-100 text-indigo-700 px-2 py-0.5 rounded-full">
+                        🔁 {phoneCounts[drawer.phone]} commandes
+                      </span>
+                    </div>
+                    <div className="space-y-1.5">
+                      {history.map(h => {
+                        const hcfg = STATUS_CONFIG[h.status];
+                        return (
+                          <button key={h.id} onClick={() => setDrawer(h)}
+                            className="w-full text-left bg-slate-50 hover:bg-slate-100 border border-slate-100 rounded-xl px-3 py-2.5 transition-colors">
+                            <div className="flex items-center justify-between gap-2">
+                              <span className="font-mono text-xs text-slate-400">{h.orderNumber}</span>
+                              <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-lg text-xs font-bold border ${hcfg.bg} ${hcfg.color} ${hcfg.border}`}>
+                                <span className={`w-1.5 h-1.5 rounded-full ${hcfg.dot}`} />
+                                {hcfg.label}
+                              </span>
+                              <span className="text-xs font-bold text-slate-700 shrink-0">{h.amount} {h.currency}</span>
+                            </div>
+                            <p className="text-xs text-slate-500 mt-1 truncate">{h.product}</p>
+                            <p className="text-xs text-slate-400">{h.date}</p>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                );
+              })()}
             </div>
           </div>
         </>

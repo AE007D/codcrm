@@ -76,7 +76,7 @@ export default function ClientsPage() {
     <div className="flex min-h-screen bg-[#F0F4FF]">
       <Sidebar />
       <div className="flex-1 flex flex-col">
-        <header className="bg-white border-b border-slate-100 px-4 lg:px-8 py-4 pl-14 lg:pl-8 flex items-center justify-between">
+        <header className="bg-white border-b border-slate-100 px-4 lg:px-8 py-4 pl-14 lg:pl-8 flex items-center justify-between shrink-0">
           <div>
             <h1 className="text-xl font-bold text-slate-900">Clients</h1>
             <p className="text-sm text-slate-400">{loading ? "Chargement…" : `${clients.length} clients enregistrés`}</p>
@@ -98,38 +98,43 @@ export default function ClientsPage() {
             </div>
           ) : (
             <div className="bg-white rounded-2xl shadow-sm border border-slate-100">
-              <div className="px-6 py-4 border-b border-slate-100">
+              <div className="px-4 sm:px-6 py-4 border-b border-slate-100">
                 <input
                   type="text"
                   placeholder="Rechercher un client..."
                   value={search}
                   onChange={e => setSearch(e.target.value)}
-                  className="w-80 text-sm border border-slate-200 rounded-xl px-4 py-2.5 outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-50"
+                  className="w-full sm:w-80 text-sm border border-slate-200 rounded-xl px-4 py-2.5 outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-50"
                 />
               </div>
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="text-xs text-slate-400 border-b border-slate-50">
-                    {["Nom", "Ville", "Téléphone", "Commandes", "Total dépensé", "Dernière commande"].map(h => (
-                      <th key={h} className="text-left px-6 py-3 font-semibold uppercase tracking-wide">{h}</th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  {displayed.map((c, i) => (
-                    <tr key={`${c.phone}_${i}`} className="border-b border-slate-50 hover:bg-slate-50/60 transition-colors cursor-pointer">
-                      <td className="px-6 py-3.5 font-semibold text-slate-800">{c.name || "—"}</td>
-                      <td className="px-6 py-3.5 text-slate-500">{c.city || "—"}</td>
-                      <td className="px-6 py-3.5 text-slate-500">{c.phone || "—"}</td>
-                      <td className="px-6 py-3.5">
-                        <span className="bg-blue-50 text-blue-600 text-xs font-semibold px-2.5 py-1 rounded-lg">{c.orders}</span>
-                      </td>
-                      <td className="px-6 py-3.5 font-bold text-slate-800">{c.totalSpent.toLocaleString("fr-MA")} MAD</td>
-                      <td className="px-6 py-3.5 text-slate-400 text-xs">{formatDate(c.lastDate)}</td>
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm min-w-[500px]">
+                  <thead>
+                    <tr className="text-xs text-slate-400 border-b border-slate-50">
+                      <th className="text-left px-4 sm:px-6 py-3 font-semibold uppercase tracking-wide">Nom</th>
+                      <th className="text-left px-4 sm:px-6 py-3 font-semibold uppercase tracking-wide hidden sm:table-cell">Ville</th>
+                      <th className="text-left px-4 sm:px-6 py-3 font-semibold uppercase tracking-wide">Téléphone</th>
+                      <th className="text-left px-4 sm:px-6 py-3 font-semibold uppercase tracking-wide">Cmds</th>
+                      <th className="text-left px-4 sm:px-6 py-3 font-semibold uppercase tracking-wide">Total</th>
+                      <th className="text-left px-4 sm:px-6 py-3 font-semibold uppercase tracking-wide hidden md:table-cell">Dernière</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
+                  </thead>
+                  <tbody>
+                    {displayed.map((c, i) => (
+                      <tr key={`${c.phone}_${i}`} className="border-b border-slate-50 hover:bg-slate-50/60 transition-colors cursor-pointer">
+                        <td className="px-4 sm:px-6 py-3.5 font-semibold text-slate-800">{c.name || "—"}</td>
+                        <td className="px-4 sm:px-6 py-3.5 text-slate-500 hidden sm:table-cell">{c.city || "—"}</td>
+                        <td className="px-4 sm:px-6 py-3.5 text-slate-500">{c.phone || "—"}</td>
+                        <td className="px-4 sm:px-6 py-3.5">
+                          <span className="bg-blue-50 text-blue-600 text-xs font-semibold px-2.5 py-1 rounded-lg">{c.orders}</span>
+                        </td>
+                        <td className="px-4 sm:px-6 py-3.5 font-bold text-slate-800 whitespace-nowrap">{c.totalSpent.toLocaleString("fr-MA")} MAD</td>
+                        <td className="px-4 sm:px-6 py-3.5 text-slate-400 text-xs hidden md:table-cell">{formatDate(c.lastDate)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             </div>
           )}
         </main>
