@@ -111,6 +111,8 @@ export default function IntegrationsPage() {
   const [eagleTab, setEagleTab] = useState<"config"|"add"|"parcels"|"track"|"cities">("config");
   const [eagleTrack, setEagleTrack] = useState(""); const [eagleTrackRes, setEagleTrackRes] = useState<{ Etat: string; Date_Evenement: string }[]>([]);
   const [eagleCities, setEagleCities] = useState<Parcel[]>([]); const [citySearch, setCitySearch] = useState("");
+  const [eagleApiStatus, setEagleApiStatus] = useState<"unknown"|"ok"|"broken">("unknown");
+  const [eagleApiTesting, setEagleApiTesting] = useState(false);
 
   /* LF state */
   const [lfOrders, setLfOrders] = useState<LFOrder[]>([]);
@@ -197,8 +199,39 @@ export default function IntegrationsPage() {
   function saveEagle() { if (!eagle.tk || !eagle.sk) { showToast("Token et Secret Key requis.", false); return; } patchSettings({ eagle }).then(() => { setEagleSaved(eagle); showToast("Eagle Express connecté ✓"); }); }
   const loadEagleParcels = useCallback(async () => { if (!eagleSaved) return; setLoading(true); const d = await eagleCall("list", eagleSaved); setLoading(false); if (Array.isArray(d)) setEagleParcels(d); }, [eagleSaved]);
   const loadEagleCities = useCallback(async () => { setLoading(true); const d = await eagleCall("cities", { tk: "", sk: "" }); setLoading(false); if (Array.isArray(d)) setEagleCities(d); }, []);
-  async function addEagle() { if (!eagleSaved) { showToast("Configurez Eagle d'abord.", false); return; } if (!eagleForm.fullname || !eagleForm.phone || !eagleForm.city || !eagleForm.address || !eagleForm.price) { showToast("Champs obligatoires manquants.", false); return; } setLoading(true); const d = await eagleCall("add", eagleSaved, { ...eagleForm }); setLoading(false); const ok = d?.message?.toLowerCase().includes("success"); showToast(d?.message || (ok ? "Colis créé ✓" : "Erreur"), ok); if (ok) setEagleForm({ fullname: "", phone: "", city: "", address: "", price: "", product: "", qty: "1", note: "", change: "0", openpackage: "0" }); }
+  async function addEagle() {
+    if (!eagleSaved) { showToast("Configurez Eagle d'abord.", false); return; }
+    if (!eagleForm.fullname || !eagleForm.phone || !eagleForm.city || !eagleForm.address || !eagleForm.price) { showToast("Champs obligatoires manquants.", false); return; }
+    setLoading(true);
+    const d = await eagleCall("add", eagleSaved, { ...eagleForm });
+    setLoading(false);
+    const ok = d?.message?.toLowerCase().includes("success");
+    // Translate common Eagle API errors to actionable messages
+    let msg = d?.message || (ok ? "Colis créé ✓" : "Erreur");
+    if (!ok && msg.toLowerCase().includes("parameter")) {
+      msg = "API Eagle indisponible — contactez Eagle Express pour réactiver votre accès API (addcolis.php)";
+    } else if (!ok && (msg.toLowerCase().includes("permission") || msg.includes("403"))) {
+      msg = "Accès refusé — vérifiez vos identifiants API Eagle Express";
+    }
+    showToast(msg, ok);
+    if (ok) setEagleForm({ fullname: "", phone: "", city: "", address: "", price: "", product: "", qty: "1", note: "", change: "0", openpackage: "0" });
+  }
   async function trackEagle() { if (!eagleTrack) return; setLoading(true); const d = await eagleCall("track", { tk: "", sk: "" }, { code: eagleTrack }); setLoading(false); if (Array.isArray(d)) setEagleTrackRes(d); else showToast(d?.message || "Introuvable.", false); }
+  async function testEagleApiStatus() {
+    if (!eagleSaved) return;
+    setEagleApiTesting(true);
+    try {
+      // Test write access by calling add with a dummy payload — a "Some parameter are missing" or 403 means broken
+      const d = await eagleCall("add", eagleSaved, { fullname: "_test_", phone: "0600000000", city: "Casablanca", address: "test", price: "1", product: "test", qty: "1", note: "", change: "0", openpackage: "0" });
+      const msg = String(d?.message ?? "").toLowerCase();
+      if (msg.includes("success")) setEagleApiStatus("ok");
+      else if (msg.includes("parameter") || msg.includes("permission") || msg.includes("403")) setEagleApiStatus("broken");
+      else setEagleApiStatus("unknown");
+    } catch {
+      setEagleApiStatus("broken");
+    }
+    setEagleApiTesting(false);
+  }
 
   /* LF test */
   async function sendLFTest() { const dummy = { id: `test_${Date.now()}`, order_number: Math.floor(Math.random()*9000)+1000, status: "open", financial_status: "pending", total_price: "350.00", currency: "MAD", customer: { first_name: "Test", last_name: "Client", phone: "06 00 00 00 00", email: "test@codcrm.ma" }, shipping_address: { first_name: "Test", last_name: "Client", phone: "06 00 00 00 00", address1: "12 Rue Hassan II", city: "Casablanca" }, line_items: [{ title: "Produit Test", quantity: 1, price: "350.00" }], funnel: { name: "Test Funnel" }, created_at: new Date().toISOString() }; await fetch("/api/webhooks/lightfunnels", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(dummy) }); setTimeout(fetchLF, 500); setLfTab("orders"); }
@@ -657,6 +690,28 @@ export default function IntegrationsPage() {
                       </div>
                     ))}
                     <button onClick={saveEagle} className="w-full py-2.5 bg-amber-500 hover:bg-amber-600 text-white font-semibold text-sm rounded-xl shadow-md shadow-amber-200 transition-colors">Sauvegarder</button>
+                    {/* API Status Diagnostic */}
+                    {eagleSaved && (
+                      <div className={`rounded-xl p-3 text-sm flex items-start gap-3 ${eagleApiStatus === "ok" ? "bg-emerald-50 border border-emerald-200" : eagleApiStatus === "broken" ? "bg-red-50 border border-red-200" : "bg-slate-50 border border-slate-200"}`}>
+                        <span className="text-lg shrink-0">{eagleApiStatus === "ok" ? "✅" : eagleApiStatus === "broken" ? "❌" : "🔍"}</span>
+                        <div className="flex-1">
+                          {eagleApiStatus === "ok" && <p className="font-semibold text-emerald-700">API Eagle Express opérationnelle</p>}
+                          {eagleApiStatus === "broken" && (
+                            <>
+                              <p className="font-semibold text-red-700">API Eagle Express indisponible</p>
+                              <p className="text-red-600 text-xs mt-1">
+                                L&apos;endpoint <code className="font-mono bg-red-100 px-1 rounded">addcolis.php</code> renvoie une erreur pour toutes les requêtes.
+                                Contactez Eagle Express sur WhatsApp <strong>0690666093</strong> ou par email <strong>eagleexpress@gmail.com</strong> pour réactiver votre accès API.
+                              </p>
+                            </>
+                          )}
+                          {eagleApiStatus === "unknown" && <p className="text-slate-500">Cliquez &quot;Tester l&apos;API&quot; pour vérifier l&apos;accès à l&apos;endpoint addcolis.php</p>}
+                        </div>
+                        <button onClick={testEagleApiStatus} disabled={eagleApiTesting} className="shrink-0 text-xs px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-slate-600 hover:bg-slate-50 disabled:opacity-50">
+                          {eagleApiTesting ? "Test…" : "Tester l'API"}
+                        </button>
+                      </div>
+                    )}
                   </div>
                 )}
                 {eagleTab === "add" && (

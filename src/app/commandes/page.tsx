@@ -611,9 +611,24 @@ export default function CommandesPage() {
         }
         // Show full response detail for debugging
         const apiMsg = data?.api?.msg ?? data?.message ?? data?.error ?? "";
+        // Translate common Eagle Express API errors to actionable French messages
+        const friendlyEagleMsg = (() => {
+          if (!apiMsg || ok) return apiMsg;
+          const m = apiMsg.toLowerCase();
+          if (m.includes("some parameter") || m.includes("parameter are missing")) {
+            return "Paramètre manquant — vérifiez que tous les champs sont remplis (nom, téléphone, ville, adresse, prix)";
+          }
+          if (m.includes("permission") || m.includes("403")) {
+            return "Accès refusé par Eagle Express — vérifiez vos identifiants API (tk/sk) dans Intégrations";
+          }
+          if (m.includes("account") && m.includes("exist")) {
+            return "Compte Eagle Express non reconnu — vérifiez votre token API dans Intégrations";
+          }
+          return apiMsg;
+        })();
         const msgDetail = ok
           ? `Envoyé ✓ ${trackingCode ?? ""}`
-          : `${apiMsg || JSON.stringify(data).slice(0, 100)}`;
+          : `${friendlyEagleMsg || JSON.stringify(data).slice(0, 100)}`;
         results.push({ id: order.id, ok, msg: msgDetail });
       } catch (e) {
         results.push({ id: order.id, ok: false, msg: String(e) });
