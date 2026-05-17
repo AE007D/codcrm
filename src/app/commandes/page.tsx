@@ -490,8 +490,8 @@ export default function CommandesPage() {
                 return {
                   // Send all hub field variants — one of them will work
                   p_hub: hub, hub: hub, depot: hub,
-                  // Send product ID if available
-                  ...(productId ? { p_product: productId, product_id: productId } : {}),
+                  // Send product ref in all possible field name variants
+                  ...(productId ? { p_product: productId, product_id: productId, ref: productId, product_ref: productId } : {}),
                 };
               })() : {}),
               open: "NO",
