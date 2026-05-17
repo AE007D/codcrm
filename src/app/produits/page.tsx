@@ -16,6 +16,7 @@ type Product = {
   createdAt: string;
   pageViews: number;
   pageOrders: number;
+  facebookPixelId?: string;
 };
 
 type OrderProduct = { name: string; unitsSold: number; orderCount: number; revenue: number };
