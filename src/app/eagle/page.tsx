@@ -4,8 +4,8 @@ import { useState, useEffect, useCallback } from "react";
 import Sidebar from "@/components/Sidebar";
 
 type Creds = { tk: string; sk: string };
-type City = { ville: string; tarif: string | number; [k: string]: unknown };
-type Colis = { code?: string; fullname?: string; nom?: string; phone?: string; telephone?: string; city?: string; ville?: string; price?: string | number; prix?: string | number; product?: string; produit?: string; state?: string; date?: string; [k: string]: unknown };
+type City = { ID?: string; City?: string; Delivered_Fees?: string; Returned_Fees?: string; Refused_Fees?: string; Changed_Fees?: string; [k: string]: unknown };
+type Colis = { Code?: string; code?: string; Full_Name?: string; fullname?: string; nom?: string; Phone?: string; phone?: string; telephone?: string; City?: string; city?: string; ville?: string; COD?: string | number; price?: string | number; prix?: string | number; Product?: string; product?: string; produit?: string; Status?: string; State?: string; state?: string; etat?: string; Date?: string; date?: string; [k: string]: unknown };
 
 const CREDS_KEY = "eagle_creds";
 
@@ -115,7 +115,7 @@ export default function EaglePage() {
   }
 
   const isConnected = !!savedCreds?.tk;
-  const filteredCities = cities.filter(c => String(c.ville ?? c.city ?? "").toLowerCase().includes(citySearch.toLowerCase()));
+  const filteredCities = cities.filter(c => String(c.City ?? "").toLowerCase().includes(citySearch.toLowerCase()));
 
   const tabs = [
     { key: "config", label: "⚙️ Config" },
@@ -277,18 +277,18 @@ export default function EaglePage() {
                   </thead>
                   <tbody>
                     {packages.map((p, i) => (
-                      <tr key={p.code ?? i} className="border-b border-slate-50 hover:bg-slate-50/60 transition-colors">
-                        <td className="px-5 py-3.5 font-mono text-xs text-slate-400">{p.code ?? "—"}</td>
+                      <tr key={p.Code ?? p.code ?? i} className="border-b border-slate-50 hover:bg-slate-50/60 transition-colors">
+                        <td className="px-5 py-3.5 font-mono text-xs text-slate-400">{p.Code ?? p.code ?? "—"}</td>
                         <td className="px-5 py-3.5">
-                          <p className="font-semibold text-slate-800">{p.fullname ?? p.nom ?? "—"}</p>
-                          <p className="text-xs text-slate-400">{p.phone ?? p.telephone ?? ""}</p>
+                          <p className="font-semibold text-slate-800">{p.Full_Name ?? p.fullname ?? p.nom ?? "—"}</p>
+                          <p className="text-xs text-slate-400">{p.Phone ?? p.phone ?? p.telephone ?? ""}</p>
                         </td>
-                        <td className="px-5 py-3.5 text-slate-500">{p.city ?? p.ville ?? "—"}</td>
-                        <td className="px-5 py-3.5 text-slate-600 max-w-[150px] truncate">{p.product ?? p.produit ?? "—"}</td>
-                        <td className="px-5 py-3.5 font-bold text-slate-800">{p.price ?? p.prix ?? "—"} MAD</td>
+                        <td className="px-5 py-3.5 text-slate-500">{p.City ?? p.city ?? p.ville ?? "—"}</td>
+                        <td className="px-5 py-3.5 text-slate-600 max-w-[150px] truncate">{p.Product ?? p.product ?? p.produit ?? "—"}</td>
+                        <td className="px-5 py-3.5 font-bold text-slate-800">{p.COD ?? p.price ?? p.prix ?? "—"} MAD</td>
                         <td className="px-5 py-3.5">
-                          <span className={`px-2.5 py-1 rounded-lg text-xs font-semibold ${statusStyle(String(p.state ?? p.etat ?? ""))}`}>
-                            {String(p.state ?? p.etat ?? "—")}
+                          <span className={`px-2.5 py-1 rounded-lg text-xs font-semibold ${statusStyle(String(p.Status ?? p.State ?? p.state ?? p.etat ?? ""))}`}>
+                            {String(p.Status ?? p.State ?? p.state ?? p.etat ?? "—")}
                           </span>
                         </td>
                       </tr>
@@ -353,16 +353,34 @@ export default function EaglePage() {
                   <thead>
                     <tr className="text-xs text-slate-400 border-b border-slate-50">
                       <th className="text-left px-5 py-3 font-semibold uppercase tracking-wide">Ville</th>
-                      <th className="text-left px-5 py-3 font-semibold uppercase tracking-wide">Tarif livraison</th>
+                      <th className="text-left px-5 py-3 font-semibold uppercase tracking-wide">Livraison</th>
+                      <th className="text-left px-5 py-3 font-semibold uppercase tracking-wide">Retour</th>
+                      <th className="text-left px-5 py-3 font-semibold uppercase tracking-wide">Refus</th>
+                      <th className="text-left px-5 py-3 font-semibold uppercase tracking-wide">Échange</th>
                     </tr>
                   </thead>
                   <tbody>
                     {filteredCities.map((c, i) => (
-                      <tr key={i} className="border-b border-slate-50 hover:bg-slate-50/60 transition-colors">
-                        <td className="px-5 py-3 font-medium text-slate-800">{String(c.ville ?? c.city ?? c.nom ?? "—")}</td>
+                      <tr key={c.ID ?? i} className="border-b border-slate-50 hover:bg-slate-50/60 transition-colors">
+                        <td className="px-5 py-3 font-medium text-slate-800">{String(c.City ?? "—")}</td>
                         <td className="px-5 py-3">
                           <span className="bg-amber-50 text-amber-700 text-xs font-bold px-2.5 py-1 rounded-lg">
-                            {String(c.tarif ?? c.fee ?? c.prix ?? "—")} MAD
+                            {String(c.Delivered_Fees ?? "—")} MAD
+                          </span>
+                        </td>
+                        <td className="px-5 py-3">
+                          <span className="bg-red-50 text-red-600 text-xs font-bold px-2.5 py-1 rounded-lg">
+                            {String(c.Returned_Fees ?? "—")} MAD
+                          </span>
+                        </td>
+                        <td className="px-5 py-3">
+                          <span className="bg-slate-100 text-slate-500 text-xs font-bold px-2.5 py-1 rounded-lg">
+                            {String(c.Refused_Fees ?? "—")} MAD
+                          </span>
+                        </td>
+                        <td className="px-5 py-3">
+                          <span className="bg-blue-50 text-blue-600 text-xs font-bold px-2.5 py-1 rounded-lg">
+                            {String(c.Changed_Fees ?? "—")} MAD
                           </span>
                         </td>
                       </tr>
