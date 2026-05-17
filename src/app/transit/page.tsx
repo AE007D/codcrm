@@ -3,15 +3,31 @@
 import { useState, useCallback, useEffect } from "react";
 import Sidebar from "@/components/Sidebar";
 
-type Creds = { apiId: string; apiKey: string };
-type EagleCreds = { tk: string; sk: string };
 type Parcel = Record<string, unknown>;
 
-const AMEEX_TRANSIT = ["en cours", "in transit", "picked up", "en livraison", "ramassé", "sorti pour livraison", "processing"];
-const EAGLE_TRANSIT = ["en cours", "in transit", "in_transit", "en livraison", "livraison", "sorti", "pris en charge"];
+// Ameex status → display config
+const STATUS_MAP: Record<string, { label: string; color: string; bg: string }> = {
+  "livré":              { label: "Livré ✓",        color: "text-emerald-700", bg: "bg-emerald-50 border-emerald-200" },
+  "delivered":          { label: "Livré ✓",        color: "text-emerald-700", bg: "bg-emerald-50 border-emerald-200" },
+  "retourné":           { label: "Retourné",        color: "text-red-600",     bg: "bg-red-50 border-red-200" },
+  "returned":           { label: "Retourné",        color: "text-red-600",     bg: "bg-red-50 border-red-200" },
+  "annulé":             { label: "Annulé",          color: "text-slate-500",   bg: "bg-slate-100 border-slate-200" },
+  "cancelled":          { label: "Annulé",          color: "text-slate-500",   bg: "bg-slate-100 border-slate-200" },
+  "en voyage":          { label: "En voyage",       color: "text-blue-700",    bg: "bg-blue-50 border-blue-200" },
+  "en livraison":       { label: "En livraison",    color: "text-blue-700",    bg: "bg-blue-50 border-blue-200" },
+  "en cours":           { label: "En cours",        color: "text-blue-700",    bg: "bg-blue-50 border-blue-200" },
+  "sorti pour livraison":{ label: "Sorti livraison",color: "text-blue-700",   bg: "bg-blue-50 border-blue-200" },
+  "ramassé":            { label: "Ramassé",         color: "text-indigo-700",  bg: "bg-indigo-50 border-indigo-200" },
+  "picked up":          { label: "Ramassé",         color: "text-indigo-700",  bg: "bg-indigo-50 border-indigo-200" },
+  "en attente":         { label: "En attente",      color: "text-amber-700",   bg: "bg-amber-50 border-amber-200" },
+};
 
-function isTransit(status: string, list: string[]) {
-  return list.some(s => status.toLowerCase().includes(s));
+function statusStyle(raw: string) {
+  const lower = raw.toLowerCase();
+  for (const [key, val] of Object.entries(STATUS_MAP)) {
+    if (lower.includes(key)) return val;
+  }
+  return { label: raw, color: "text-slate-600", bg: "bg-slate-100 border-slate-200" };
 }
 
 function daysSince(dateStr: string) {
@@ -23,64 +39,95 @@ function daysSince(dateStr: string) {
 
 function DaysChip({ days }: { days: number | null }) {
   if (days === null) return <span className="text-slate-400 text-xs">—</span>;
-  const color = days <= 3 ? "bg-emerald-50 text-emerald-600" : days <= 7 ? "bg-amber-50 text-amber-600" : "bg-red-50 text-red-500";
+  const color = days <= 3 ? "bg-emerald-50 text-emerald-600" : days <= 7 ? "bg-amber-50 text-amber-600" : "bg-red-50 text-red-600";
   return <span className={`text-xs font-semibold px-2.5 py-1 rounded-lg ${color}`}>{days}j</span>;
 }
 
+const STATUS_FILTERS = ["Tous", "En cours", "Livré", "Retourné", "Annulé"];
+
 export default function TransitPage() {
-  const [ameexParcels, setAmeexParcels] = useState<Parcel[]>([]);
-  const [eagleParcels, setEagleParcels] = useState<Parcel[]>([]);
+  const [parcels, setParcels] = useState<Parcel[]>([]);
   const [loading, setLoading] = useState(false);
   const [loaded, setLoaded] = useState(false);
   const [error, setError] = useState("");
+  const [filter, setFilter] = useState("Tous");
+  const [hubName, setHubName] = useState("Casablanca Hub Principal");
+  const [search, setSearch] = useState("");
 
   const loadAll = useCallback(async () => {
     setLoading(true); setError("");
-    const results: { ameex: Parcel[]; eagle: Parcel[] } = { ameex: [], eagle: [] };
-
     const s = await fetch("/api/settings").then(r => r.json()).then(d => d.settings ?? {}).catch(() => ({}));
 
-    if (s.ameex) {
-      const c: Creds = s.ameex;
-      try {
-        const r = await fetch("/api/ameex", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "listParcels", apiId: c.apiId, apiKey: c.apiKey }) });
-        const d = await r.json();
-        const all: Parcel[] = Array.isArray(d) ? d : (d?.data ?? []);
-        results.ameex = all.filter(p => isTransit(String(p.status ?? p.state ?? p.etat ?? ""), AMEEX_TRANSIT));
-      } catch { /* silent */ }
+    if (!s.ameex?.apiId) {
+      setError("Identifiants Ameex non configurés. Allez dans Intégrations → Ameex.");
+      setLoading(false);
+      return;
     }
 
-    if (s.eagle) {
-      const c: EagleCreds = s.eagle;
-      try {
-        const r = await fetch("/api/eagle", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "list", tk: c.tk, sk: c.sk }) });
-        const d = await r.json();
-        const all: Parcel[] = Array.isArray(d) ? d : [];
-        results.eagle = all.filter(p => isTransit(String(p.state ?? p.etat ?? p.status ?? ""), EAGLE_TRANSIT));
-      } catch { /* silent */ }
+    const c = s.ameex;
+    // Use saved hub name if available
+    if (c.depotName) setHubName(c.depotName);
+    const depotId = c.depotId || "34"; // 34 = Casablanca Hub Principal
+
+    try {
+      // Pass p_hub to filter by depot
+      const r = await fetch("/api/ameex", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "listParcels",
+          apiId: c.apiId,
+          apiKey: c.apiKey,
+          p_hub: depotId,
+          type: "STOCK",
+        }),
+      });
+      const d = await r.json();
+      const all: Parcel[] = Array.isArray(d) ? d : (d?.data ?? d?.parcels ?? []);
+      setParcels(all);
+    } catch (e) {
+      setError("Erreur lors du chargement: " + String(e));
     }
 
-    if (!s.ameex && !s.eagle) setError("Aucun transporteur configuré. Allez dans Intégrations pour ajouter Ameex ou Eagle Express.");
-    setAmeexParcels(results.ameex);
-    setEagleParcels(results.eagle);
     setLoading(false); setLoaded(true);
   }, []);
 
-  const total = ameexParcels.length + eagleParcels.length;
-  const totalCOD = [...ameexParcels, ...eagleParcels].reduce((s, p) => s + parseFloat(String(p.cod ?? p.price ?? p.prix ?? "0")), 0);
-  const oldParcels = [...ameexParcels, ...eagleParcels].filter(p => {
-    const d = daysSince(String(p.created_at ?? p.date ?? p.date_creation ?? ""));
-    return d !== null && d > 7;
-  }).length;
+  // Derived stats
+  const delivered = parcels.filter(p => String(p.status ?? "").toLowerCase().includes("livr"));
+  const returned  = parcels.filter(p => String(p.status ?? "").toLowerCase().includes("retour"));
+  const inTransit = parcels.filter(p => {
+    const s = String(p.status ?? "").toLowerCase();
+    return s.includes("voyage") || s.includes("livraison") || s.includes("cours") || s.includes("ramassé") || s.includes("picked");
+  });
+  const totalCOD = parcels.reduce((sum, p) => sum + parseFloat(String(p.cod ?? p.price ?? "0")), 0);
+
+  const filtered = parcels.filter(p => {
+    const s = String(p.status ?? "").toLowerCase();
+    const matchFilter =
+      filter === "Tous"     ? true :
+      filter === "Livré"    ? s.includes("livr") :
+      filter === "Retourné" ? s.includes("retour") :
+      filter === "Annulé"   ? s.includes("annul") || s.includes("cancel") :
+      filter === "En cours" ? (s.includes("voyage") || s.includes("livraison") || s.includes("cours") || s.includes("ramassé")) :
+      true;
+    const matchSearch = !search || (
+      String(p.code ?? p.barcode ?? "").toLowerCase().includes(search.toLowerCase()) ||
+      String(p.receiver ?? p.name ?? "").toLowerCase().includes(search.toLowerCase()) ||
+      String(p.city ?? p.ville ?? "").toLowerCase().includes(search.toLowerCase())
+    );
+    return matchFilter && matchSearch;
+  });
 
   return (
     <div className="flex min-h-screen bg-[#F0F4FF]">
       <Sidebar />
       <div className="flex-1 flex flex-col">
-        <header className="bg-white border-b border-slate-100 px-4 lg:px-8 py-4 pl-14 lg:pl-8 flex items-center justify-between">
+        <header className="bg-white border-b border-slate-100 px-4 lg:px-8 py-4 pl-14 lg:pl-8 flex items-center justify-between gap-3">
           <div>
-            <h1 className="text-xl font-bold text-slate-900">En Transit</h1>
-            <p className="text-sm text-slate-400 hidden sm:block">Commandes chez le transporteur — non encore livrées</p>
+            <h1 className="text-xl font-bold text-slate-900">En Transit · Ameex</h1>
+            <p className="text-sm text-slate-400 hidden sm:block">
+              🏭 {hubName} — Stock uniquement
+            </p>
           </div>
           <button onClick={loadAll} disabled={loading}
             className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 disabled:opacity-60 text-white text-sm font-semibold px-4 lg:px-5 py-2.5 rounded-xl shadow-md shadow-blue-200 transition-colors whitespace-nowrap">
@@ -106,8 +153,8 @@ export default function TransitPage() {
                 </svg>
               </div>
               <div className="text-center">
-                <p className="text-slate-800 font-bold text-lg">Vérifier les colis en transit</p>
-                <p className="text-slate-400 text-sm mt-1">Cliquez sur Actualiser pour charger les colis chez Ameex et Eagle Express</p>
+                <p className="text-slate-800 font-bold text-lg">Colis Ameex — Stock hub</p>
+                <p className="text-slate-400 text-sm mt-1">Cliquez sur Actualiser pour charger les colis de votre dépôt</p>
               </div>
               <button onClick={loadAll} className="bg-blue-600 hover:bg-blue-700 text-white font-semibold px-6 py-3 rounded-xl shadow-md shadow-blue-200 transition-colors">
                 Charger les colis
@@ -118,86 +165,100 @@ export default function TransitPage() {
           {loaded && (
             <>
               {/* KPIs */}
-              <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 lg:gap-5 mb-6">
-                {[
-                  { label: "Colis en transit", value: total, sub: "total", color: "text-blue-600" },
-                  { label: "COD immobilisé", value: `${totalCOD.toFixed(0)} MAD`, sub: "en attente de livraison", color: "text-slate-900" },
-                  { label: "Colis Ameex", value: ameexParcels.length, sub: "en cours", color: "text-blue-700" },
-                  { label: "Retard +7j ⚠️", value: oldParcels, sub: "à relancer", color: oldParcels > 0 ? "text-red-500" : "text-emerald-600" },
-                ].map(k => (
-                  <div key={k.label} className="bg-white rounded-2xl p-5 shadow-sm border border-slate-100">
-                    <p className="text-sm text-slate-500 font-medium mb-2">{k.label}</p>
-                    <p className={`text-2xl font-bold ${k.color}`}>{k.value}</p>
-                    <p className="text-xs text-slate-400 mt-1">{k.sub}</p>
-                  </div>
-                ))}
+              <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 lg:gap-4 mb-6">
+                <div className="bg-white rounded-2xl p-4 shadow-sm border border-slate-100">
+                  <p className="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-1">Total colis</p>
+                  <p className="text-2xl font-bold text-blue-600">{parcels.length}</p>
+                  <p className="text-xs text-slate-400 mt-0.5">depuis le hub</p>
+                </div>
+                <div className="bg-white rounded-2xl p-4 shadow-sm border border-slate-100">
+                  <p className="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-1">En livraison</p>
+                  <p className="text-2xl font-bold text-indigo-600">{inTransit.length}</p>
+                  <p className="text-xs text-slate-400 mt-0.5">en cours</p>
+                </div>
+                <div className="bg-white rounded-2xl p-4 shadow-sm border border-slate-100">
+                  <p className="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-1">Livrés</p>
+                  <p className="text-2xl font-bold text-emerald-600">{delivered.length}</p>
+                  <p className="text-xs text-slate-400 mt-0.5">{parcels.length > 0 ? Math.round(delivered.length / parcels.length * 100) : 0}% taux</p>
+                </div>
+                <div className="bg-white rounded-2xl p-4 shadow-sm border border-slate-100">
+                  <p className="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-1">COD total</p>
+                  <p className="text-2xl font-bold text-slate-800">{totalCOD.toFixed(0)}</p>
+                  <p className="text-xs text-slate-400 mt-0.5">MAD · {returned.length} retours</p>
+                </div>
               </div>
 
-              {/* Ameex table */}
-              {ameexParcels.length > 0 && (
-                <div className="bg-white rounded-2xl border border-slate-100 shadow-sm mb-5">
-                  <div className="px-6 py-4 border-b border-slate-100 flex items-center gap-3">
-                    <div className="w-7 h-7 rounded-lg bg-blue-700 flex items-center justify-center text-white text-xs font-bold">A</div>
-                    <h2 className="font-bold text-slate-900">Ameex — En transit ({ameexParcels.length})</h2>
-                  </div>
-                  <div className="overflow-x-auto">
-                    <table className="w-full text-sm">
-                      <thead><tr className="text-xs text-slate-400 border-b border-slate-50">
-                        {["Code", "Destinataire", "Ville", "COD", "Statut", "Âge"].map(h => <th key={h} className="text-left px-5 py-3 font-semibold uppercase tracking-wide">{h}</th>)}
-                      </tr></thead>
-                      <tbody>
-                        {ameexParcels.map((p, i) => (
-                          <tr key={i} className="border-b border-slate-50 hover:bg-slate-50/60">
-                            <td className="px-5 py-3 font-mono text-xs text-blue-600">{String(p.code ?? p.barcode ?? "—")}</td>
-                            <td className="px-5 py-3 font-semibold text-slate-800">{String(p.receiver ?? p.name ?? "—")}</td>
-                            <td className="px-5 py-3 text-slate-500">{String(p.city ?? p.ville ?? "—")}</td>
-                            <td className="px-5 py-3 font-bold text-slate-800">{String(p.cod ?? p.price ?? "—")} MAD</td>
-                            <td className="px-5 py-3"><span className="px-2 py-0.5 text-xs font-semibold bg-blue-50 text-blue-700 rounded-lg">{String(p.status ?? p.state ?? "—")}</span></td>
-                            <td className="px-5 py-3"><DaysChip days={daysSince(String(p.created_at ?? p.date ?? ""))} /></td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
+              {/* Filters + Search */}
+              <div className="flex flex-col sm:flex-row gap-3 mb-4">
+                <div className="flex gap-2 flex-wrap">
+                  {STATUS_FILTERS.map(f => (
+                    <button key={f} onClick={() => setFilter(f)}
+                      className={`text-xs font-semibold px-3 py-1.5 rounded-xl border transition-colors ${filter === f ? "bg-blue-600 text-white border-blue-600" : "bg-white text-slate-500 border-slate-200 hover:border-blue-300"}`}>
+                      {f}
+                      {f !== "Tous" && (
+                        <span className="ml-1 opacity-60">
+                          ({f === "Livré" ? delivered.length : f === "Retourné" ? returned.length : f === "En cours" ? inTransit.length : parcels.filter(p => String(p.status ?? "").toLowerCase().includes("annul")).length})
+                        </span>
+                      )}
+                    </button>
+                  ))}
                 </div>
-              )}
+                <input
+                  type="text"
+                  placeholder="Rechercher code, client, ville…"
+                  value={search}
+                  onChange={e => setSearch(e.target.value)}
+                  className="sm:ml-auto w-full sm:w-64 text-sm border border-slate-200 rounded-xl px-4 py-2 outline-none focus:border-blue-400 bg-white"
+                />
+              </div>
 
-              {/* Eagle table */}
-              {eagleParcels.length > 0 && (
-                <div className="bg-white rounded-2xl border border-slate-100 shadow-sm mb-5">
-                  <div className="px-6 py-4 border-b border-slate-100 flex items-center gap-3">
-                    <div className="w-7 h-7 rounded-lg bg-amber-500 flex items-center justify-center text-white text-xs font-bold">E</div>
-                    <h2 className="font-bold text-slate-900">Eagle Express — En transit ({eagleParcels.length})</h2>
-                  </div>
-                  <div className="overflow-x-auto">
-                    <table className="w-full text-sm">
-                      <thead><tr className="text-xs text-slate-400 border-b border-slate-50">
-                        {["Code", "Client", "Ville", "COD", "Statut", "Âge"].map(h => <th key={h} className="text-left px-5 py-3 font-semibold uppercase tracking-wide">{h}</th>)}
-                      </tr></thead>
-                      <tbody>
-                        {eagleParcels.map((p, i) => (
-                          <tr key={i} className="border-b border-slate-50 hover:bg-slate-50/60">
-                            <td className="px-5 py-3 font-mono text-xs text-amber-600">{String(p.code ?? "—")}</td>
-                            <td className="px-5 py-3 font-semibold text-slate-800">{String(p.fullname ?? p.nom ?? "—")}</td>
-                            <td className="px-5 py-3 text-slate-500">{String(p.city ?? p.ville ?? "—")}</td>
-                            <td className="px-5 py-3 font-bold text-slate-800">{String(p.price ?? p.prix ?? "—")} MAD</td>
-                            <td className="px-5 py-3"><span className="px-2 py-0.5 text-xs font-semibold bg-amber-50 text-amber-700 rounded-lg">{String(p.state ?? p.etat ?? "—")}</span></td>
-                            <td className="px-5 py-3"><DaysChip days={daysSince(String(p.created_at ?? p.date ?? ""))} /></td>
+              {/* Table */}
+              <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
+                <div className="px-5 py-3 border-b border-slate-100 flex items-center gap-2">
+                  <div className="w-6 h-6 rounded-lg bg-blue-700 flex items-center justify-center text-white text-xs font-bold">A</div>
+                  <span className="font-bold text-slate-800 text-sm">Ameex — {hubName}</span>
+                  <span className="ml-auto text-xs text-slate-400">{filtered.length} colis</span>
+                </div>
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="text-xs text-slate-400 border-b border-slate-50 bg-slate-50/50">
+                        <th className="text-left px-5 py-3 font-semibold uppercase tracking-wide">Code suivi</th>
+                        <th className="text-left px-5 py-3 font-semibold uppercase tracking-wide">Destinataire</th>
+                        <th className="text-left px-5 py-3 font-semibold uppercase tracking-wide hidden sm:table-cell">Ville</th>
+                        <th className="text-left px-5 py-3 font-semibold uppercase tracking-wide">COD</th>
+                        <th className="text-left px-5 py-3 font-semibold uppercase tracking-wide">Statut</th>
+                        <th className="text-left px-5 py-3 font-semibold uppercase tracking-wide hidden md:table-cell">Âge</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {filtered.length === 0 ? (
+                        <tr><td colSpan={6} className="px-5 py-12 text-center text-slate-400 text-sm">Aucun colis</td></tr>
+                      ) : filtered.map((p, i) => {
+                        const rawStatus = String(p.status ?? p.state ?? p.etat ?? "");
+                        const st = statusStyle(rawStatus);
+                        const days = daysSince(String(p.created_at ?? p.date ?? p.date_creation ?? ""));
+                        return (
+                          <tr key={i} className="border-b border-slate-50 hover:bg-slate-50/60 transition-colors">
+                            <td className="px-5 py-3.5 font-mono text-xs text-blue-600 whitespace-nowrap">{String(p.code ?? p.barcode ?? "—")}</td>
+                            <td className="px-5 py-3.5">
+                              <p className="font-semibold text-slate-800">{String(p.receiver ?? p.name ?? p.destinataire ?? "—")}</p>
+                            </td>
+                            <td className="px-5 py-3.5 text-slate-500 hidden sm:table-cell">{String(p.city ?? p.ville ?? "—")}</td>
+                            <td className="px-5 py-3.5 font-bold text-slate-800 whitespace-nowrap">{String(p.cod ?? p.price ?? p.crbt ?? "—")} MAD</td>
+                            <td className="px-5 py-3.5">
+                              <span className={`inline-block px-2.5 py-1 rounded-lg text-xs font-semibold border ${st.bg} ${st.color} whitespace-nowrap`}>
+                                {st.label !== rawStatus ? st.label : rawStatus.split(/[\n,]+/)[0].trim().slice(0, 30)}
+                              </span>
+                            </td>
+                            <td className="px-5 py-3.5 hidden md:table-cell"><DaysChip days={days} /></td>
                           </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
+                        );
+                      })}
+                    </tbody>
+                  </table>
                 </div>
-              )}
-
-              {total === 0 && (
-                <div className="flex flex-col items-center py-16 gap-3">
-                  <span className="text-5xl">📦</span>
-                  <p className="text-slate-600 font-semibold">Aucun colis en transit</p>
-                  <p className="text-slate-400 text-sm">Tous les colis sont livrés ou en attente de ramassage</p>
-                </div>
-              )}
+              </div>
             </>
           )}
         </main>
