@@ -543,9 +543,8 @@ export default function CommandesPage() {
               type: shipType,
               ...(shipType === "STOCK" ? (() => {
                 const hub = depotId || "34";
-                // Resolve product: manual input (orderId key) > auto-match from catalog SKU/Ref
+                // Resolve product Réf: manual input > auto-match from CRM catalog SKU
                 const manualVal = ameexProductIds[order.id]?.trim() ?? "";
-                // Auto-match SKU from CRM catalog by order product name
                 const autoSku = (() => {
                   const m = catalog.find(p =>
                     p.name.toLowerCase() === (order.product ?? "").toLowerCase() ||
@@ -555,22 +554,12 @@ export default function CommandesPage() {
                   return m?.sku ?? "";
                 })();
                 const resolvedRef = manualVal || autoSku;
-                // Try to resolve numeric Ameex product ID from the fetched stock products list
-                // matching by Réf (= CRM SKU) — Ameex needs the numeric ID, not the Réf string
-                const numericId = (() => {
-                  if (!resolvedRef || !ameexStockProducts.length) return "";
-                  const found = ameexStockProducts.find(p =>
-                    p.ref.toLowerCase() === resolvedRef.toLowerCase() ||
-                    p.name.toLowerCase() === (order.product ?? "").toLowerCase() ||
-                    (order.product ?? "").toLowerCase().includes(p.name.toLowerCase())
-                  );
-                  return found?.id ?? "";
-                })();
-                // Use numeric ID if found, otherwise fall back to Réf string
-                const productId = numericId || resolvedRef;
+                // Ameex expects "goods" field in format "REF:QTY" (confirmed from Ameex JS source)
+                // e.g. "23336-0-39854-1055-ND:1"
+                const goodsValue = resolvedRef ? resolvedRef + ":1" : "";
                 return {
                   p_hub: hub,
-                  ...(productId ? { p_product: productId } : {}),
+                  ...(goodsValue ? { goods: goodsValue } : {}),
                 };
               })() : {}),
               open: "NO",
