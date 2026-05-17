@@ -914,7 +914,7 @@ export default function CommandesPage() {
                       : "border-slate-50 hover:bg-slate-50/60";
                     return (
                       <tr key={o.id} className={`border-b transition-colors cursor-pointer ${rowBg}`}>
-                        <td className="px-4 py-3.5" onClick={e => { e.stopPropagation(); toggleSelect(o.id); }}>
+                        <td className="px-4 py-3.5" onClick={e => e.stopPropagation()}>
                           <input type="checkbox" checked={isSelected} onChange={() => toggleSelect(o.id)}
                             className="w-4 h-4 rounded accent-blue-600 cursor-pointer" />
                         </td>
