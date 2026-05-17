@@ -111,7 +111,7 @@ export default function EquipePage() {
     setInviteError("");
     setInviteLoading(true);
     try {
-      const res = await fetch("/api/auth/signup", {
+      const res = await fetch("/api/auth/users", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -119,7 +119,6 @@ export default function EquipePage() {
           email: inviteEmail,
           password: invitePassword,
           role: inviteRole,
-          workspaceId: currentUser?.workspaceId, // join admin's workspace
         }),
       });
       const data = await res.json();
