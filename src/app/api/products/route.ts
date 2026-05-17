@@ -1,13 +1,18 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getRequestUser } from "@/lib/getRequestUser";
 import { getProducts, createProduct, updateProduct, deleteProduct, addStock } from "@/lib/supabaseProductStore";
+import { getSettings, saveSettings } from "@/lib/supabaseSettingsStore";
 import { supabase } from "@/lib/supabase";
 
 export async function GET() {
   const user = await getRequestUser();
   if (!user) return NextResponse.json({ error: "Non authentifié." }, { status: 401 });
 
-  const products = await getProducts(user.workspaceId);
+  const [products, settings] = await Promise.all([
+    getProducts(user.workspaceId),
+    getSettings(user.workspaceId),
+  ]);
+  const productPixels: Record<string, string> = (settings.productPixels as Record<string, string>) ?? {};
 
   // Fetch page order counts per product (source='page') in one query
   const { data: pageOrders } = await supabase
@@ -25,6 +30,7 @@ export async function GET() {
   const enriched = products.map(p => ({
     ...p,
     pageOrders: pageOrderMap[p.name] ?? 0,
+    facebookPixelId: productPixels[p.id] ?? "",
   }));
 
   return NextResponse.json({ products: enriched });
@@ -48,10 +54,15 @@ export async function POST(request: NextRequest) {
       purchasePrice: parseFloat(purchasePrice) || 0,
       stock: parseInt(stock) || 0,
       minStock: parseInt(minStock) || 5,
-      facebookPixelId: String(facebookPixelId ?? "").trim(),
     });
 
-    return NextResponse.json({ ok: true, product });
+    if (facebookPixelId) {
+      const settings = await getSettings(user.workspaceId);
+      const productPixels = { ...(settings.productPixels as Record<string, string> ?? {}), [product.id]: String(facebookPixelId).trim() };
+      await saveSettings(user.workspaceId, { productPixels });
+    }
+
+    return NextResponse.json({ ok: true, product: { ...product, facebookPixelId: facebookPixelId ? String(facebookPixelId).trim() : "" } });
   } catch (err) {
     const msg = err instanceof Error ? err.message : "Erreur serveur";
     return NextResponse.json({ error: msg }, { status: 500 });
@@ -82,9 +93,13 @@ export async function PATCH(request: NextRequest) {
     if (rest.purchasePrice !== undefined) patch.purchasePrice = parseFloat(rest.purchasePrice) || 0;
     if (rest.stock !== undefined) patch.stock = parseInt(rest.stock) || 0;
     if (rest.minStock !== undefined) patch.minStock = parseInt(rest.minStock) || 5;
-    if (rest.facebookPixelId !== undefined) patch.facebookPixelId = String(rest.facebookPixelId).trim();
 
     const updated = await updateProduct(id, user.workspaceId, patch);
+    if (rest.facebookPixelId !== undefined) {
+      const settings = await getSettings(user.workspaceId);
+      const productPixels = { ...(settings.productPixels as Record<string, string> ?? {}), [id]: String(rest.facebookPixelId).trim() };
+      await saveSettings(user.workspaceId, { productPixels });
+    }
     if (!updated) return NextResponse.json({ error: "Produit introuvable." }, { status: 404 });
     return NextResponse.json({ ok: true, product: updated });
   } catch (err) {

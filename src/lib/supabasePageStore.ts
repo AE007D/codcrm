@@ -51,7 +51,6 @@ function rowToPage(row: any): LandingPage {
     views: row.views ?? 0,
     orders: row.orders ?? 0,
     created_at: row.created_at,
-    facebookPixelId: row.facebook_pixel_id ?? "",
   };
 }
 
@@ -101,7 +100,6 @@ export async function savePage(page: Omit<LandingPage, "id" | "views" | "orders"
       views: page.views ?? 0,
       orders: page.orders ?? 0,
       created_at: page.created_at ?? new Date().toISOString(),
-      facebook_pixel_id: page.facebookPixelId ?? "",
     }, { onConflict: "id" })
     .select()
     .single();

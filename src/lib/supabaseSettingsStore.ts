@@ -7,6 +7,8 @@ export type UserSettings = {
   shopify?: { store: string; apiKey: string };
   facebook?: { accessToken: string };
   tiktok?: { accessToken: string };
+  productPixels?: Record<string, string>;
+  pagePixels?: Record<string, string>;
   [key: string]: unknown;
 };
 
