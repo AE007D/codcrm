@@ -420,7 +420,7 @@ export default function CommandesPage() {
     setShipResults([]);
     const selectedOrders = orders.filter(o => selected.has(o.id));
 
-    // Load credentials from server (per-user, not localStorage)
+    // Load credentials from server settings, with localStorage fallback
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     let creds: Record<string, any> = {};
     try {
@@ -428,6 +428,13 @@ export default function CommandesPage() {
       const s = settingsData.settings ?? {};
       creds = shipCarrier === "ameex" ? (s.ameex ?? {}) : (s.eagle ?? {});
     } catch { /* no creds */ }
+    // Fallback: Eagle creds may have been saved in standalone /eagle page (localStorage)
+    if (shipCarrier === "eagle" && !creds.tk) {
+      try {
+        const stored = localStorage.getItem("eagle_creds");
+        if (stored) { const parsed = JSON.parse(stored); if (parsed?.tk) creds = parsed; }
+      } catch { /* ignore */ }
+    }
 
     // Resolve ship type + depot: prefer fresh settings > UI state
     const shipType: string = creds.defaultType ?? ameexShipType ?? "SIMPLE";
