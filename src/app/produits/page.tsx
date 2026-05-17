@@ -70,8 +70,9 @@ export default function ProduitsPage() {
   const [fbPixels, setFbPixels] = useState<{ id: string; name: string }[]>([]);
   const [loadingPixels, setLoadingPixels] = useState(false);
 
-  // Agents for commission assignment
+  // Agents and boutiques for commission assignment
   const [agents, setAgents] = useState<{ id: string; name: string }[]>([]);
+  const [boutiques, setBoutiques] = useState<string[]>([]);
 
   async function fetchFbPixels() {
     setLoadingPixels(true);
@@ -101,10 +102,11 @@ export default function ProduitsPage() {
 
   const fetchProducts = useCallback(async () => {
     try {
-      const [pRes, oRes, aRes] = await Promise.all([
+      const [pRes, oRes, aRes, bRes] = await Promise.all([
         fetch("/api/products"),
         fetch("/api/lf-orders"),
         fetch("/api/auth/users"),
+        fetch("/api/boutiques"),
       ]);
       if (pRes.status === 401) { window.location.href = "/login"; return; }
       const pData = await pRes.json();
@@ -126,6 +128,10 @@ export default function ProduitsPage() {
       if (aRes.ok) {
         const aData = await aRes.json();
         setAgents((aData.users ?? []).filter((u: { id: string; name: string; role: string }) => u.role === "agent" || u.role === "admin"));
+      }
+      if (bRes.ok) {
+        const bData = await bRes.json();
+        setBoutiques(bData.boutiques ?? []);
       }
     } catch { /* silent */ }
     finally { setLoading(false); }
@@ -577,10 +583,22 @@ export default function ProduitsPage() {
                 <div className="flex flex-col gap-3">
                   <div>
                     <label className="text-xs font-semibold text-slate-600 mb-1.5 block">Boutique (store)</label>
-                    <input type="text" placeholder="Ex: Layanpromo, Atlas Store…"
-                      value={form.boutiqueNom}
-                      onChange={e => setForm(f => ({ ...f, boutiqueNom: e.target.value }))}
-                      className="w-full text-sm border border-emerald-200 rounded-xl px-4 py-2.5 outline-none focus:border-emerald-400 focus:ring-2 focus:ring-emerald-50 bg-white" />
+                    {boutiques.length > 0 ? (
+                      <select value={form.boutiqueNom}
+                        onChange={e => setForm(f => ({ ...f, boutiqueNom: e.target.value }))}
+                        className="w-full text-sm border border-emerald-200 rounded-xl px-4 py-2.5 outline-none focus:border-emerald-400 bg-white">
+                        <option value="">— Aucune —</option>
+                        {boutiques.map(b => <option key={b} value={b}>{b}</option>)}
+                      </select>
+                    ) : (
+                      <input type="text" placeholder="Ex: Layanpromo, Atlas Store…"
+                        value={form.boutiqueNom}
+                        onChange={e => setForm(f => ({ ...f, boutiqueNom: e.target.value }))}
+                        className="w-full text-sm border border-emerald-200 rounded-xl px-4 py-2.5 outline-none focus:border-emerald-400 focus:ring-2 focus:ring-emerald-50 bg-white" />
+                    )}
+                    {boutiques.length === 0 && (
+                      <p className="text-xs text-slate-400 mt-1">Créez des boutiques dans <strong>Équipe → Boutiques</strong> pour avoir un menu déroulant.</p>
+                    )}
                   </div>
                   <div className="grid grid-cols-2 gap-3">
                     <div>
