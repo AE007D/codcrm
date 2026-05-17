@@ -13,6 +13,8 @@ const ENDPOINTS: Record<string, { path: string; method: string }> = {
   cities:         { path: "/Delivery/Cities", method: "GET" },
   depots:         { path: "/Delivery/Depots", method: "GET" },
   stocks:         { path: "/Stock/Depots", method: "GET" },
+  stockProducts:  { path: "/Stock/Products", method: "GET" },
+  stockItems:     { path: "/Stock/Items", method: "GET" },
   cnfgApp:        { path: "/Cnfg/App", method: "POST" },
 };
 
