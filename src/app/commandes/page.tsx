@@ -130,7 +130,8 @@ export default function CommandesPage() {
   const [shipping, setShipping] = useState(false);
   const [shipResults, setShipResults] = useState<{ id: string; ok: boolean; msg: string }[]>([]);
   const [ameexCities, setAmeexCities] = useState<{ id: string; name: string }[]>([]);
-  const [cityOverrides, setCityOverrides] = useState<Record<string, string>>({}); // orderId → cityId
+  const [cityOverrides, setCityOverrides] = useState<Record<string, string>>({}); // orderId → cityId (Ameex) or city name (Eagle)
+  const [eagleAddressOverrides, setEagleAddressOverrides] = useState<Record<string, string>>({}); // orderId → address override for Eagle
   const [ameexShipType, setAmeexShipType] = useState<"SIMPLE"|"STOCK">("SIMPLE");
   const [ameexDepots, setAmeexDepots] = useState<{ id: string; name: string }[]>([]);
   const [ameexDepot, setAmeexDepot] = useState<string>("");
@@ -470,6 +471,8 @@ export default function CommandesPage() {
             }),
           });
         } else {
+          const eagleCity = cityOverrides[order.id] || order.city || "";
+          const eagleAddress = eagleAddressOverrides[order.id] || order.address || eagleCity;
           res = await fetch("/api/eagle", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
@@ -477,12 +480,12 @@ export default function CommandesPage() {
               action: "add",
               tk: creds.tk ?? "",
               sk: creds.sk ?? "",
-              fullname: order.customer,
-              phone: order.phone,
-              city: order.city,
-              address: order.address || order.city,
-              price: order.amount,
-              product: order.product,
+              fullname: order.customer || "—",
+              phone: order.phone || "",
+              city: eagleCity || "Casablanca",
+              address: eagleAddress || eagleCity || "—",
+              price: String(order.amount ?? ""),
+              product: order.product || "Produit",
               qty: "1",
               note: order.orderNumber || order.id.slice(-8),
               change: "0",
@@ -494,16 +497,13 @@ export default function CommandesPage() {
         // Ameex wraps response: {login:"success", api:{type:"success", msg:"...", data:{id:..., code:"..."}}}
         const nested = data?.api?.data ?? data?.data ?? null;
         const trackingCode = nested?.code ?? nested?.id ?? data.code ?? data.CODE ?? data.tracking ?? data.barcode ?? data.id ?? data.parcel_id ?? null;
-        // Only consider success if a real parcel ID/code was returned
-        const ok = res.ok && (
-          trackingCode != null ||
-          data?.api?.type === "success" ||
-          data.status === "success"
-        );
+        // Eagle returns {message:"success"} or similar on success
+        const eagleOk = data?.message?.toLowerCase?.()?.includes("success") || data?.status?.toLowerCase?.()?.includes("success");
+        const ok = res.ok && (trackingCode != null || data?.api?.type === "success" || eagleOk);
         if (ok) {
           setStatus(order.id, "expédié");
           // Save the carrier tracking code so webhooks can auto-update this order
-          if (trackingCode && shipCarrier === "ameex") {
+          if (trackingCode) {
             fetch("/api/orders", {
               method: "PATCH",
               headers: { "Content-Type": "application/json" },
@@ -1056,6 +1056,34 @@ export default function CommandesPage() {
                         </div>
                       );
                     })}
+                  </div>
+                );
+              })()}
+              {/* Eagle Express — city + address editor per order */}
+              {!shipResults.length && shipCarrier === "eagle" && (() => {
+                const selectedOrders = orders.filter(o => selected.has(o.id));
+                return (
+                  <div className="space-y-2">
+                    <p className="text-xs font-semibold text-slate-500">🏙 Vérifiez ville et adresse avant d&apos;envoyer :</p>
+                    {selectedOrders.map(o => (
+                      <div key={o.id} className="p-2 rounded-xl border border-slate-200 bg-slate-50 space-y-1.5">
+                        <p className="text-xs font-semibold text-slate-700 truncate">{o.customer}</p>
+                        <input
+                          type="text"
+                          placeholder="Ville (ex: Casablanca)"
+                          value={cityOverrides[o.id] ?? o.city ?? ""}
+                          onChange={e => setCityOverrides(prev => ({ ...prev, [o.id]: e.target.value }))}
+                          className="w-full text-xs border border-slate-200 rounded-lg px-2 py-1.5 outline-none focus:border-amber-400 bg-white"
+                        />
+                        <input
+                          type="text"
+                          placeholder="Adresse"
+                          value={eagleAddressOverrides[o.id] ?? o.address ?? ""}
+                          onChange={e => setEagleAddressOverrides(prev => ({ ...prev, [o.id]: e.target.value }))}
+                          className="w-full text-xs border border-slate-200 rounded-lg px-2 py-1.5 outline-none focus:border-amber-400 bg-white"
+                        />
+                      </div>
+                    ))}
                   </div>
                 );
               })()}
