@@ -16,12 +16,18 @@ type Product = {
   createdAt: string;
   pageViews: number;
   pageOrders: number;
+  facebookPixelId?: string;
+  boutiqueNom?: string;
+  agentId?: string;
+  agentName?: string;
+  commissionAmount?: number;
 };
 
 type OrderProduct = { name: string; unitsSold: number; orderCount: number; revenue: number };
 
 const emptyForm = {
   name: "", sku: "", image: "", sellPrice: "", purchasePrice: "", stock: "", minStock: "5", facebookPixelId: "",
+  boutiqueNom: "", agentId: "", agentName: "", commissionAmount: "",
 };
 
 function ProductImage({ image, name, size = 48 }: { image: string; name: string; size?: number }) {
@@ -60,6 +66,23 @@ export default function ProduitsPage() {
   const [formError, setFormError] = useState("");
   const fileRef = useRef<HTMLInputElement>(null);
 
+  // Facebook pixel picker
+  const [fbPixels, setFbPixels] = useState<{ id: string; name: string }[]>([]);
+  const [loadingPixels, setLoadingPixels] = useState(false);
+
+  // Agents for commission assignment
+  const [agents, setAgents] = useState<{ id: string; name: string }[]>([]);
+
+  async function fetchFbPixels() {
+    setLoadingPixels(true);
+    try {
+      const res = await fetch("/api/facebook-pixels");
+      const data = await res.json();
+      if (data.pixels) setFbPixels(data.pixels);
+    } catch { /* silent */ }
+    finally { setLoadingPixels(false); }
+  }
+
   // Page link copy
   const [copiedId, setCopiedId] = useState<string | null>(null);
   function copyPageLink(productId: string) {
@@ -78,9 +101,10 @@ export default function ProduitsPage() {
 
   const fetchProducts = useCallback(async () => {
     try {
-      const [pRes, oRes] = await Promise.all([
+      const [pRes, oRes, aRes] = await Promise.all([
         fetch("/api/products"),
         fetch("/api/lf-orders"),
+        fetch("/api/auth/users"),
       ]);
       if (pRes.status === 401) { window.location.href = "/login"; return; }
       const pData = await pRes.json();
@@ -98,6 +122,11 @@ export default function ProduitsPage() {
         map.set(name, { ...existing, unitsSold: existing.unitsSold + qty, orderCount: existing.orderCount + 1, revenue: existing.revenue + price });
       }
       setOrderStats(map);
+
+      if (aRes.ok) {
+        const aData = await aRes.json();
+        setAgents((aData.users ?? []).filter((u: { id: string; name: string; role: string }) => u.role === "agent" || u.role === "admin"));
+      }
     } catch { /* silent */ }
     finally { setLoading(false); }
   }, []);
@@ -109,7 +138,16 @@ export default function ProduitsPage() {
   }
   function openEdit(p: Product) {
     setEditProduct(p);
-    setForm({ name: p.name, sku: p.sku, image: p.image, sellPrice: String(p.sellPrice), purchasePrice: String(p.purchasePrice), stock: String(p.stock), minStock: String(p.minStock), facebookPixelId: p.facebookPixelId ?? "" });
+    setForm({
+      name: p.name, sku: p.sku, image: p.image,
+      sellPrice: String(p.sellPrice), purchasePrice: String(p.purchasePrice),
+      stock: String(p.stock), minStock: String(p.minStock),
+      facebookPixelId: p.facebookPixelId ?? "",
+      boutiqueNom: p.boutiqueNom ?? "",
+      agentId: p.agentId ?? "",
+      agentName: p.agentName ?? "",
+      commissionAmount: p.commissionAmount ? String(p.commissionAmount) : "",
+    });
     setFormError(""); setShowModal(true);
   }
 
@@ -517,6 +555,53 @@ export default function ProduitsPage() {
                     className="w-full text-sm border border-blue-200 rounded-xl px-4 py-2.5 outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-50 bg-white font-mono"
                   />
                   <p className="text-xs text-slate-400 mt-1.5">Se déclenche automatiquement sur la page produit et envoie un événement Lead à chaque commande.</p>
+                </div>
+              </div>
+
+              {/* Boutique + Commission */}
+              <div className="bg-emerald-50 rounded-2xl p-4">
+                <p className="text-xs font-bold text-emerald-700 uppercase tracking-wider mb-3">🏪 Boutique & Commission</p>
+                <div className="flex flex-col gap-3">
+                  <div>
+                    <label className="text-xs font-semibold text-slate-600 mb-1.5 block">Boutique (store)</label>
+                    <input
+                      type="text"
+                      placeholder="Ex: Layanpromo, Atlas Store…"
+                      value={form.boutiqueNom}
+                      onChange={e => setForm(f => ({ ...f, boutiqueNom: e.target.value }))}
+                      className="w-full text-sm border border-emerald-200 rounded-xl px-4 py-2.5 outline-none focus:border-emerald-400 focus:ring-2 focus:ring-emerald-50 bg-white"
+                    />
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="text-xs font-semibold text-slate-600 mb-1.5 block">Agent assigné</label>
+                      <select
+                        value={form.agentId}
+                        onChange={e => {
+                          const agent = agents.find(a => a.id === e.target.value);
+                          setForm(f => ({ ...f, agentId: e.target.value, agentName: agent?.name ?? "" }));
+                        }}
+                        className="w-full text-sm border border-emerald-200 rounded-xl px-4 py-2.5 outline-none focus:border-emerald-400 bg-white"
+                      >
+                        <option value="">— Aucun —</option>
+                        {agents.map(a => (
+                          <option key={a.id} value={a.id}>{a.name}</option>
+                        ))}
+                      </select>
+                    </div>
+                    <div>
+                      <label className="text-xs font-semibold text-slate-600 mb-1.5 block">Commission / livraison (MAD)</label>
+                      <input
+                        type="number"
+                        placeholder="15"
+                        min="0"
+                        value={form.commissionAmount}
+                        onChange={e => setForm(f => ({ ...f, commissionAmount: e.target.value }))}
+                        className="w-full text-sm border border-emerald-200 rounded-xl px-4 py-2.5 outline-none focus:border-emerald-400 focus:ring-2 focus:ring-emerald-50 bg-white"
+                      />
+                    </div>
+                  </div>
+                  <p className="text-xs text-slate-400">La commission est créditée automatiquement à l&apos;agent dès qu&apos;une commande est marquée Livrée.</p>
                 </div>
               </div>
 

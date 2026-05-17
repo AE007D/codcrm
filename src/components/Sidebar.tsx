@@ -29,7 +29,7 @@ const navItems: NavItem[] = [
       <rect x="9" y="3" width="6" height="4" rx="1"/><path d="M9 12h6M9 16h4"/>
     </svg>
   )},
-  { label: "Mes Paiements", href: "/paiements", agentVisible: true, icon: (
+  { label: "Paiements", href: "/paiements", agentVisible: true, icon: (
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="w-5 h-5">
       <path d="M12 2v20M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/>
     </svg>
@@ -61,11 +61,6 @@ const navItems: NavItem[] = [
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="w-5 h-5">
       <path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/>
       <path d="M23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75"/>
-    </svg>
-  )},
-  { label: "Paiements équipe", href: "/paiements", adminOnly: true, icon: (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="w-5 h-5">
-      <rect x="1" y="4" width="22" height="16" rx="2"/><line x1="1" y1="10" x2="23" y2="10"/>
     </svg>
   )},
   { label: "Finances", href: "/finances", adminOnly: true, icon: (

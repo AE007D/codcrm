@@ -1,13 +1,19 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getRequestUser } from "@/lib/getRequestUser";
 import { getProducts, createProduct, updateProduct, deleteProduct, addStock } from "@/lib/supabaseProductStore";
+import { getSettings, saveSettings } from "@/lib/supabaseSettingsStore";
 import { supabase } from "@/lib/supabase";
 
 export async function GET() {
   const user = await getRequestUser();
   if (!user) return NextResponse.json({ error: "Non authentifié." }, { status: 401 });
 
-  const products = await getProducts(user.workspaceId);
+  const [products, settings] = await Promise.all([
+    getProducts(user.workspaceId),
+    getSettings(user.workspaceId),
+  ]);
+  const productPixels: Record<string, string> = (settings.productPixels as Record<string, string>) ?? {};
+  const productCommissions = (settings.productCommissions as Record<string, { boutiqueNom: string; agentId: string; agentName: string; commissionAmount: number }>) ?? {};
 
   // Fetch page order counts per product (source='page') in one query
   const { data: pageOrders } = await supabase
@@ -22,10 +28,18 @@ export async function GET() {
     pageOrderMap[key] = (pageOrderMap[key] ?? 0) + 1;
   }
 
-  const enriched = products.map(p => ({
-    ...p,
-    pageOrders: pageOrderMap[p.name] ?? 0,
-  }));
+  const enriched = products.map(p => {
+    const commission = productCommissions[p.id];
+    return {
+      ...p,
+      pageOrders: pageOrderMap[p.name] ?? 0,
+      facebookPixelId: productPixels[p.id] ?? "",
+      boutiqueNom: commission?.boutiqueNom ?? "",
+      agentId: commission?.agentId ?? "",
+      agentName: commission?.agentName ?? "",
+      commissionAmount: commission?.commissionAmount ?? 0,
+    };
+  });
 
   return NextResponse.json({ products: enriched });
 }
@@ -48,10 +62,39 @@ export async function POST(request: NextRequest) {
       purchasePrice: parseFloat(purchasePrice) || 0,
       stock: parseInt(stock) || 0,
       minStock: parseInt(minStock) || 5,
-      facebookPixelId: String(facebookPixelId ?? "").trim(),
     });
 
-    return NextResponse.json({ ok: true, product });
+    const { boutiqueNom, agentId, agentName, commissionAmount } = body;
+    const needsSave = facebookPixelId || boutiqueNom || agentId || commissionAmount;
+
+    if (needsSave) {
+      const settings = await getSettings(user.workspaceId);
+      const settingsPatch: Record<string, unknown> = {};
+
+      if (facebookPixelId) {
+        settingsPatch.productPixels = { ...(settings.productPixels as Record<string, string> ?? {}), [product.id]: String(facebookPixelId).trim() };
+      }
+      if (boutiqueNom || agentId || commissionAmount) {
+        const productCommissions = { ...(settings.productCommissions as Record<string, { boutiqueNom: string; agentId: string; agentName: string; commissionAmount: number }> ?? {}) };
+        productCommissions[product.id] = {
+          boutiqueNom: String(boutiqueNom ?? ""),
+          agentId: String(agentId ?? ""),
+          agentName: String(agentName ?? ""),
+          commissionAmount: parseFloat(String(commissionAmount ?? "0")) || 0,
+        };
+        settingsPatch.productCommissions = productCommissions;
+
+        if (String(boutiqueNom ?? "").trim()) {
+          const boutiques: string[] = Array.isArray(settings.boutiques) ? settings.boutiques : [];
+          if (!boutiques.includes(String(boutiqueNom).trim())) {
+            settingsPatch.boutiques = [...boutiques, String(boutiqueNom).trim()];
+          }
+        }
+      }
+      await saveSettings(user.workspaceId, settingsPatch);
+    }
+
+    return NextResponse.json({ ok: true, product: { ...product, facebookPixelId: facebookPixelId ? String(facebookPixelId).trim() : "" } });
   } catch (err) {
     const msg = err instanceof Error ? err.message : "Erreur serveur";
     return NextResponse.json({ error: msg }, { status: 500 });
@@ -82,10 +125,49 @@ export async function PATCH(request: NextRequest) {
     if (rest.purchasePrice !== undefined) patch.purchasePrice = parseFloat(rest.purchasePrice) || 0;
     if (rest.stock !== undefined) patch.stock = parseInt(rest.stock) || 0;
     if (rest.minStock !== undefined) patch.minStock = parseInt(rest.minStock) || 5;
-    if (rest.facebookPixelId !== undefined) patch.facebookPixelId = String(rest.facebookPixelId).trim();
 
     const updated = await updateProduct(id, user.workspaceId, patch);
     if (!updated) return NextResponse.json({ error: "Produit introuvable." }, { status: 404 });
+
+    const needsSettingsSave = rest.facebookPixelId !== undefined
+      || rest.boutiqueNom !== undefined
+      || rest.agentId !== undefined
+      || rest.commissionAmount !== undefined;
+
+    if (needsSettingsSave) {
+      const settings = await getSettings(user.workspaceId);
+
+      const settingsPatch: Record<string, unknown> = {};
+
+      if (rest.facebookPixelId !== undefined) {
+        const productPixels = { ...(settings.productPixels as Record<string, string> ?? {}), [id]: String(rest.facebookPixelId).trim() };
+        settingsPatch.productPixels = productPixels;
+      }
+
+      if (rest.boutiqueNom !== undefined || rest.agentId !== undefined || rest.commissionAmount !== undefined) {
+        const productCommissions = { ...(settings.productCommissions as Record<string, { boutiqueNom: string; agentId: string; agentName: string; commissionAmount: number }> ?? {}) };
+        const existing = productCommissions[id] ?? { boutiqueNom: "", agentId: "", agentName: "", commissionAmount: 0 };
+        productCommissions[id] = {
+          boutiqueNom: rest.boutiqueNom !== undefined ? String(rest.boutiqueNom) : existing.boutiqueNom,
+          agentId: rest.agentId !== undefined ? String(rest.agentId) : existing.agentId,
+          agentName: rest.agentName !== undefined ? String(rest.agentName) : existing.agentName,
+          commissionAmount: rest.commissionAmount !== undefined ? parseFloat(String(rest.commissionAmount)) || 0 : existing.commissionAmount,
+        };
+        settingsPatch.productCommissions = productCommissions;
+
+        // Maintain boutiques list
+        const boutiqueNom = productCommissions[id].boutiqueNom.trim();
+        if (boutiqueNom) {
+          const boutiques: string[] = Array.isArray(settings.boutiques) ? settings.boutiques : [];
+          if (!boutiques.includes(boutiqueNom)) {
+            settingsPatch.boutiques = [...boutiques, boutiqueNom];
+          }
+        }
+      }
+
+      await saveSettings(user.workspaceId, settingsPatch);
+    }
+
     return NextResponse.json({ ok: true, product: updated });
   } catch (err) {
     const msg = err instanceof Error ? err.message : "Erreur serveur";
