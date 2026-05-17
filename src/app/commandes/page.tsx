@@ -1205,97 +1205,43 @@ export default function CommandesPage() {
                           <span className="text-xs text-slate-400 self-center shrink-0">🏭 Hub</span>
                         </div>
                       )}
-                      {/* Product ID per order (auto-matched from Ameex stock + manual override) */}
+                      {/* Product per order — uses CRM SKU as Ameex Réf in goods=REF:1 format */}
                       {ameexShipType === "STOCK" && (() => {
                         const selectedOrders = orders.filter(o => selected.has(o.id));
                         return (
                           <div className="space-y-1.5 pt-1">
-                            <div className="flex items-center justify-between">
-                              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
-                                Produit Ameex {ameexStockProducts.length > 0 ? `(${ameexStockProducts.length} chargés)` : "(non chargés)"} :
-                              </p>
-                              {ameexStockProducts.length === 0 && (
-                                <button
-                                  type="button"
-                                  onClick={async () => {
-                                    try {
-                                      const sd = await fetch("/api/settings").then(r => r.json());
-                                      const cr = sd.settings?.ameex ?? {};
-                                      if (!cr.apiId) return;
-                                      const hub = cr.depotId ?? ameexDepot ?? "34";
-                                      const sp = await fetch("/api/ameex", {
-                                        method: "POST", headers: { "Content-Type": "application/json" },
-                                        body: JSON.stringify({ action: "stockProducts", apiId: cr.apiId, apiKey: cr.apiKey, depot: hub, hub, p_hub: hub }),
-                                      }).then(r => r.json());
-                                      // Try every known response shape
-                                      const rawSP: unknown[] = Array.isArray(sp) ? sp
-                                        : Array.isArray(sp?.api?.data) ? sp.api.data
-                                        : Array.isArray(sp?.data) ? sp.data
-                                        : Array.isArray(sp?.result) ? sp.result
-                                        : typeof sp === "object" && sp !== null ? Object.values(sp as object).find(v => Array.isArray(v)) ?? []
-                                        : [];
-                                      const spList = rawSP.map((p: unknown) => {
-                                        const pr = p as Record<string,unknown>;
-                                        return {
-                                          id:   String(pr.id ?? pr.product_id ?? pr.ID ?? ""),
-                                          ref:  String(pr.ref ?? pr.Ref ?? pr.sku ?? pr.SKU ?? pr.reference ?? pr.REF ?? ""),
-                                          name: String(pr.name ?? pr.Name ?? pr.label ?? pr.product_name ?? pr.NAME ?? ""),
-                                        };
-                                      }).filter(p => p.id);
-                                      if (spList.length) setAmeexStockProducts(spList);
-                                      else alert("Réponse Ameex:\n" + JSON.stringify(sp, null, 2).slice(0, 800));
-                                    } catch (e) { alert(String(e)); }
-                                  }}
-                                  className="text-[10px] text-blue-600 underline"
-                                >
-                                  Recharger
-                                </button>
-                              )}
-                            </div>
+                            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Produit (Réf SKU) :</p>
                             {selectedOrders.map(o => {
-                              // Match CRM catalog to get SKU/Réf
+                              // Match CRM catalog to get SKU = Ameex Réf
                               const catalogMatch = catalog.find(p =>
                                 p.name.toLowerCase() === (o.product ?? "").toLowerCase() ||
                                 (o.product ?? "").toLowerCase().includes(p.name.toLowerCase()) ||
                                 p.name.toLowerCase().includes((o.product ?? "").toLowerCase())
                               );
                               const autoSku = catalogMatch?.sku ?? "";
-                              // Match Ameex stock products by Réf or name to get numeric ID
-                              const ameexMatch = ameexStockProducts.find(p =>
-                                (autoSku && p.ref.toLowerCase() === autoSku.toLowerCase()) ||
-                                p.name.toLowerCase() === (o.product ?? "").toLowerCase() ||
-                                (o.product ?? "").toLowerCase().includes(p.name.toLowerCase())
-                              );
-                              const autoId = ameexMatch?.id ?? "";
-                              // Display value: manual override > resolved numeric ID > SKU ref
-                              const current = ameexProductIds[o.id] ?? autoId ?? autoSku;
-                              const isResolved = !!(ameexMatch || current);
+                              // Display: manual override > auto-matched SKU
+                              const current = ameexProductIds[o.id] || autoSku;
                               return (
                                 <div key={o.id} className="space-y-0.5">
                                   <div className="flex items-center gap-2">
                                     <span className="text-xs text-slate-600 w-16 truncate shrink-0">{o.customer}</span>
                                     <input
                                       type="text"
-                                      placeholder="ID produit Ameex…"
+                                      placeholder="Réf SKU du produit…"
                                       value={current}
                                       onChange={e => setAmeexProductIds(prev => ({ ...prev, [o.id]: e.target.value }))}
-                                      className={`flex-1 text-xs font-mono border rounded-lg px-2 py-1.5 outline-none focus:border-blue-400 ${isResolved ? "border-emerald-300 bg-emerald-50" : "border-amber-300 bg-amber-50"}`}
+                                      className={`flex-1 text-xs font-mono border rounded-lg px-2 py-1.5 outline-none focus:border-blue-400 ${current ? "border-emerald-300 bg-emerald-50" : "border-amber-300 bg-amber-50"}`}
                                     />
-                                    {isResolved && <span className="text-emerald-600 text-xs shrink-0">✓</span>}
+                                    {current && <span className="text-emerald-600 text-xs shrink-0">✓</span>}
                                   </div>
-                                  {ameexMatch && (
+                                  {current && (
                                     <p className="text-[10px] text-emerald-600 pl-[4.5rem]">
-                                      ✓ {ameexMatch.name} — ID Ameex: {ameexMatch.id}
+                                      Sera envoyé comme goods=&quot;{current}:1&quot;
                                     </p>
                                   )}
-                                  {!ameexMatch && autoSku && ameexStockProducts.length > 0 && (
+                                  {!current && (
                                     <p className="text-[10px] text-amber-500 pl-[4.5rem]">
-                                      ⚠ Réf {autoSku} introuvable dans les {ameexStockProducts.length} produits Ameex
-                                    </p>
-                                  )}
-                                  {!ameexMatch && autoSku && ameexStockProducts.length === 0 && (
-                                    <p className="text-[10px] text-amber-500 pl-[4.5rem]">
-                                      Réf CRM: {autoSku} — cliquer &quot;Recharger&quot; pour obtenir l&apos;ID Ameex
+                                      ⚠ Produit non trouvé dans le catalogue CRM — entrez le SKU manuellement
                                     </p>
                                   )}
                                 </div>
