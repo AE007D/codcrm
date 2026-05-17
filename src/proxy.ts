@@ -20,6 +20,7 @@ export function proxy(request: NextRequest) {
   if (
     pathname.startsWith("/_next/") ||
     pathname.startsWith("/favicon.ico") ||
+    pathname === "/morocco_test.html" ||
     /\.(svg|png|jpg|jpeg|gif|webp|ico|woff|woff2|ttf|otf)$/.test(pathname)
   ) {
     return NextResponse.next();

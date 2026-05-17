@@ -111,66 +111,56 @@ function CityDot({
   city: typeof CITIES[0];
   mode: "visitor" | "order" | "idle";
 }) {
-  const color =
-    mode === "visitor" ? "#10b981"
-    : mode === "order" ? "#60a5fa"
-    : "#64748b";
+  // Only render when active (visitor or order)
+  if (mode === "idle") return null;
 
-  const ringColor =
-    mode === "visitor" ? "rgba(16,185,129,0.3)"
-    : mode === "order" ? "rgba(96,165,250,0.3)"
-    : "transparent";
-
+  const color = mode === "visitor" ? "#10b981" : "#60a5fa";
+  const ringColor = mode === "visitor" ? "rgba(16,185,129,0.3)" : "rgba(96,165,250,0.3)";
   const r = city.r;
 
   return (
     <g style={{ cursor: "default" }}>
-      {/* Ping ring — active only */}
-      {mode !== "idle" && (
-        <circle
-          cx={city.x}
-          cy={city.y}
-          r={r + 300}
-          fill="none"
-          stroke={color}
-          strokeWidth={20}
-          opacity={0}
-          style={{
-            animation: "ping 2s cubic-bezier(0,0,0.2,1) infinite",
-            transformOrigin: `${city.x}px ${city.y}px`,
-          }}
-        />
-      )}
-      {/* Soft glow ring — active only */}
-      {mode !== "idle" && (
-        <circle
-          cx={city.x}
-          cy={city.y}
-          r={r + 180}
-          fill={ringColor}
-          style={{
-            animation: "pulse-ring 2.4s ease-in-out infinite",
-            transformOrigin: `${city.x}px ${city.y}px`,
-          }}
-        />
-      )}
+      {/* Ping ring */}
+      <circle
+        cx={city.x}
+        cy={city.y}
+        r={r + 300}
+        fill="none"
+        stroke={color}
+        strokeWidth={20}
+        opacity={0}
+        style={{
+          animation: "ping 2s cubic-bezier(0,0,0.2,1) infinite",
+          transformOrigin: `${city.x}px ${city.y}px`,
+        }}
+      />
+      {/* Soft glow ring */}
+      <circle
+        cx={city.x}
+        cy={city.y}
+        r={r + 180}
+        fill={ringColor}
+        style={{
+          animation: "pulse-ring 2.4s ease-in-out infinite",
+          transformOrigin: `${city.x}px ${city.y}px`,
+        }}
+      />
       {/* Core dot */}
       <circle
         cx={city.x}
         cy={city.y}
         r={r}
         fill={color}
-        opacity={mode === "idle" ? 0.5 : 1}
-        filter={mode !== "idle" ? "url(#glow)" : undefined}
+        filter="url(#glow)"
       />
-      {/* City label — always visible */}
+      {/* City name — shown only when active */}
       <text
         x={city.x + r + 80}
         y={city.y + 60}
-        fill={mode === "idle" ? "#94a3b8" : "#e2e8f0"}
+        fill="#e2e8f0"
         fontSize={130}
         fontFamily="system-ui, sans-serif"
-        fontWeight={mode !== "idle" ? "600" : "400"}
+        fontWeight="600"
         style={{ pointerEvents: "none" }}
       >
         {city.name}
