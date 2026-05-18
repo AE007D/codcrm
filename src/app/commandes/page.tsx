@@ -23,6 +23,8 @@ type Order = {
   notes: string;
   attempts: number;
   noAnswer: number;
+  carrierTracking?: string;
+  carrierName?: string;
 };
 
 
@@ -141,6 +143,7 @@ export default function CommandesPage() {
   const [ameexDepot, setAmeexDepot] = useState<string>("");
   const [ameexProductIds, setAmeexProductIds] = useState<Record<string, string>>({}); // orderId → ameex product id
   const [ameexStockProducts, setAmeexStockProducts] = useState<{ id: string; ref: string; name: string }[]>([]); // Ameex warehouse products
+  const [carrierStatus, setCarrierStatus] = useState<{ loading: boolean; text: string | null; ok: boolean }>({ loading: false, text: null, ok: true });
 
   // Current user role
   const [userRole, setUserRole] = useState<"admin" | "agent" | "viewer">("agent");
@@ -183,6 +186,8 @@ export default function CommandesPage() {
         notes: String(o.notes ?? ""),
         attempts: Number(o.attempts ?? 0),
         noAnswer: Number(o.noAnswer ?? o.no_answer ?? 0),
+        carrierTracking: o.carrierTracking ? String(o.carrierTracking) : undefined,
+        carrierName: o.carrierName ? String(o.carrierName) : undefined,
       })));
     } catch { /* silent */ }
   }, []);
@@ -192,6 +197,9 @@ export default function CommandesPage() {
     const t = setInterval(fetchOrders, 30_000);
     return () => clearInterval(t);
   }, [fetchOrders]);
+
+  // Clear carrier status when drawer changes order
+  useEffect(() => { setCarrierStatus({ loading: false, text: null, ok: true }); }, [drawer?.id]);
 
   // Listen for new orders from sidebar polling
   useEffect(() => {
@@ -533,6 +541,39 @@ export default function CommandesPage() {
     } catch { /* silent */ }
   }
 
+  async function checkCarrierStatus(order: Order) {
+    if (!order.carrierTracking) return;
+    setCarrierStatus({ loading: true, text: null, ok: true });
+    try {
+      const settingsData = await fetch("/api/settings").then(r => r.json());
+      const s = settingsData.settings ?? {};
+      const carrier = order.carrierName ?? (s.ameex?.apiId ? "ameex" : "eagle");
+      let statusText = "";
+      if (carrier === "ameex" || !order.carrierName) {
+        const creds = s.ameex ?? {};
+        const d = await fetch("/api/ameex", {
+          method: "POST", headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ action: "trackParcel", apiId: creds.apiId, apiKey: creds.apiKey, code: order.carrierTracking }),
+        }).then(r => r.json());
+        const nested = d?.api?.data ?? d?.data ?? d;
+        const st = nested?.status ?? nested?.statut ?? nested?.state ?? nested?.etat ?? d?.api?.type ?? d?.status ?? "";
+        const msg = nested?.message ?? nested?.msg ?? nested?.description ?? d?.message ?? "";
+        statusText = [st, msg].filter(Boolean).join(" — ") || JSON.stringify(d).slice(0, 100);
+      } else {
+        const creds = s.eagle ?? {};
+        const d = await fetch("/api/eagle", {
+          method: "POST", headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ action: "track", tk: creds.tk, sk: creds.sk, code: order.carrierTracking }),
+        }).then(r => r.json());
+        const entry = Array.isArray(d) ? d[0] : d;
+        statusText = entry?.status ?? entry?.statut ?? entry?.message ?? JSON.stringify(d).slice(0, 100);
+      }
+      setCarrierStatus({ loading: false, text: statusText || "Aucun statut retourné", ok: true });
+    } catch (e) {
+      setCarrierStatus({ loading: false, text: `Erreur: ${String(e).slice(0, 60)}`, ok: false });
+    }
+  }
+
   // Sync real Ameex city IDs from API — called on modal open and via sync button
   async function syncAmeexCities() {
     setSyncingCities(true);
@@ -700,13 +741,14 @@ export default function CommandesPage() {
         const ok = res.ok && (trackingCode != null || data?.api?.type === "success" || eagleOk);
         if (ok) {
           setStatus(order.id, "expédié");
-          // Save the carrier tracking code so webhooks can auto-update this order
+          // Save the carrier tracking code
           if (trackingCode) {
             fetch("/api/orders", {
               method: "PATCH",
               headers: { "Content-Type": "application/json" },
               body: JSON.stringify({ id: order.id, carrierTracking: String(trackingCode) }),
             }).catch(() => {});
+            setOrders(prev => prev.map(o => o.id === order.id ? { ...o, carrierTracking: String(trackingCode), carrierName: shipCarrier } : o));
           }
         }
         // Show full response detail for debugging
@@ -986,10 +1028,17 @@ export default function CommandesPage() {
                         📦 Expédier
                       </button>
                     )}
-                    {o.status === "expédié" && isAdmin && (
+                    {o.status === "expédié" && (
                       <>
-                        <button onClick={() => setStatus(o.id, "livré")} className="bg-teal-600 hover:bg-teal-700 text-white text-xs font-bold px-2.5 py-1.5 rounded-xl transition-colors">Livré</button>
-                        <button onClick={() => setStatus(o.id, "retourné")} className="bg-orange-500 hover:bg-orange-600 text-white text-xs font-bold px-2.5 py-1.5 rounded-xl transition-colors">Retour</button>
+                        {o.carrierTracking && (
+                          <span className="text-[10px] font-mono bg-indigo-50 text-indigo-600 border border-indigo-200 px-2 py-1 rounded-lg truncate max-w-[90px]" title={o.carrierTracking}>
+                            📦 {o.carrierTracking}
+                          </span>
+                        )}
+                        {isAdmin && <>
+                          <button onClick={() => setStatus(o.id, "livré")} className="bg-teal-600 hover:bg-teal-700 text-white text-xs font-bold px-2.5 py-1.5 rounded-xl transition-colors">Livré</button>
+                          <button onClick={() => setStatus(o.id, "retourné")} className="bg-orange-500 hover:bg-orange-600 text-white text-xs font-bold px-2.5 py-1.5 rounded-xl transition-colors">Retour</button>
+                        </>}
                       </>
                     )}
                     <button onClick={() => setDrawer(o)}
@@ -1726,10 +1775,37 @@ export default function CommandesPage() {
                   Envoyer au transporteur
                 </button>
               )}
-              {drawer.status === "expédié" && isAdmin && (
-                <div className="flex gap-2">
-                  <button onClick={() => setStatus(drawer.id, "livré")} className="flex-1 py-3 rounded-2xl bg-teal-600 hover:bg-teal-700 text-white text-sm font-bold shadow-md shadow-teal-200">✓ Livré</button>
-                  <button onClick={() => setStatus(drawer.id, "retourné")} className="flex-1 py-3 rounded-2xl bg-orange-500 hover:bg-orange-600 text-white text-sm font-bold shadow-md shadow-orange-200">↩ Retourné</button>
+              {drawer.status === "expédié" && (
+                <div className="space-y-3">
+                  {/* Carrier tracking info */}
+                  {drawer.carrierTracking && (
+                    <div className="bg-indigo-50 border border-indigo-200 rounded-2xl p-4 space-y-2">
+                      <div className="flex items-center justify-between gap-2">
+                        <div>
+                          <p className="text-xs font-semibold text-indigo-600 uppercase tracking-wide">Suivi transporteur</p>
+                          <p className="font-mono text-sm font-bold text-indigo-800 mt-0.5">{drawer.carrierTracking}</p>
+                        </div>
+                        <button
+                          onClick={() => checkCarrierStatus(drawer)}
+                          disabled={carrierStatus.loading}
+                          className="shrink-0 text-xs font-bold px-3 py-2 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-60 text-white rounded-xl transition-colors"
+                        >
+                          {carrierStatus.loading ? "…" : "↻ Vérifier"}
+                        </button>
+                      </div>
+                      {carrierStatus.text && (
+                        <p className={`text-xs px-3 py-2 rounded-xl ${carrierStatus.ok ? "bg-white text-indigo-700 border border-indigo-100" : "bg-red-50 text-red-600"}`}>
+                          {carrierStatus.text}
+                        </p>
+                      )}
+                    </div>
+                  )}
+                  {isAdmin && (
+                    <div className="flex gap-2">
+                      <button onClick={() => setStatus(drawer.id, "livré")} className="flex-1 py-3 rounded-2xl bg-teal-600 hover:bg-teal-700 text-white text-sm font-bold shadow-md shadow-teal-200">✓ Livré</button>
+                      <button onClick={() => setStatus(drawer.id, "retourné")} className="flex-1 py-3 rounded-2xl bg-orange-500 hover:bg-orange-600 text-white text-sm font-bold shadow-md shadow-orange-200">↩ Retourné</button>
+                    </div>
+                  )}
                 </div>
               )}
               {/* Delete — admin only */}
