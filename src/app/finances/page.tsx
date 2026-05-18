@@ -26,10 +26,16 @@ type Period = "today" | "week" | "month" | "all";
 const STORAGE_KEY = "codcrm_finance_costs_v1";
 
 type CostSettings = {
-  dailyAdsBudget: number;       // MAD/day spent on ads
-  confirmationCostPerOrder: number; // MAD per confirmed order
-  shippingCostPerOrder: number;     // MAD per order (if not tracked elsewhere)
-  returnShippingCost: number;       // MAD per returned order
+  dailyAdsBudget: number;
+  confirmationCostPerOrder: number;
+  shippingCostPerOrder: number;
+  returnShippingCost: number;
+};
+
+type Campaign = {
+  id: number;
+  date: string;
+  spend: number;
 };
 
 const DEFAULT_COSTS: CostSettings = {
@@ -66,29 +72,30 @@ function fmt(n: number) {
 export default function FinancesPage() {
   const [orders, setOrders] = useState<Order[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
+  const [campaigns, setCampaigns] = useState<Campaign[]>([]);
   const [loading, setLoading] = useState(true);
   const [period, setPeriod] = useState<Period>("week");
   const [costs, setCosts] = useState<CostSettings>(DEFAULT_COSTS);
   const [editingCosts, setEditingCosts] = useState(false);
   const [draftCosts, setDraftCosts] = useState<CostSettings>(DEFAULT_COSTS);
 
-  // Load cost settings from Supabase (fallback to localStorage for migration)
+  // Load cost settings and ad campaigns from Supabase
   useEffect(() => {
-    async function loadCosts() {
+    async function loadSettings() {
       try {
         const res = await fetch("/api/settings");
         const data = await res.json();
         const serverCosts = data.settings?.financeCosts;
-        if (serverCosts) {
-          setCosts({ ...DEFAULT_COSTS, ...serverCosts });
-          return;
+        if (serverCosts) setCosts({ ...DEFAULT_COSTS, ...serverCosts });
+        else {
+          const stored = localStorage.getItem(STORAGE_KEY);
+          if (stored) { try { setCosts(JSON.parse(stored)); } catch { /* ignore */ } }
         }
+        const saved = data.settings?.adCampaigns;
+        if (Array.isArray(saved)) setCampaigns(saved);
       } catch { /* ignore */ }
-      // Migration fallback: read from localStorage
-      const stored = localStorage.getItem(STORAGE_KEY);
-      if (stored) { try { setCosts(JSON.parse(stored)); } catch { /* ignore */ } }
     }
-    loadCosts();
+    loadSettings();
   }, []);
 
   async function saveCosts() {
@@ -163,7 +170,13 @@ export default function FinancesPage() {
     return s + purchase * qty;
   }, 0);
 
-  const adsCost = costs.dailyAdsBudget * days;
+  // Sum actual campaign spend within the period; fall back to daily budget if none entered
+  const campaignsInPeriod = campaigns.filter(c => {
+    const d = new Date(c.date);
+    return d >= start && d <= now;
+  });
+  const campaignAdSpend = campaignsInPeriod.reduce((s, c) => s + c.spend, 0);
+  const adsCost = campaignAdSpend > 0 ? campaignAdSpend : costs.dailyAdsBudget * days;
   const confirmCost = confirmed.length * costs.confirmationCostPerOrder;
   const shippingCost = confirmed.length * costs.shippingCostPerOrder;
   const returnCost = returned.length * costs.returnShippingCost;
@@ -173,6 +186,12 @@ export default function FinancesPage() {
   const roi = totalCost > 0 ? (netProfit / totalCost) * 100 : 0;
   const profitPerDay = netProfit / days;
   const profitPerWeek = profitPerDay * 7;
+
+  // Build campaign spend by day for chart
+  const campaignSpendByDay: Record<string, number> = {};
+  for (const c of campaigns) {
+    campaignSpendByDay[c.date] = (campaignSpendByDay[c.date] ?? 0) + c.spend;
+  }
 
   // ── Daily breakdown for mini chart ────────────────────────────────────
   const dailyMap: Record<string, { revenue: number; cost: number }> = {};
@@ -184,8 +203,16 @@ export default function FinancesPage() {
     const s = String(o.status ?? "").toLowerCase();
     const isDelivered = s === "livré" || s === "livre" || s === "delivered";
     if (isDelivered) dailyMap[key].revenue += parsePrice(o.totalPrice ?? o.total_price);
-    // Approximate daily cost
-    dailyMap[key].cost += costs.dailyAdsBudget + costs.confirmationCostPerOrder + costs.shippingCostPerOrder;
+    const dayAdSpend = campaignSpendByDay[key] !== undefined ? 0 : costs.dailyAdsBudget;
+    dailyMap[key].cost += dayAdSpend + costs.confirmationCostPerOrder + costs.shippingCostPerOrder;
+  }
+  // Add campaign ad spend into chart days (may not overlap with order days)
+  for (const [day, spend] of Object.entries(campaignSpendByDay)) {
+    const d = new Date(day);
+    if (d >= start && d <= now) {
+      if (!dailyMap[day]) dailyMap[day] = { revenue: 0, cost: 0 };
+      dailyMap[day].cost += spend;
+    }
   }
   const chartDays = Object.keys(dailyMap).sort().slice(-14);
   const maxVal = Math.max(1, ...chartDays.map(d => Math.max(dailyMap[d].revenue, dailyMap[d].cost)));
@@ -263,7 +290,7 @@ export default function FinancesPage() {
                   <div className="space-y-3">
                     {[
                       { label: "Achats produits", value: productCost, sub: `${confirmed.length} cmds confirmées`, color: "bg-orange-500" },
-                      { label: "Budget publicité", value: adsCost, sub: `${costs.dailyAdsBudget} MAD × ${days} jours`, color: "bg-blue-500" },
+                      { label: "Budget publicité", value: adsCost, sub: campaignAdSpend > 0 ? `${campaignsInPeriod.length} campagne(s) — Ads Manager` : `${costs.dailyAdsBudget} MAD × ${days} jours`, color: "bg-blue-500" },
                       { label: "Centre confirmation", value: confirmCost, sub: `${confirmed.length} × ${costs.confirmationCostPerOrder} MAD`, color: "bg-violet-500" },
                       { label: "Frais livraison", value: shippingCost, sub: `${confirmed.length} × ${costs.shippingCostPerOrder} MAD`, color: "bg-amber-500" },
                       { label: "Frais retour", value: returnCost, sub: `${returned.length} × ${costs.returnShippingCost} MAD`, color: "bg-red-400" },
