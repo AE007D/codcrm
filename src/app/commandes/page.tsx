@@ -199,16 +199,24 @@ export default function CommandesPage() {
 
   // ── Load Ameex cities once on mount ──────────────────────────────────────
   useEffect(() => {
-    // 1. Start with hardcoded fallback so dropdown is always populated
-    setAmeexCities(AMEEX_CITIES_FALLBACK);
-    // 2. Load from localStorage cache (overrides fallback if fresher data)
+    function mergeCities(base: {id:string;name:string}[], extra: {id:string;name:string}[]) {
+      const map = new Map(base.map(c => [c.name.toLowerCase().trim(), c]));
+      for (const c of extra) map.set(c.name.toLowerCase().trim(), c); // extra (real API IDs) wins
+      return Array.from(map.values()).sort((a, b) => a.name.localeCompare(b.name, "fr"));
+    }
+
+    // 1. Start with hardcoded fallback
+    let cities = [...AMEEX_CITIES_FALLBACK];
+
+    // 2. Merge localStorage cache on top (real API IDs override fallback IDs)
     try {
       const cached = localStorage.getItem("codcrm_ameex_cities");
-      if (cached) { const parsed = JSON.parse(cached); if (parsed?.length) setAmeexCities(parsed); }
+      if (cached) { const parsed = JSON.parse(cached); if (parsed?.length) cities = mergeCities(cities, parsed); }
     } catch { /* ignore */ }
+    setAmeexCities(cities);
+
     // 3. Load preferences + refresh from API
     fetch("/api/settings").then(r => r.json()).then(async d => {
-      // Restore ship type + depot from Ameex config OR from ameexShipPref
       const ameexCfg = d.settings?.ameex ?? {};
       const pref = d.settings?.ameexShipPref ?? {};
       const savedType = ameexCfg.defaultType ?? pref.type;
@@ -229,7 +237,11 @@ export default function CommandesPage() {
         : Array.isArray(cd?.result) ? cd.result
         : [];
       const list = raw.map((c: Record<string,unknown>) => ({ id: String(c.id ?? c.city_id ?? ""), name: String(c.name ?? c.city_name ?? c.ville ?? "") })).filter((c: {id:string;name:string}) => c.id && c.name);
-      if (list.length) { setAmeexCities(list); try { localStorage.setItem("codcrm_ameex_cities", JSON.stringify(list)); } catch { /* ignore */ } }
+      if (list.length) {
+        const merged = mergeCities(AMEEX_CITIES_FALLBACK, list);
+        setAmeexCities(merged);
+        try { localStorage.setItem("codcrm_ameex_cities", JSON.stringify(list)); } catch { /* ignore */ }
+      }
     }).catch(() => {});
   }, []);
 
