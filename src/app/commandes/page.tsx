@@ -133,6 +133,7 @@ export default function CommandesPage() {
   const [ameexCities, setAmeexCities] = useState<{ id: string; name: string }[]>([]);
   const [ameexRealIds, setAmeexRealIds] = useState<Set<string>>(new Set()); // IDs confirmed from real Ameex API
   const [syncingCities, setSyncingCities] = useState(false);
+  const [syncCityMsg, setSyncCityMsg] = useState<{ ok: boolean; text: string } | null>(null);
   const [cityOverrides, setCityOverrides] = useState<Record<string, string>>({}); // orderId → cityId (Ameex) or city name (Eagle)
   const [eagleAddressOverrides, setEagleAddressOverrides] = useState<Record<string, string>>({}); // orderId → address override for Eagle
   const [ameexShipType, setAmeexShipType] = useState<"SIMPLE"|"STOCK">("SIMPLE");
@@ -419,32 +420,18 @@ export default function CommandesPage() {
     setShipResults([]);
     setCityOverrides({});
     setAmeexProductIds({});
+    setSyncCityMsg(null);
     if (ids) setSelected(new Set(ids));
     setShipModal(true);
-    // Pre-load Ameex cities + depots (fallback already loaded on mount; try API refresh)
+    // Sync Ameex cities from API on every modal open
+    syncAmeexCities();
+    // Also load Ameex config (type, depot)
     try {
       const settingsData = await fetch("/api/settings").then(r => r.json());
       const creds = settingsData.settings?.ameex ?? {};
-      // Apply saved default type + depot from Ameex config
       if (creds.defaultType) setAmeexShipType(creds.defaultType);
       if (creds.depotId) setAmeexDepot(creds.depotId);
       if (creds.apiId) {
-        // Cities
-        const cd = await fetch("/api/ameex", {
-          method: "POST", headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ action: "cities", apiId: creds.apiId, apiKey: creds.apiKey }),
-        }).then(r => r.json());
-        const rawC = Array.isArray(cd) ? cd : Array.isArray(cd?.api?.data) ? cd.api.data : Array.isArray(cd?.data) ? cd.data : Array.isArray(cd?.cities) ? cd.cities : Array.isArray(cd?.result) ? cd.result : [];
-        const cityList = rawC.map((c: Record<string,unknown>) => ({
-          id: String(c.id ?? c.city_id ?? c.ID ?? c.CITY_ID ?? ""),
-          name: String(c.name ?? c.city_name ?? c.ville ?? c.Name ?? c.CITY_NAME ?? c.VILLE ?? ""),
-        })).filter((c: {id:string;name:string}) => c.id && c.name);
-        if (cityList.length) {
-          const merged = mergeCities(AMEEX_CITIES_FALLBACK, cityList);
-          setAmeexCities(merged);
-          setAmeexRealIds(new Set(cityList.map((c: {id:string}) => c.id)));
-          try { localStorage.setItem("codcrm_ameex_cities", JSON.stringify(cityList)); } catch { /* */ }
-        }
 
         // Load stock depots via /Stock/Depots (GET) — gives us hub IDs for this account
         let resolvedDepotId = creds.depotId ?? ameexDepot ?? "";
@@ -535,18 +522,23 @@ export default function CommandesPage() {
     } catch { /* silent */ }
   }
 
-  // Sync real Ameex city IDs from API — can be called from modal button
+  // Sync real Ameex city IDs from API — called on modal open and via sync button
   async function syncAmeexCities() {
     setSyncingCities(true);
+    setSyncCityMsg(null);
     try {
       const settingsData = await fetch("/api/settings").then(r => r.json());
       const creds = settingsData.settings?.ameex ?? {};
-      if (!creds.apiId) { setSyncingCities(false); return; }
+      if (!creds.apiId) {
+        setSyncCityMsg({ ok: false, text: "Identifiants Ameex non configurés — allez dans Intégrations → Ameex" });
+        setSyncingCities(false);
+        return;
+      }
       const cd = await fetch("/api/ameex", {
         method: "POST", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ action: "cities", apiId: creds.apiId, apiKey: creds.apiKey }),
       }).then(r => r.json());
-      // Try every known Ameex response shape, including deeply nested ones
+      // Try every known Ameex response shape including deeply nested ones
       const rawC: unknown[] = Array.isArray(cd) ? cd
         : Array.isArray(cd?.api?.data) ? cd.api.data
         : Array.isArray(cd?.data?.cities) ? cd.data.cities
@@ -554,8 +546,9 @@ export default function CommandesPage() {
         : Array.isArray(cd?.cities) ? cd.cities
         : Array.isArray(cd?.result) ? cd.result
         : Array.isArray(cd?.api?.cities) ? cd.api.cities
-        : typeof cd === "object" && cd !== null ? Object.values(cd).find(v => Array.isArray(v) && (v as unknown[]).length > 0) as unknown[] ?? []
-        : [];
+        : typeof cd === "object" && cd !== null
+          ? (Object.values(cd).find(v => Array.isArray(v) && (v as unknown[]).length > 0) as unknown[] ?? [])
+          : [];
       const cityList = (rawC as Record<string,unknown>[]).map(c => ({
         id: String(c.id ?? c.city_id ?? c.ID ?? c.CITY_ID ?? ""),
         name: String(c.name ?? c.city_name ?? c.ville ?? c.Name ?? c.CITY_NAME ?? c.VILLE ?? ""),
@@ -565,8 +558,13 @@ export default function CommandesPage() {
         setAmeexCities(merged);
         setAmeexRealIds(new Set(cityList.map(c => c.id)));
         try { localStorage.setItem("codcrm_ameex_cities", JSON.stringify(cityList)); } catch { /* */ }
+        setSyncCityMsg({ ok: true, text: `✓ ${cityList.length} villes chargées depuis Ameex` });
+      } else {
+        setSyncCityMsg({ ok: false, text: `Ameex a répondu mais sans villes (réponse: ${JSON.stringify(cd).slice(0, 120)})` });
       }
-    } catch { /* silent */ }
+    } catch (e) {
+      setSyncCityMsg({ ok: false, text: `Erreur réseau: ${String(e).slice(0, 80)}` });
+    }
     setSyncingCities(false);
   }
 
@@ -1420,17 +1418,22 @@ export default function CommandesPage() {
                 const hasRealIds = ameexRealIds.size > 0;
                 return (
                   <div className="space-y-2">
+                    {syncCityMsg && (
+                      <p className={`text-[11px] px-3 py-2 rounded-lg border ${syncCityMsg.ok ? "bg-emerald-50 border-emerald-200 text-emerald-700" : "bg-red-50 border-red-200 text-red-700"}`}>
+                        {syncCityMsg.text}
+                      </p>
+                    )}
                     {!hasRealIds && (
                       <div className="flex items-center justify-between gap-2 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
                         <p className="text-[11px] text-amber-700">
-                          ⚠ Villes non synchronisées — les IDs envoyés à Ameex peuvent être invalides.
+                          {syncingCities ? "⏳ Chargement des villes Ameex…" : "⚠ Villes non synchronisées — IDs invalides"}
                         </p>
                         <button
                           onClick={syncAmeexCities}
                           disabled={syncingCities}
                           className="shrink-0 text-[11px] font-bold px-2 py-1 bg-amber-600 hover:bg-amber-700 disabled:opacity-60 text-white rounded-lg transition-colors"
                         >
-                          {syncingCities ? "…" : "Sync villes"}
+                          {syncingCities ? "…" : "↻ Sync"}
                         </button>
                       </div>
                     )}
