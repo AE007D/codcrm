@@ -154,7 +154,9 @@ export default function Sidebar() {
   }
 
   // ── New order sound + polling ─────────────────────────────────────────────
-  const [soundEnabled, setSoundEnabled] = useState(true);
+  const [soundEnabled, setSoundEnabled] = useState(() => {
+    try { return localStorage.getItem("codcrm_sound") !== "0"; } catch { return true; }
+  });
   const lastOrderCount = useRef<number | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const audioUnlocked = useRef(false);
@@ -492,7 +494,7 @@ export default function Sidebar() {
         <div className="p-3 border-t border-slate-100">
           {/* Sound toggle */}
           <button
-            onClick={() => setSoundEnabled(v => !v)}
+            onClick={() => setSoundEnabled(v => { const next = !v; try { localStorage.setItem("codcrm_sound", next ? "1" : "0"); } catch {} return next; })}
             title={soundEnabled ? "Désactiver le son" : "Activer le son"}
             className="w-full mb-1 flex items-center gap-2 px-3 py-2 rounded-xl text-sm text-slate-400 hover:bg-slate-50 hover:text-slate-700 transition-colors"
           >
