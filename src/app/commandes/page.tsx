@@ -561,12 +561,9 @@ export default function CommandesPage() {
           const cityRaw   = (order.city ?? "").trim();
           const overrideVal = cityOverrides[order.id] ?? "";
           const autoId = resolveAmeexCityId(cityRaw, ameexCities);
-          // Only use a resolved ID if it's a confirmed real Ameex ID
-          const resolvedId = overrideVal && ameexRealIds.has(overrideVal) ? overrideVal
-            : autoId && ameexRealIds.has(autoId) ? autoId
-            : overrideVal || autoId || "";
+          const resolvedId = overrideVal || autoId || "";
           const cityId = resolvedId || cityRaw;
-          if (!resolvedId) {
+          if (!cityId) {
             results.push({ id: order.id, ok: false, msg: "Veuillez choisir une ville dans la liste" });
             continue;
           }
@@ -1373,15 +1370,16 @@ export default function CommandesPage() {
                 const cityNameMap: Record<string,string> = {};
                 for (const c of ameexCities) { cityNameMap[c.id] = c.name; }
                 const selectedOrders = orders.filter(o => selected.has(o.id));
+                const hasRealIds = ameexRealIds.size > 0;
                 return (
                   <div className="space-y-2">
                     <p className="text-xs font-semibold text-slate-500">🏙 Vérifiez la ville de chaque commande avant d&apos;envoyer :</p>
                     {selectedOrders.map(o => {
                       const autoId = resolveAmeexCityId(o.city ?? "", ameexCities) ?? undefined;
-                      const currentVal = cityOverrides[o.id] ?? (autoId && ameexRealIds.has(autoId) ? autoId : undefined) ?? "";
-                      const currentName = currentVal ? (cityNameMap[currentVal] ?? currentVal) : (autoId ? (cityNameMap[autoId] ?? autoId) : "");
-                      const isConfirmed = !!currentVal && ameexRealIds.has(currentVal);
-                      const needsPick = !currentVal || !isConfirmed;
+                      const currentVal = cityOverrides[o.id] ?? autoId ?? "";
+                      const currentName = currentVal ? (cityNameMap[currentVal] ?? currentVal) : "";
+                      // amber only when real IDs are loaded AND resolved ID isn't among them
+                      const needsPick = !currentVal || (hasRealIds && !ameexRealIds.has(currentVal));
                       return (
                         <div key={o.id} className={`flex items-center gap-2 p-2 rounded-xl border ${needsPick ? "border-amber-300 bg-amber-50" : "border-slate-200 bg-slate-50"}`}>
                           <span className="text-xs font-semibold text-slate-700 w-20 truncate shrink-0">{o.customer}</span>
@@ -1465,11 +1463,12 @@ export default function CommandesPage() {
                 Fermer
               </button>
               {!shipResults.length && (() => {
+                const hasRealIds = ameexRealIds.size > 0;
                 const hasUnresolved = shipCarrier === "ameex" && orders.filter(o => selected.has(o.id)).some(o => {
-                  const override = cityOverrides[o.id];
-                  if (override) return !ameexRealIds.has(override); // explicit pick must be a real ID
-                  const autoId = resolveAmeexCityId(o.city ?? "", ameexCities);
-                  return !autoId || !ameexRealIds.has(autoId); // auto-resolve must be a real ID
+                  const val = cityOverrides[o.id] || resolveAmeexCityId(o.city ?? "", ameexCities) || "";
+                  if (!val) return true; // no city at all — always block
+                  if (hasRealIds && !ameexRealIds.has(val)) return true; // real IDs loaded but this isn't one
+                  return false;
                 });
                 return (
                   <button onClick={sendToCarrier} disabled={shipping || selected.size === 0 || hasUnresolved}
