@@ -256,6 +256,195 @@ export const CITY_ALIASES: Record<string, string> = {
   // ── Ain Aouda ───────────────────────────────────────────────────────────────
   "ain aouda":             "Ain Aouda",
   "عين عودة":              "Ain Aouda",
+
+  // ── Berkane ─────────────────────────────────────────────────────────────────
+  "berkane":               "Berkane",
+  "بركان":                 "Berkane",
+  "berkan":                "Berkane",
+
+  // ── Oualidia ────────────────────────────────────────────────────────────────
+  "oualidia":              "Oualidia",
+  "واليديا":               "Oualidia",
+  "walidia":               "Oualidia",
+
+  // ── Taourirt ────────────────────────────────────────────────────────────────
+  "taourirt":              "Taourirt",
+  "تاوريرت":               "Taourirt",
+  "taurirt":               "Taourirt",
+
+  // ── Guercif ─────────────────────────────────────────────────────────────────
+  "guercif":               "Guercif",
+  "غرسيف":                 "Guercif",
+  "gersif":                "Guercif",
+
+  // ── Jerada ──────────────────────────────────────────────────────────────────
+  "jerada":                "Jerada",
+  "جرادة":                 "Jerada",
+
+  // ── Sidi Bennour ────────────────────────────────────────────────────────────
+  "sidi bennour":          "Sidi Bennour",
+  "سيدي بنور":             "Sidi Bennour",
+  "sidi benour":           "Sidi Bennour",
+
+  // ── Azemmour ────────────────────────────────────────────────────────────────
+  "azemmour":              "Azemmour",
+  "أزمور":                 "Azemmour",
+  "azemour":               "Azemmour",
+  "azamour":               "Azemmour",
+
+  // ── Youssoufia ──────────────────────────────────────────────────────────────
+  "youssoufia":            "Youssoufia",
+  "اليوسفية":              "Youssoufia",
+  "yousoufia":             "Youssoufia",
+  "yousofia":              "Youssoufia",
+
+  // ── Ben Guerir ──────────────────────────────────────────────────────────────
+  "ben guerir":            "Ben Guerir",
+  "بن كرير":               "Ben Guerir",
+  "benguerir":             "Ben Guerir",
+  "ben gerir":             "Ben Guerir",
+
+  // ── El Kelaa des Sraghna ────────────────────────────────────────────────────
+  "el kelaa":              "El Kelaa des Sraghna",
+  "el kelaa des sraghna":  "El Kelaa des Sraghna",
+  "قلعة السراغنة":         "El Kelaa des Sraghna",
+  "kelaa sraghna":         "El Kelaa des Sraghna",
+  "kalaat sraghna":        "El Kelaa des Sraghna",
+
+  // ── Tinghir ─────────────────────────────────────────────────────────────────
+  "tinghir":               "Tinghir",
+  "تنغير":                 "Tinghir",
+  "tinghire":              "Tinghir",
+  "tinghirin":             "Tinghir",
+
+  // ── Zagora ──────────────────────────────────────────────────────────────────
+  "zagora":                "Zagora",
+  "زاكورة":                "Zagora",
+  "zakora":                "Zagora",
+
+  // ── Ait Melloul ─────────────────────────────────────────────────────────────
+  "ait melloul":           "Ait Melloul",
+  "أيت ملول":              "Ait Melloul",
+  "aitmelloul":            "Ait Melloul",
+  "ait meloul":            "Ait Melloul",
+
+  // ── Inezgane ────────────────────────────────────────────────────────────────
+  "inezgane":              "Inezgane",
+  "إنزكان":                "Inezgane",
+  "inzgane":               "Inezgane",
+  "inzegan":               "Inezgane",
+
+  // ── Fnideq ──────────────────────────────────────────────────────────────────
+  "fnideq":                "Fnideq",
+  "الفنيدق":               "Fnideq",
+  "fnidek":                "Fnideq",
+  "fnidq":                 "Fnideq",
+
+  // ── M'diq ───────────────────────────────────────────────────────────────────
+  "mdiq":                  "M'diq",
+  "m'diq":                 "M'diq",
+  "المضيق":                "M'diq",
+  "mediq":                 "M'diq",
+
+  // ── Martil ──────────────────────────────────────────────────────────────────
+  "martil":                "Martil",
+  "مرتيل":                 "Martil",
+
+  // ── Ksar el Kebir ───────────────────────────────────────────────────────────
+  "ksar el kebir":         "Ksar el Kebir",
+  "القصر الكبير":          "Ksar el Kebir",
+  "ksar kebir":            "Ksar el Kebir",
+  "ksar":                  "Ksar el Kebir",
+  "lksar":                 "Ksar el Kebir",
+
+  // ── Souk el Arbaa ───────────────────────────────────────────────────────────
+  "souk el arbaa":         "Souk el Arbaa",
+  "سوق الأربعاء":          "Souk el Arbaa",
+  "souq arbaa":            "Souk el Arbaa",
+  "souk arbaa":            "Souk el Arbaa",
+
+  // ── Bouznika ────────────────────────────────────────────────────────────────
+  "bouznika":              "Bouznika",
+  "بوزنيقة":               "Bouznika",
+  "buznika":               "Bouznika",
+
+  // ── Oued Zem ────────────────────────────────────────────────────────────────
+  "oued zem":              "Oued Zem",
+  "واد زم":                "Oued Zem",
+  "ouedzem":               "Oued Zem",
+
+  // ── Boujad ──────────────────────────────────────────────────────────────────
+  "boujad":                "Boujad",
+  "بوجاد":                 "Boujad",
+
+  // ── Azilal ──────────────────────────────────────────────────────────────────
+  "azilal":                "Azilal",
+  "أزيلال":                "Azilal",
+
+  // ── Demnate ─────────────────────────────────────────────────────────────────
+  "demnate":               "Demnate",
+  "دمنات":                 "Demnate",
+  "demniat":               "Demnate",
+
+  // ── El Hajeb ────────────────────────────────────────────────────────────────
+  "el hajeb":              "El Hajeb",
+  "الحاجب":                "El Hajeb",
+  "hajeb":                 "El Hajeb",
+
+  // ── Sidi Ifni ───────────────────────────────────────────────────────────────
+  "sidi ifni":             "Sidi Ifni",
+  "سيدي إفني":             "Sidi Ifni",
+  "sidiifni":              "Sidi Ifni",
+
+  // ── Tan-Tan ─────────────────────────────────────────────────────────────────
+  "tan-tan":               "Tan-Tan",
+  "tantan":                "Tan-Tan",
+  "طانطان":                "Tan-Tan",
+
+  // ── Boulemane ───────────────────────────────────────────────────────────────
+  "boulemane":             "Boulemane",
+  "بولمان":                "Boulemane",
+
+  // ── Imzouren ────────────────────────────────────────────────────────────────
+  "imzouren":              "Imzouren",
+  "إمزورن":                "Imzouren",
+
+  // ── Zaio ────────────────────────────────────────────────────────────────────
+  "zaio":                  "Zaio",
+  "زايو":                  "Zaio",
+
+  // ── Driouch ─────────────────────────────────────────────────────────────────
+  "driouch":               "Driouch",
+  "دريوش":                 "Driouch",
+
+  // ── Tiznit area ─────────────────────────────────────────────────────────────
+  "biougra":               "Biougra",
+  "blfaa":                 "Biougra",
+
+  // ── Skhirat ─────────────────────────────────────────────────────────────────
+  "skhirat":               "Skhirat",
+  "الصخيرات":              "Skhirat",
+
+  // ── Bouskoura ───────────────────────────────────────────────────────────────
+  "bouskoura":             "Bouskoura",
+  "بوسكورة":               "Bouskoura",
+
+  // ── Dar Bouazza ─────────────────────────────────────────────────────────────
+  "dar bouazza":           "Dar Bouazza",
+  "دار بوعزة":             "Dar Bouazza",
+
+  // ── Had Soualem ─────────────────────────────────────────────────────────────
+  "had soualem":           "Had Soualem",
+  "الحد سواالم":           "Had Soualem",
+
+  // ── Sidi Yahia el Gharb ─────────────────────────────────────────────────────
+  "sidi yahia el gharb":   "Sidi Yahia el Gharb",
+  "سيدي يحيى الغرب":      "Sidi Yahia el Gharb",
+
+  // ── Ouezzane ────────────────────────────────────────────────────────────────
+  "ouezzane":              "Ouezzane",
+  "وزان":                  "Ouezzane",
+  "ouzan":                 "Ouezzane",
 };
 
 /**
@@ -309,6 +498,44 @@ export const AMEEX_CITIES_FALLBACK: { id: string; name: string }[] = [
   { id: "42", name: "Benslimane" },
   { id: "43", name: "Tiflet" },
   { id: "44", name: "Ain Aouda" },
+  { id: "45", name: "Berkane" },
+  { id: "46", name: "Oualidia" },
+  { id: "47", name: "Taourirt" },
+  { id: "48", name: "Guercif" },
+  { id: "49", name: "Jerada" },
+  { id: "50", name: "Sidi Bennour" },
+  { id: "51", name: "Azemmour" },
+  { id: "52", name: "Youssoufia" },
+  { id: "53", name: "Ben Guerir" },
+  { id: "54", name: "El Kelaa des Sraghna" },
+  { id: "55", name: "Tinghir" },
+  { id: "56", name: "Zagora" },
+  { id: "57", name: "Ait Melloul" },
+  { id: "58", name: "Inezgane" },
+  { id: "59", name: "Fnideq" },
+  { id: "60", name: "M'diq" },
+  { id: "61", name: "Martil" },
+  { id: "62", name: "Ksar el Kebir" },
+  { id: "63", name: "Souk el Arbaa" },
+  { id: "64", name: "Bouznika" },
+  { id: "65", name: "Oued Zem" },
+  { id: "66", name: "Boujad" },
+  { id: "67", name: "Azilal" },
+  { id: "68", name: "Demnate" },
+  { id: "69", name: "El Hajeb" },
+  { id: "70", name: "Sidi Ifni" },
+  { id: "71", name: "Tan-Tan" },
+  { id: "72", name: "Boulemane" },
+  { id: "73", name: "Imzouren" },
+  { id: "74", name: "Zaio" },
+  { id: "75", name: "Driouch" },
+  { id: "76", name: "Skhirat" },
+  { id: "77", name: "Bouskoura" },
+  { id: "78", name: "Dar Bouazza" },
+  { id: "79", name: "Had Soualem" },
+  { id: "80", name: "Sidi Yahia el Gharb" },
+  { id: "81", name: "Ouezzane" },
+  { id: "82", name: "Biougra" },
 ];
 
 /**
