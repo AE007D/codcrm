@@ -53,6 +53,7 @@ export default function TransitPage() {
   const [filter, setFilter] = useState("Tous");
   const [hubName, setHubName] = useState("Casablanca Hub Principal");
   const [search, setSearch] = useState("");
+  const [typeFilter, setTypeFilter] = useState<"Tous" | "STOCK" | "SIMPLE">("Tous");
 
   const loadAll = useCallback(async () => {
     setLoading(true); setError("");
@@ -65,26 +66,44 @@ export default function TransitPage() {
     }
 
     const c = s.ameex;
-    // Use saved hub name if available
     if (c.depotName) setHubName(c.depotName);
-    const depotId = c.depotId || "34"; // 34 = Casablanca Hub Principal
+    const depotId = c.depotId || "34";
+
+    function toList(d: unknown): Parcel[] {
+      if (Array.isArray(d)) return d as Parcel[];
+      const dd = d as Record<string, unknown>;
+      if (Array.isArray(dd?.data)) return dd.data as Parcel[];
+      if (Array.isArray(dd?.parcels)) return dd.parcels as Parcel[];
+      return [];
+    }
 
     try {
-      // Pass p_hub to filter by depot
-      const r = await fetch("/api/ameex", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          action: "listParcels",
-          apiId: c.apiId,
-          apiKey: c.apiKey,
-          p_hub: depotId,
-          type: "STOCK",
-        }),
-      });
-      const d = await r.json();
-      const all: Parcel[] = Array.isArray(d) ? d : (d?.data ?? d?.parcels ?? []);
-      setParcels(all);
+      const [rStock, rSimple] = await Promise.all([
+        fetch("/api/ameex", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ action: "listParcels", apiId: c.apiId, apiKey: c.apiKey, p_hub: depotId, type: "STOCK" }),
+        }).then(r => r.json()),
+        fetch("/api/ameex", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ action: "listParcels", apiId: c.apiId, apiKey: c.apiKey, type: "SIMPLE" }),
+        }).then(r => r.json()),
+      ]);
+
+      const stockList = toList(rStock).map(p => ({ ...p, _type: "STOCK" } as Parcel));
+      const simpleList = toList(rSimple).map(p => ({ ...p, _type: "SIMPLE" } as Parcel));
+
+      // Merge, dedup by code
+      const seen = new Set<string>();
+      const merged: Parcel[] = [];
+      for (const p of [...stockList, ...simpleList]) {
+        const key = String(p.code ?? p.barcode ?? "");
+        if (!key || seen.has(key)) continue;
+        seen.add(key);
+        merged.push(p);
+      }
+      setParcels(merged);
     } catch (e) {
       setError("Erreur lors du chargement: " + String(e));
     }
@@ -100,6 +119,8 @@ export default function TransitPage() {
     return s.includes("voyage") || s.includes("livraison") || s.includes("cours") || s.includes("ramassé") || s.includes("picked");
   });
   const totalCOD = parcels.reduce((sum, p) => sum + parseFloat(String(p.cod ?? p.price ?? "0")), 0);
+  const stockCount  = parcels.filter(p => p._type === "STOCK").length;
+  const simpleCount = parcels.filter(p => p._type === "SIMPLE").length;
 
   const filtered = parcels.filter(p => {
     const s = String(p.status ?? "").toLowerCase();
@@ -110,12 +131,13 @@ export default function TransitPage() {
       filter === "Annulé"   ? s.includes("annul") || s.includes("cancel") :
       filter === "En cours" ? (s.includes("voyage") || s.includes("livraison") || s.includes("cours") || s.includes("ramassé")) :
       true;
+    const matchType = typeFilter === "Tous" || p._type === typeFilter;
     const matchSearch = !search || (
       String(p.code ?? p.barcode ?? "").toLowerCase().includes(search.toLowerCase()) ||
       String(p.receiver ?? p.name ?? "").toLowerCase().includes(search.toLowerCase()) ||
       String(p.city ?? p.ville ?? "").toLowerCase().includes(search.toLowerCase())
     );
-    return matchFilter && matchSearch;
+    return matchFilter && matchType && matchSearch;
   });
 
   return (
@@ -126,7 +148,7 @@ export default function TransitPage() {
           <div>
             <h1 className="text-xl font-bold text-slate-900">En Transit · Ameex</h1>
             <p className="text-sm text-slate-400 hidden sm:block">
-              🏭 {hubName} — Stock uniquement
+              🏭 {hubName} · STOCK + Ramassage
             </p>
           </div>
           <button onClick={loadAll} disabled={loading}
@@ -153,8 +175,8 @@ export default function TransitPage() {
                 </svg>
               </div>
               <div className="text-center">
-                <p className="text-slate-800 font-bold text-lg">Colis Ameex — Stock hub</p>
-                <p className="text-slate-400 text-sm mt-1">Cliquez sur Actualiser pour charger les colis de votre dépôt</p>
+                <p className="text-slate-800 font-bold text-lg">Colis Ameex — Stock + Ramassage</p>
+                <p className="text-slate-400 text-sm mt-1">Cliquez sur Actualiser pour charger tous vos colis Ameex</p>
               </div>
               <button onClick={loadAll} className="bg-blue-600 hover:bg-blue-700 text-white font-semibold px-6 py-3 rounded-xl shadow-md shadow-blue-200 transition-colors">
                 Charger les colis
@@ -189,8 +211,8 @@ export default function TransitPage() {
               </div>
 
               {/* Filters + Search */}
-              <div className="flex flex-col sm:flex-row gap-3 mb-4">
-                <div className="flex gap-2 flex-wrap">
+              <div className="flex flex-col gap-3 mb-4">
+                <div className="flex gap-2 flex-wrap items-center">
                   {STATUS_FILTERS.map(f => (
                     <button key={f} onClick={() => setFilter(f)}
                       className={`text-xs font-semibold px-3 py-1.5 rounded-xl border transition-colors ${filter === f ? "bg-blue-600 text-white border-blue-600" : "bg-white text-slate-500 border-slate-200 hover:border-blue-300"}`}>
@@ -202,22 +224,29 @@ export default function TransitPage() {
                       )}
                     </button>
                   ))}
+                  <span className="text-slate-200 hidden sm:block">|</span>
+                  {(["Tous", "STOCK", "SIMPLE"] as const).map(t => (
+                    <button key={t} onClick={() => setTypeFilter(t)}
+                      className={`text-xs font-semibold px-3 py-1.5 rounded-xl border transition-colors ${typeFilter === t ? "bg-indigo-600 text-white border-indigo-600" : "bg-white text-slate-500 border-slate-200 hover:border-indigo-300"}`}>
+                      {t === "Tous" ? "Tous types" : t === "STOCK" ? `Stock (${stockCount})` : `Ramassage (${simpleCount})`}
+                    </button>
+                  ))}
+                  <input
+                    type="text"
+                    placeholder="Rechercher code, client, ville…"
+                    value={search}
+                    onChange={e => setSearch(e.target.value)}
+                    className="sm:ml-auto w-full sm:w-64 text-sm border border-slate-200 rounded-xl px-4 py-2 outline-none focus:border-blue-400 bg-white"
+                  />
                 </div>
-                <input
-                  type="text"
-                  placeholder="Rechercher code, client, ville…"
-                  value={search}
-                  onChange={e => setSearch(e.target.value)}
-                  className="sm:ml-auto w-full sm:w-64 text-sm border border-slate-200 rounded-xl px-4 py-2 outline-none focus:border-blue-400 bg-white"
-                />
               </div>
 
               {/* Table */}
               <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
                 <div className="px-5 py-3 border-b border-slate-100 flex items-center gap-2">
                   <div className="w-6 h-6 rounded-lg bg-blue-700 flex items-center justify-center text-white text-xs font-bold">A</div>
-                  <span className="font-bold text-slate-800 text-sm">Ameex — {hubName}</span>
-                  <span className="ml-auto text-xs text-slate-400">{filtered.length} colis</span>
+                  <span className="font-bold text-slate-800 text-sm">Ameex — Stock + Ramassage</span>
+                  <span className="ml-auto text-xs text-slate-400">{filtered.length} / {parcels.length} colis</span>
                 </div>
                 <div className="overflow-x-auto">
                   <table className="w-full text-sm">
@@ -227,17 +256,19 @@ export default function TransitPage() {
                         <th className="text-left px-5 py-3 font-semibold uppercase tracking-wide">Destinataire</th>
                         <th className="text-left px-5 py-3 font-semibold uppercase tracking-wide hidden sm:table-cell">Ville</th>
                         <th className="text-left px-5 py-3 font-semibold uppercase tracking-wide">COD</th>
+                        <th className="text-left px-5 py-3 font-semibold uppercase tracking-wide hidden md:table-cell">Type</th>
                         <th className="text-left px-5 py-3 font-semibold uppercase tracking-wide">Statut</th>
                         <th className="text-left px-5 py-3 font-semibold uppercase tracking-wide hidden md:table-cell">Âge</th>
                       </tr>
                     </thead>
                     <tbody>
                       {filtered.length === 0 ? (
-                        <tr><td colSpan={6} className="px-5 py-12 text-center text-slate-400 text-sm">Aucun colis</td></tr>
+                        <tr><td colSpan={7} className="px-5 py-12 text-center text-slate-400 text-sm">Aucun colis</td></tr>
                       ) : filtered.map((p, i) => {
                         const rawStatus = String(p.status ?? p.state ?? p.etat ?? "");
                         const st = statusStyle(rawStatus);
                         const days = daysSince(String(p.created_at ?? p.date ?? p.date_creation ?? ""));
+                        const pType = String(p._type ?? "");
                         return (
                           <tr key={i} className="border-b border-slate-50 hover:bg-slate-50/60 transition-colors">
                             <td className="px-5 py-3.5 font-mono text-xs text-blue-600 whitespace-nowrap">{String(p.code ?? p.barcode ?? "—")}</td>
@@ -246,6 +277,11 @@ export default function TransitPage() {
                             </td>
                             <td className="px-5 py-3.5 text-slate-500 hidden sm:table-cell">{String(p.city ?? p.ville ?? "—")}</td>
                             <td className="px-5 py-3.5 font-bold text-slate-800 whitespace-nowrap">{String(p.cod ?? p.price ?? p.crbt ?? "—")} MAD</td>
+                            <td className="px-5 py-3.5 hidden md:table-cell">
+                              <span className={`text-xs font-semibold px-2 py-0.5 rounded-lg ${pType === "STOCK" ? "bg-purple-50 text-purple-700" : "bg-sky-50 text-sky-700"}`}>
+                                {pType === "STOCK" ? "Stock" : "Ramassage"}
+                              </span>
+                            </td>
                             <td className="px-5 py-3.5">
                               <span className={`inline-block px-2.5 py-1 rounded-lg text-xs font-semibold border ${st.bg} ${st.color} whitespace-nowrap`}>
                                 {st.label !== rawStatus ? st.label : rawStatus.split(/[\n,]+/)[0].trim().slice(0, 30)}
