@@ -200,10 +200,19 @@ export default function CommandesPage() {
     return () => window.removeEventListener("new-orders", handler);
   }, [fetchOrders]);
 
+  function normalizeKey(s: string) {
+    return s.toLowerCase().trim().normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/\s+/g, " ");
+  }
   function mergeCities(base: {id:string;name:string}[], extra: {id:string;name:string}[]) {
-    const map = new Map(base.map(c => [c.name.toLowerCase().trim(), c]));
-    for (const c of extra) map.set(c.name.toLowerCase().trim(), c);
-    return Array.from(map.values()).sort((a, b) => a.name.localeCompare(b.name, "fr"));
+    const map = new Map(base.map(c => [normalizeKey(c.name), c]));
+    // extra (API) overrides fallback on name collision
+    for (const c of extra) map.set(normalizeKey(c.name), c);
+    // Also deduplicate by city ID (in case same ID appears with different spellings)
+    const byId = new Map<string, {id:string;name:string}>();
+    for (const c of map.values()) {
+      if (!byId.has(c.id)) byId.set(c.id, c);
+    }
+    return Array.from(byId.values()).sort((a, b) => a.name.localeCompare(b.name, "fr"));
   }
 
   // ── Load Ameex cities once on mount ──────────────────────────────────────
