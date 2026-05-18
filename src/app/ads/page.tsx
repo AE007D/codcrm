@@ -27,8 +27,6 @@ const emptyForm = {
   name: "",
   sku: "",
   spend: "",
-  impressions: "",
-  clicks: "",
   orders: "",
   delivered: "",
   revenue: "",
@@ -170,8 +168,8 @@ export default function AdsPage() {
       name: name.trim(),
       sku: form.sku.trim(),
       spend: Number(spend),
-      impressions: Number(form.impressions) || 0,
-      clicks: Number(form.clicks) || 0,
+      impressions: 0,
+      clicks: 0,
       orders: Number(orders),
       delivered: Number(delivered),
       revenue: Number(revenue),
@@ -406,7 +404,7 @@ export default function AdsPage() {
                 <table className="w-full text-sm">
                   <thead>
                     <tr className="text-xs text-slate-400 border-b border-slate-50">
-                      {["Plateforme", "Campagne / Produit", "Dépense", "Impressions", "Clics", "Commandes", "Livrés", "Revenue", "CPP", "CPD", "ROAS", "Date", ""].map(h => (
+                      {["Plateforme", "Campagne / Produit", "Dépense", "Commandes", "Livrés", "Revenue", "CPP", "CPD", "ROAS", "Date", ""].map(h => (
                         <th key={h} className="text-left px-4 py-3 font-semibold uppercase tracking-wide whitespace-nowrap">{h}</th>
                       ))}
                     </tr>
@@ -414,7 +412,7 @@ export default function AdsPage() {
                   <tbody>
                     {filtered.length === 0 && (
                       <tr>
-                        <td colSpan={13} className="text-center py-16 text-slate-400 text-sm">
+                        <td colSpan={11} className="text-center py-16 text-slate-400 text-sm">
                           {loaded ? 'Aucune campagne — cliquez "+ Ajouter campagne"' : "Chargement…"}
                         </td>
                       </tr>
@@ -440,8 +438,6 @@ export default function AdsPage() {
                             )}
                           </td>
                           <td className="px-4 py-3.5 font-bold text-slate-800">{mad(c.spend)}</td>
-                          <td className="px-4 py-3.5 text-slate-500">{fmt(c.impressions)}</td>
-                          <td className="px-4 py-3.5 text-slate-500">{fmt(c.clicks)}</td>
                           <td className="px-4 py-3.5 text-slate-600 font-medium">{c.orders}</td>
                           <td className="px-4 py-3.5">
                             <span className="bg-emerald-50 text-emerald-600 text-xs font-semibold px-2 py-0.5 rounded-lg">{c.delivered}</span>
@@ -564,8 +560,6 @@ export default function AdsPage() {
                 { key: "revenue",     label: "Revenue généré (MAD) *",     placeholder: "16800",  auto: true   },
                 { key: "orders",      label: "Commandes *",                placeholder: "48",     auto: true   },
                 { key: "delivered",   label: "Livrées *",                  placeholder: "41",     auto: true   },
-                { key: "impressions", label: "Impressions",                placeholder: "85000"             },
-                { key: "clicks",      label: "Clics",                      placeholder: "1240"              },
               ].map(({ key, label, placeholder, type, auto }) => (
                 <div key={key}>
                   <label className="text-xs font-semibold text-slate-600 mb-1 flex items-center gap-1.5">
