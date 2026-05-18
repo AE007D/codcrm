@@ -240,13 +240,15 @@ export default function CommandesPage() {
         method: "POST", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ action: "cities", apiId: creds.apiId, apiKey: creds.apiKey }),
       }).then(r => r.json());
-      const raw = Array.isArray(cd) ? cd
+      const raw: unknown[] = Array.isArray(cd) ? cd
+        : cd?.api?.cities && typeof cd.api.cities === "object" && !Array.isArray(cd.api.cities)
+          ? Object.values(cd.api.cities as Record<string, unknown>)
         : Array.isArray(cd?.api?.data) ? cd.api.data
         : Array.isArray(cd?.data) ? cd.data
         : Array.isArray(cd?.cities) ? cd.cities
         : Array.isArray(cd?.result) ? cd.result
         : [];
-      const list: {id:string;name:string}[] = raw.map((c: Record<string,unknown>) => ({ id: String(c.id ?? c.city_id ?? ""), name: String(c.name ?? c.city_name ?? c.ville ?? "") })).filter((c: {id:string;name:string}) => c.id && c.name);
+      const list: {id:string;name:string}[] = raw.map((c) => { const r = c as Record<string,unknown>; return { id: String(r.id ?? r.city_id ?? ""), name: String(r.name ?? r.city_name ?? r.ville ?? "") }; }).filter((c) => c.id && c.name);
       if (list.length) {
         const merged = mergeCities(AMEEX_CITIES_FALLBACK, list);
         setAmeexCities(merged);
@@ -538,17 +540,20 @@ export default function CommandesPage() {
         method: "POST", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ action: "cities", apiId: creds.apiId, apiKey: creds.apiKey }),
       }).then(r => r.json());
-      // Try every known Ameex response shape including deeply nested ones
+      // Ameex returns: {"login":"success","api":{"cities":{"1":{id,name,...},"2":{...}}}}
+      // cd.api.cities is an OBJECT keyed by city ID, not an array
       const rawC: unknown[] = Array.isArray(cd) ? cd
+        : cd?.api?.cities && typeof cd.api.cities === "object" && !Array.isArray(cd.api.cities)
+          ? Object.values(cd.api.cities as Record<string, unknown>)
+        : Array.isArray(cd?.api?.cities) ? cd.api.cities
         : Array.isArray(cd?.api?.data) ? cd.api.data
+        : cd?.data?.cities && typeof cd.data.cities === "object" && !Array.isArray(cd.data.cities)
+          ? Object.values(cd.data.cities as Record<string, unknown>)
         : Array.isArray(cd?.data?.cities) ? cd.data.cities
         : Array.isArray(cd?.data) ? cd.data
         : Array.isArray(cd?.cities) ? cd.cities
         : Array.isArray(cd?.result) ? cd.result
-        : Array.isArray(cd?.api?.cities) ? cd.api.cities
-        : typeof cd === "object" && cd !== null
-          ? (Object.values(cd).find(v => Array.isArray(v) && (v as unknown[]).length > 0) as unknown[] ?? [])
-          : [];
+        : [];
       const cityList = (rawC as Record<string,unknown>[]).map(c => ({
         id: String(c.id ?? c.city_id ?? c.ID ?? c.CITY_ID ?? ""),
         name: String(c.name ?? c.city_name ?? c.ville ?? c.Name ?? c.CITY_NAME ?? c.VILLE ?? ""),

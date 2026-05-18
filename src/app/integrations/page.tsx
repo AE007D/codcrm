@@ -164,17 +164,22 @@ export default function IntegrationsPage() {
     const d = await ameexCall("cities", ameexSaved);
     setLoading(false);
     setAmeexCitiesRaw(JSON.stringify(d, null, 2));
-    // Try all known response shapes
-    const raw = Array.isArray(d) ? d
+    // Ameex returns cities as an object keyed by ID: {"api":{"cities":{"1":{...},"2":{...}}}}
+    const raw: unknown[] = Array.isArray(d) ? d
+      : d?.api?.cities && typeof d.api.cities === "object" && !Array.isArray(d.api.cities)
+        ? Object.values(d.api.cities as Record<string, unknown>)
+      : Array.isArray(d?.api?.cities) ? d.api.cities
       : Array.isArray(d?.api?.data) ? d.api.data
       : Array.isArray(d?.data) ? d.data
       : Array.isArray(d?.cities) ? d.cities
       : Array.isArray(d?.result) ? d.result
       : [];
-    if (raw.length) {
-      setAmeexCities(raw);
+    const parsedCities = raw.map((c) => { const r = c as Record<string,unknown>; return { id: String(r.id ?? r.city_id ?? ""), name: String(r.name ?? r.city_name ?? r.ville ?? "") }; }).filter(c => c.id && c.name);
+    if (parsedCities.length) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      setAmeexCities(parsedCities as any);
       // Also cache in localStorage for commandes page
-      try { localStorage.setItem("codcrm_ameex_cities", JSON.stringify(raw.map((c: Record<string,unknown>) => ({ id: String(c.id ?? c.city_id ?? ""), name: String(c.name ?? c.city_name ?? c.ville ?? "") })).filter((c: {id:string;name:string}) => c.id && c.name))); } catch { /* */ }
+      try { localStorage.setItem("codcrm_ameex_cities", JSON.stringify(parsedCities)); } catch { /* */ }
     }
   }, [ameexSaved]);
   async function addAmeex() { if (!ameexSaved) { showToast("Configurez Ameex d'abord.", false); return; } if (!ameexForm.receiver || !ameexForm.phone || !ameexForm.city || !ameexForm.address || !ameexForm.cod) { showToast("Champs obligatoires manquants.", false); return; } setLoading(true); const d = await ameexCall("addParcel", ameexSaved, { ...ameexForm }); setLoading(false); const nested = d?.api?.data ?? d?.data ?? null; const trackCode = nested?.code ?? nested?.id ?? d?.code ?? d?.id ?? d?.tracking ?? d?.barcode; const ok = trackCode != null || d?.api?.type === "success" || d?.status === "success"; const errMsg = d?.api?.msg ?? d?.message ?? JSON.stringify(d); const label = ok ? `Colis créé ✓ — ${trackCode ?? d?.api?.msg ?? "OK"}` : `Erreur: ${errMsg}`; showToast(label, ok); if (ok) setAmeexForm({ receiver: "", phone: "", city: "", address: "", cod: "", product: "", order_num: "", comment: "", type: "SIMPLE", open: "NO", try: "NO", fragile: "0", replace: "false" }); }
