@@ -132,6 +132,7 @@ export default function CommandesPage() {
   const [shipResults, setShipResults] = useState<{ id: string; ok: boolean; msg: string }[]>([]);
   const [ameexCities, setAmeexCities] = useState<{ id: string; name: string }[]>([]);
   const [ameexRealIds, setAmeexRealIds] = useState<Set<string>>(new Set()); // IDs confirmed from real Ameex API
+  const [syncingCities, setSyncingCities] = useState(false);
   const [cityOverrides, setCityOverrides] = useState<Record<string, string>>({}); // orderId → cityId (Ameex) or city name (Eagle)
   const [eagleAddressOverrides, setEagleAddressOverrides] = useState<Record<string, string>>({}); // orderId → address override for Eagle
   const [ameexShipType, setAmeexShipType] = useState<"SIMPLE"|"STOCK">("SIMPLE");
@@ -532,6 +533,41 @@ export default function CommandesPage() {
 
       }
     } catch { /* silent */ }
+  }
+
+  // Sync real Ameex city IDs from API — can be called from modal button
+  async function syncAmeexCities() {
+    setSyncingCities(true);
+    try {
+      const settingsData = await fetch("/api/settings").then(r => r.json());
+      const creds = settingsData.settings?.ameex ?? {};
+      if (!creds.apiId) { setSyncingCities(false); return; }
+      const cd = await fetch("/api/ameex", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "cities", apiId: creds.apiId, apiKey: creds.apiKey }),
+      }).then(r => r.json());
+      // Try every known Ameex response shape, including deeply nested ones
+      const rawC: unknown[] = Array.isArray(cd) ? cd
+        : Array.isArray(cd?.api?.data) ? cd.api.data
+        : Array.isArray(cd?.data?.cities) ? cd.data.cities
+        : Array.isArray(cd?.data) ? cd.data
+        : Array.isArray(cd?.cities) ? cd.cities
+        : Array.isArray(cd?.result) ? cd.result
+        : Array.isArray(cd?.api?.cities) ? cd.api.cities
+        : typeof cd === "object" && cd !== null ? Object.values(cd).find(v => Array.isArray(v) && (v as unknown[]).length > 0) as unknown[] ?? []
+        : [];
+      const cityList = (rawC as Record<string,unknown>[]).map(c => ({
+        id: String(c.id ?? c.city_id ?? c.ID ?? c.CITY_ID ?? ""),
+        name: String(c.name ?? c.city_name ?? c.ville ?? c.Name ?? c.CITY_NAME ?? c.VILLE ?? ""),
+      })).filter(c => c.id && c.name);
+      if (cityList.length) {
+        const merged = mergeCities(AMEEX_CITIES_FALLBACK, cityList);
+        setAmeexCities(merged);
+        setAmeexRealIds(new Set(cityList.map(c => c.id)));
+        try { localStorage.setItem("codcrm_ameex_cities", JSON.stringify(cityList)); } catch { /* */ }
+      }
+    } catch { /* silent */ }
+    setSyncingCities(false);
   }
 
   // Send selected orders to carrier
@@ -1385,9 +1421,18 @@ export default function CommandesPage() {
                 return (
                   <div className="space-y-2">
                     {!hasRealIds && (
-                      <p className="text-[11px] text-amber-600 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
-                        ⚠ Villes non synchronisées — allez dans <strong>Intégrations → Ameex → Actualiser villes</strong> pour obtenir les vrais IDs.
-                      </p>
+                      <div className="flex items-center justify-between gap-2 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
+                        <p className="text-[11px] text-amber-700">
+                          ⚠ Villes non synchronisées — les IDs envoyés à Ameex peuvent être invalides.
+                        </p>
+                        <button
+                          onClick={syncAmeexCities}
+                          disabled={syncingCities}
+                          className="shrink-0 text-[11px] font-bold px-2 py-1 bg-amber-600 hover:bg-amber-700 disabled:opacity-60 text-white rounded-lg transition-colors"
+                        >
+                          {syncingCities ? "…" : "Sync villes"}
+                        </button>
+                      </div>
                     )}
                     <p className="text-xs font-semibold text-slate-500">
                       {shipResults.length > 0 ? "🔴 Corrigez la ville et réessayez :" : "🏙 Choisissez la ville de chaque commande :"}
@@ -1395,7 +1440,7 @@ export default function CommandesPage() {
                     {ordersToShow.map(o => {
                       const autoId = resolveAmeexCityId(o.city ?? "", ameexCities) ?? "";
                       const currentVal = cityOverrides[o.id] ?? autoId;
-                      const isConfirmed = !!currentVal && (ameexRealIds.has(currentVal) || !hasRealIds);
+                      const isConfirmed = !!currentVal && (!hasRealIds || ameexRealIds.has(currentVal));
                       return (
                         <div key={o.id} className={`flex items-center gap-2 p-2 rounded-xl border ${!currentVal ? "border-red-300 bg-red-50" : isConfirmed ? "border-emerald-200 bg-emerald-50" : "border-amber-300 bg-amber-50"}`}>
                           <span className="text-xs font-semibold text-slate-700 w-20 truncate shrink-0">{o.customer}</span>
@@ -1463,10 +1508,19 @@ export default function CommandesPage() {
                   : orders.filter(o => selected.has(o.id));
                 const hasUnresolved = shipCarrier === "ameex" && ordersToSend.some(o => {
                   const override = cityOverrides[o.id];
-                  if (override && ameexCities.find(c => c.id === override)) return false;
-                  const autoId = resolveAmeexCityId(o.city ?? "", ameexCities) ?? "";
-                  if (autoId && (!hasRealIds || ameexRealIds.has(autoId))) return false;
-                  return true;
+                  if (hasRealIds) {
+                    // Strict: must be a confirmed real Ameex ID
+                    if (override && ameexRealIds.has(override)) return false;
+                    const autoId = resolveAmeexCityId(o.city ?? "", ameexCities) ?? "";
+                    if (autoId && ameexRealIds.has(autoId)) return false;
+                    return true;
+                  } else {
+                    // No sync yet — require at least an explicit selection
+                    if (override) return false;
+                    const autoId = resolveAmeexCityId(o.city ?? "", ameexCities) ?? "";
+                    if (autoId) return false;
+                    return true;
+                  }
                 });
                 if (shipResults.length > 0 && failedIds.size === 0) return null;
                 return (
