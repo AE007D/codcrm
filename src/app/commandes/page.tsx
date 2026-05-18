@@ -198,13 +198,14 @@ export default function CommandesPage() {
     return () => window.removeEventListener("new-orders", handler);
   }, [fetchOrders]);
 
+  function mergeCities(base: {id:string;name:string}[], extra: {id:string;name:string}[]) {
+    const map = new Map(base.map(c => [c.name.toLowerCase().trim(), c]));
+    for (const c of extra) map.set(c.name.toLowerCase().trim(), c);
+    return Array.from(map.values()).sort((a, b) => a.name.localeCompare(b.name, "fr"));
+  }
+
   // ── Load Ameex cities once on mount ──────────────────────────────────────
   useEffect(() => {
-    function mergeCities(base: {id:string;name:string}[], extra: {id:string;name:string}[]) {
-      const map = new Map(base.map(c => [c.name.toLowerCase().trim(), c]));
-      for (const c of extra) map.set(c.name.toLowerCase().trim(), c); // extra (real API IDs) wins
-      return Array.from(map.values()).sort((a, b) => a.name.localeCompare(b.name, "fr"));
-    }
 
     // 1. Start with hardcoded fallback
     let cities = [...AMEEX_CITIES_FALLBACK];
@@ -433,8 +434,16 @@ export default function CommandesPage() {
           body: JSON.stringify({ action: "cities", apiId: creds.apiId, apiKey: creds.apiKey }),
         }).then(r => r.json());
         const rawC = Array.isArray(cd) ? cd : Array.isArray(cd?.api?.data) ? cd.api.data : Array.isArray(cd?.data) ? cd.data : Array.isArray(cd?.cities) ? cd.cities : Array.isArray(cd?.result) ? cd.result : [];
-        const cityList = rawC.map((c: Record<string,unknown>) => ({ id: String(c.id ?? c.city_id ?? ""), name: String(c.name ?? c.city_name ?? c.ville ?? "") })).filter((c: {id:string;name:string}) => c.id && c.name);
-        if (cityList.length) { setAmeexCities(cityList); try { localStorage.setItem("codcrm_ameex_cities", JSON.stringify(cityList)); } catch { /* */ } }
+        const cityList = rawC.map((c: Record<string,unknown>) => ({
+          id: String(c.id ?? c.city_id ?? c.ID ?? c.CITY_ID ?? ""),
+          name: String(c.name ?? c.city_name ?? c.ville ?? c.Name ?? c.CITY_NAME ?? c.VILLE ?? ""),
+        })).filter((c: {id:string;name:string}) => c.id && c.name);
+        if (cityList.length) {
+          const merged = mergeCities(AMEEX_CITIES_FALLBACK, cityList);
+          setAmeexCities(merged);
+          setAmeexRealIds(new Set(cityList.map((c: {id:string}) => c.id)));
+          try { localStorage.setItem("codcrm_ameex_cities", JSON.stringify(cityList)); } catch { /* */ }
+        }
 
         // Load stock depots via /Stock/Depots (GET) — gives us hub IDs for this account
         let resolvedDepotId = creds.depotId ?? ameexDepot ?? "";
