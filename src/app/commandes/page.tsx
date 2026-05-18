@@ -131,6 +131,7 @@ export default function CommandesPage() {
   const [shipping, setShipping] = useState(false);
   const [shipResults, setShipResults] = useState<{ id: string; ok: boolean; msg: string }[]>([]);
   const [ameexCities, setAmeexCities] = useState<{ id: string; name: string }[]>([]);
+  const [ameexRealIds, setAmeexRealIds] = useState<Set<string>>(new Set()); // IDs confirmed from real Ameex API
   const [cityOverrides, setCityOverrides] = useState<Record<string, string>>({}); // orderId → cityId (Ameex) or city name (Eagle)
   const [eagleAddressOverrides, setEagleAddressOverrides] = useState<Record<string, string>>({}); // orderId → address override for Eagle
   const [ameexShipType, setAmeexShipType] = useState<"SIMPLE"|"STOCK">("SIMPLE");
@@ -211,7 +212,13 @@ export default function CommandesPage() {
     // 2. Merge localStorage cache on top (real API IDs override fallback IDs)
     try {
       const cached = localStorage.getItem("codcrm_ameex_cities");
-      if (cached) { const parsed = JSON.parse(cached); if (parsed?.length) cities = mergeCities(cities, parsed); }
+      if (cached) {
+        const parsed: {id:string;name:string}[] = JSON.parse(cached);
+        if (parsed?.length) {
+          cities = mergeCities(cities, parsed);
+          setAmeexRealIds(new Set(parsed.map(c => c.id)));
+        }
+      }
     } catch { /* ignore */ }
     setAmeexCities(cities);
 
@@ -236,10 +243,11 @@ export default function CommandesPage() {
         : Array.isArray(cd?.cities) ? cd.cities
         : Array.isArray(cd?.result) ? cd.result
         : [];
-      const list = raw.map((c: Record<string,unknown>) => ({ id: String(c.id ?? c.city_id ?? ""), name: String(c.name ?? c.city_name ?? c.ville ?? "") })).filter((c: {id:string;name:string}) => c.id && c.name);
+      const list: {id:string;name:string}[] = raw.map((c: Record<string,unknown>) => ({ id: String(c.id ?? c.city_id ?? ""), name: String(c.name ?? c.city_name ?? c.ville ?? "") })).filter((c: {id:string;name:string}) => c.id && c.name);
       if (list.length) {
         const merged = mergeCities(AMEEX_CITIES_FALLBACK, list);
         setAmeexCities(merged);
+        setAmeexRealIds(new Set(list.map(c => c.id)));
         try { localStorage.setItem("codcrm_ameex_cities", JSON.stringify(list)); } catch { /* ignore */ }
       }
     }).catch(() => {});
@@ -552,9 +560,16 @@ export default function CommandesPage() {
           // City: override from ship modal > smart multi-strategy resolver > raw value
           const cityRaw   = (order.city ?? "").trim();
           const overrideVal = cityOverrides[order.id] ?? "";
-          const cityId    = overrideVal
-                          || resolveAmeexCityId(cityRaw, ameexCities)
-                          || cityRaw;
+          const autoId = resolveAmeexCityId(cityRaw, ameexCities);
+          // Only use a resolved ID if it's a confirmed real Ameex ID
+          const resolvedId = overrideVal && ameexRealIds.has(overrideVal) ? overrideVal
+            : autoId && ameexRealIds.has(autoId) ? autoId
+            : overrideVal || autoId || "";
+          const cityId = resolvedId || cityRaw;
+          if (!resolvedId) {
+            results.push({ id: order.id, ok: false, msg: "Veuillez choisir une ville dans la liste" });
+            continue;
+          }
           res = await fetch("/api/ameex", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
@@ -1363,29 +1378,28 @@ export default function CommandesPage() {
                     <p className="text-xs font-semibold text-slate-500">🏙 Vérifiez la ville de chaque commande avant d&apos;envoyer :</p>
                     {selectedOrders.map(o => {
                       const autoId = resolveAmeexCityId(o.city ?? "", ameexCities) ?? undefined;
-                      const currentVal = cityOverrides[o.id] ?? autoId ?? "";
-                      const currentName = currentVal ? (cityNameMap[currentVal] ?? currentVal) : "";
+                      const currentVal = cityOverrides[o.id] ?? (autoId && ameexRealIds.has(autoId) ? autoId : undefined) ?? "";
+                      const currentName = currentVal ? (cityNameMap[currentVal] ?? currentVal) : (autoId ? (cityNameMap[autoId] ?? autoId) : "");
+                      const isConfirmed = !!currentVal && ameexRealIds.has(currentVal);
+                      const needsPick = !currentVal || !isConfirmed;
                       return (
-                        <div key={o.id} className={`flex items-center gap-2 p-2 rounded-xl border ${currentVal ? "border-slate-200 bg-slate-50" : "border-amber-300 bg-amber-50"}`}>
+                        <div key={o.id} className={`flex items-center gap-2 p-2 rounded-xl border ${needsPick ? "border-amber-300 bg-amber-50" : "border-slate-200 bg-slate-50"}`}>
                           <span className="text-xs font-semibold text-slate-700 w-20 truncate shrink-0">{o.customer}</span>
                           <div className="flex-1 relative">
                             <input
                               list={`cities-${o.id}`}
-                              placeholder="Tapez ou choisissez une ville…"
+                              placeholder={autoId ? `${cityNameMap[autoId] ?? autoId} — confirmez ↓` : "Choisissez une ville…"}
                               value={currentName}
                               onChange={e => {
                                 const typed = e.target.value;
-                                // Try to match typed value to a city name → store the ID
                                 const matched = ameexCities.find(c => c.name.toLowerCase() === typed.toLowerCase());
                                 if (matched) {
                                   setCityOverrides(prev => ({ ...prev, [o.id]: matched.id }));
                                 } else {
-                                  // Store as-is (search mode); if the user selects from datalist it will match
                                   setCityOverrides(prev => ({ ...prev, [o.id]: typed }));
                                 }
                               }}
                               onBlur={e => {
-                                // On blur, resolve typed value to a city ID if possible
                                 const typed = e.target.value.trim();
                                 if (!typed) { setCityOverrides(prev => ({ ...prev, [o.id]: "" })); return; }
                                 const norm = (s: string) => s.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").trim();
@@ -1395,7 +1409,7 @@ export default function CommandesPage() {
                                 );
                                 if (matched) setCityOverrides(prev => ({ ...prev, [o.id]: matched.id }));
                               }}
-                              className={`w-full text-xs border rounded-lg px-2 py-1.5 outline-none focus:border-blue-400 bg-white ${currentVal && !ameexCities.find(c=>c.id===currentVal) ? "border-amber-300" : "border-slate-200"}`}
+                              className={`w-full text-xs border rounded-lg px-2 py-1.5 outline-none focus:border-blue-400 bg-white ${needsPick ? "border-amber-300" : "border-slate-200"}`}
                             />
                             <datalist id={`cities-${o.id}`}>
                               {ameexCities.map(c => <option key={c.id} value={c.name} />)}
@@ -1452,9 +1466,10 @@ export default function CommandesPage() {
               </button>
               {!shipResults.length && (() => {
                 const hasUnresolved = shipCarrier === "ameex" && orders.filter(o => selected.has(o.id)).some(o => {
+                  const override = cityOverrides[o.id];
+                  if (override) return !ameexRealIds.has(override); // explicit pick must be a real ID
                   const autoId = resolveAmeexCityId(o.city ?? "", ameexCities);
-                  const val = cityOverrides[o.id] ?? autoId ?? "";
-                  return !val;
+                  return !autoId || !ameexRealIds.has(autoId); // auto-resolve must be a real ID
                 });
                 return (
                   <button onClick={sendToCarrier} disabled={shipping || selected.size === 0 || hasUnresolved}
