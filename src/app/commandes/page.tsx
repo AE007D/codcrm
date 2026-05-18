@@ -1187,7 +1187,7 @@ export default function CommandesPage() {
                   className="w-full text-sm border border-slate-200 rounded-xl px-4 py-2.5 outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-50" />
                 {showCityDrop && ameexCities.filter(c => c.name.toLowerCase().includes(citySearch.toLowerCase())).length > 0 && (
                   <div className="absolute z-50 top-full mt-1 left-0 right-0 bg-white border border-slate-200 rounded-xl shadow-lg overflow-hidden max-h-44 overflow-y-auto">
-                    {ameexCities.filter(c => !citySearch || c.name.toLowerCase().includes(citySearch.toLowerCase())).slice(0, 10).map(c => (
+                    {ameexCities.filter(c => !citySearch || c.name.toLowerCase().includes(citySearch.toLowerCase())).map(c => (
                       <button key={c.id} type="button" onMouseDown={() => { setForm(f => ({ ...f, city: c.name })); setCitySearch(c.name); setShowCityDrop(false); }}
                         className="w-full text-left px-3 py-2 text-sm hover:bg-blue-50 transition-colors flex items-center justify-between">
                         <span>{c.name}</span><span className="text-xs text-slate-400">#{c.id}</span>
@@ -1607,7 +1607,7 @@ export default function CommandesPage() {
                       className="w-full text-sm border border-slate-200 rounded-xl px-3 py-2 outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-50 bg-white" />
                     {showEditCityDrop && ameexCities.filter(c => !editCitySearch || c.name.toLowerCase().includes(editCitySearch.toLowerCase())).length > 0 && (
                       <div className="absolute z-50 top-full mt-1 left-0 right-0 bg-white border border-slate-200 rounded-xl shadow-lg overflow-hidden max-h-40 overflow-y-auto">
-                        {ameexCities.filter(c => !editCitySearch || c.name.toLowerCase().includes(editCitySearch.toLowerCase())).slice(0, 10).map(c => (
+                        {ameexCities.filter(c => !editCitySearch || c.name.toLowerCase().includes(editCitySearch.toLowerCase())).map(c => (
                           <button key={c.id} type="button" onMouseDown={() => { setEditForm(f => ({ ...f, city: c.name })); setEditCitySearch(c.name); setShowEditCityDrop(false); }}
                             className="w-full text-left px-3 py-2 text-sm hover:bg-blue-50 transition-colors flex items-center justify-between">
                             <span>{c.name}</span><span className="text-xs text-slate-400">#{c.id}</span>
