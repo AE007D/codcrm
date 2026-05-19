@@ -99,14 +99,17 @@ export async function updateOrderByTracking(
   status: string,
   carrierStatus?: string
 ): Promise<boolean> {
+  const code = carrierTracking.trim();
   const patch: Record<string, unknown> = { status };
   if (carrierStatus) patch.carrier_status = carrierStatus;
-  const { error } = await supabase
+  const { data, error } = await supabase
     .from("crm_orders")
     .update(patch)
-    .eq("carrier_tracking", carrierTracking);
+    .ilike("carrier_tracking", code)
+    .select("id");
   if (error) { console.error("updateOrderByTracking:", error.message); return false; }
-  return true;
+  if (!data?.length) console.warn(`updateOrderByTracking: no row matched carrier_tracking="${code}"`);
+  return (data?.length ?? 0) > 0;
 }
 
 export async function updateOrderFields(

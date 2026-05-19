@@ -58,14 +58,17 @@ export async function POST(request: NextRequest) {
 
     const crmStatus = AMEEX_STATUS_MAP[statut.toUpperCase()];
     if (!crmStatus) {
-      // Unknown status — still save the carrier status, just don't change CRM status
-      console.log(`Ameex webhook: unhandled status "${statut}" for ${code}`);
+      console.log(`Ameex webhook: unhandled status "${statut}" for code="${code}"`);
       await updateOrderByTracking(code, statut, carrierStatus).catch(() => {});
       return NextResponse.json({ ok: true, skipped: true });
     }
 
     const updated = await updateOrderByTracking(code, crmStatus, carrierStatus);
-    console.log(`Ameex webhook: ${code} → ${statut} (${carrierStatus}) → ${crmStatus} (updated: ${updated})`);
+    if (!updated) {
+      console.warn(`Ameex webhook: NO ORDER FOUND with carrier_tracking="${code}" — status ${crmStatus} not applied`);
+    } else {
+      console.log(`Ameex webhook: ${code} → ${statut} (${carrierStatus}) → ${crmStatus} ✓`);
+    }
 
     return NextResponse.json({ ok: true, code, crmStatus });
   } catch (err) {
