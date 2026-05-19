@@ -568,7 +568,7 @@ export default function CommandesPage() {
           // Show stored carrier status from webhook if available
           statusText = order.carrierStatus
             ? `Statut Ameex (webhook): ${order.carrierStatus}`
-            : "Aucun statut disponible — configurez le webhook Ameex vers /api/webhooks/ameex pour recevoir les mises à jour automatiquement";
+            : "En attente d'une mise à jour Ameex — le statut s'affichera automatiquement dès qu'Ameex enverra une notification.";
         }
       } else {
         const creds = s.eagle ?? {};
