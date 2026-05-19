@@ -713,7 +713,13 @@ export default function CommandesPage() {
             const mm = String(match.message ?? match.msg ?? "");
             statusText = [ms, mm].filter(Boolean).join(" — ");
           } else {
-            statusText = `Colis non trouvé dans Ameex (${all.length} colis vérifiés)`;
+            // Debug: show what codes Ameex actually returned
+            const sampleCodes = all.slice(0, 5).map(p => {
+              const keys = Object.keys(p).join(",");
+              const c = p.code ?? p.barcode ?? p.tracking_code ?? p.reference ?? p.ref ?? "?";
+              return `[${c}|keys:${keys}]`;
+            }).join(" ");
+            statusText = `Colis non trouvé (${all.length} vérifiés, cherché: ${code}, exemples: ${sampleCodes || "aucun"})`;
           }
         }
       } else {
