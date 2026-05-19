@@ -157,22 +157,46 @@ export default function CommandesPage() {
       if (!c?.apiId) { if (!silent) showToast("Identifiants Ameex non configurés", false); setSyncingStatus(false); return; }
 
       const depotId = c.depotId || "34";
+
+      // Ameex wraps responses: {login:"success", api:{data:[...]} | api:[...] | api:{parcels:[...]} | [...]}
       function toList(d: unknown): Record<string, unknown>[] {
         if (Array.isArray(d)) return d as Record<string, unknown>[];
         const dd = d as Record<string, unknown>;
-        if (Array.isArray(dd?.data)) return dd.data as Record<string, unknown>[];
+        const api = dd?.api;
+        if (Array.isArray(api)) return api as Record<string, unknown>[];
+        if (api && typeof api === "object") {
+          const a = api as Record<string, unknown>;
+          if (Array.isArray(a.data))    return a.data    as Record<string, unknown>[];
+          if (Array.isArray(a.parcels)) return a.parcels as Record<string, unknown>[];
+          if (Array.isArray(a.items))   return a.items   as Record<string, unknown>[];
+          // Sometimes the api object itself is a map of id→parcel
+          const vals = Object.values(a).filter(v => v && typeof v === "object" && !Array.isArray(v));
+          if (vals.length > 0 && (vals[0] as Record<string,unknown>)?.code) return vals as Record<string, unknown>[];
+        }
+        if (Array.isArray(dd?.data))    return dd.data    as Record<string, unknown>[];
         if (Array.isArray(dd?.parcels)) return dd.parcels as Record<string, unknown>[];
         return [];
       }
 
-      const [rSimple, rStock] = await Promise.all([
+      // Fetch without type filter too — some accounts need no type param
+      const [rSimple, rStock, rAll] = await Promise.all([
         fetch("/api/ameex", { method: "POST", headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ action: "listParcels", apiId: c.apiId, apiKey: c.apiKey, type: "SIMPLE" }) }).then(r => r.json()),
         fetch("/api/ameex", { method: "POST", headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ action: "listParcels", apiId: c.apiId, apiKey: c.apiKey, type: "STOCK", p_hub: depotId }) }).then(r => r.json()),
+        fetch("/api/ameex", { method: "POST", headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ action: "listParcels", apiId: c.apiId, apiKey: c.apiKey }) }).then(r => r.json()),
       ]);
 
-      const allParcels = [...toList(rSimple), ...toList(rStock)];
+      // Merge all three, dedup by code
+      const seen = new Set<string>();
+      const allParcels: Record<string, unknown>[] = [];
+      for (const p of [...toList(rSimple), ...toList(rStock), ...toList(rAll)]) {
+        const key = String(p.code ?? p.barcode ?? p.id ?? "");
+        if (key && seen.has(key)) continue;
+        if (key) seen.add(key);
+        allParcels.push(p);
+      }
 
       const normName = (s: string) => s.toLowerCase().trim()
         .normalize("NFD").replace(/[̀-ͯ]/g, "")
@@ -648,13 +672,29 @@ export default function CommandesPage() {
         // api:null means trackParcel didn't find it — fallback: scan listParcels
         if (!statusText || d?.api === null) {
           const code = String(order.carrierTracking ?? "").trim().toLowerCase();
-          const lists = await Promise.all(["SIMPLE", "STOCK"].map(type =>
+          function parseParcels(ld: unknown): Record<string, unknown>[] {
+            if (Array.isArray(ld)) return ld as Record<string, unknown>[];
+            const dd = ld as Record<string, unknown>;
+            const api = dd?.api;
+            if (Array.isArray(api)) return api as Record<string, unknown>[];
+            if (api && typeof api === "object") {
+              const a = api as Record<string, unknown>;
+              if (Array.isArray(a.data))    return a.data    as Record<string, unknown>[];
+              if (Array.isArray(a.parcels)) return a.parcels as Record<string, unknown>[];
+            }
+            if (Array.isArray(dd?.data))    return dd.data    as Record<string, unknown>[];
+            if (Array.isArray(dd?.parcels)) return dd.parcels as Record<string, unknown>[];
+            return [];
+          }
+          const lists = await Promise.all([
+            ...["SIMPLE", "STOCK"].map(type =>
+              fetch("/api/ameex", { method: "POST", headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ action: "listParcels", apiId: creds.apiId, apiKey: creds.apiKey, type }) }).then(r => r.json())
+            ),
             fetch("/api/ameex", { method: "POST", headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ action: "listParcels", apiId: creds.apiId, apiKey: creds.apiKey, type }) }).then(r => r.json())
-          ));
-          const all: Record<string, unknown>[] = lists.flatMap(ld =>
-            Array.isArray(ld) ? ld : Array.isArray(ld?.data) ? ld.data : Array.isArray(ld?.parcels) ? ld.parcels : []
-          );
+              body: JSON.stringify({ action: "listParcels", apiId: creds.apiId, apiKey: creds.apiKey }) }).then(r => r.json()),
+          ]);
+          const all: Record<string, unknown>[] = lists.flatMap(parseParcels);
           const match = all.find(p =>
             String(p.code ?? p.barcode ?? "").trim().toLowerCase() === code ||
             String(p.barcode ?? "").trim().toLowerCase() === code
