@@ -713,24 +713,11 @@ export default function CommandesPage() {
             }
             return extr(dd);
           }
-          const lists = await Promise.all(
-            ["STD", "SIMPLE", "STOCK", ""].map(type =>
-              fetch("/api/ameex", { method: "POST", headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ action: "listParcels", apiId: creds.apiId, apiKey: creds.apiKey, ...(type ? { type } : {}) }) }).then(r => r.json())
-            )
-          );
-          const all: Record<string, unknown>[] = lists.flatMap(parseParcels);
-          const match = all.find(p =>
-            String(p.for_code ?? p.code ?? p.barcode ?? "").trim().toLowerCase() === code
-          );
-          if (match) {
-            const ms = String(match.statut ?? match.status ?? match.state ?? match.etat ?? "");
-            const mm = String(match.message ?? match.msg ?? "");
-            statusText = [ms, mm].filter(Boolean).join(" — ");
-          } else {
-            const firstParcel = all[0] ? JSON.stringify(all[0]).slice(0, 300) : "aucun";
-            statusText = `Non trouvé (${all.length} colis) · 1er: ${firstParcel}`;
-          }
+          // DEBUG: show raw Ameex response before any parsing
+          const rawNoFilter = await fetch("/api/ameex", { method: "POST", headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ action: "listParcels", apiId: creds.apiId, apiKey: creds.apiKey }) }).then(r => r.json());
+          statusText = `RAW keys: ${Object.keys(rawNoFilter?.api ?? rawNoFilter ?? {}).join(",")} · api sample: ${JSON.stringify(rawNoFilter?.api).slice(0, 350)}`;
+          return;
         }
       } else {
         const creds = s.eagle ?? {};
