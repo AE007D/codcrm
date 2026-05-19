@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { resolveCity, resolveAmeexCityId, AMEEX_CITIES_FALLBACK } from "@/lib/moroccanCities";
 import { cachedFetch, invalidateCache } from "@/lib/clientCache";
 import Sidebar from "@/components/Sidebar";
@@ -25,6 +25,7 @@ type Order = {
   noAnswer: number;
   carrierTracking?: string;
   carrierName?: string;
+  carrierStatus?: string;
 };
 
 
@@ -145,116 +146,6 @@ export default function CommandesPage() {
   const [ameexStockProducts, setAmeexStockProducts] = useState<{ id: string; ref: string; name: string }[]>([]); // Ameex warehouse products
   const [carrierStatus, setCarrierStatus] = useState<{ loading: boolean; text: string | null; ok: boolean }>({ loading: false, text: null, ok: true });
 
-  // Live Ameex statuses synced from carrier (orderId → carrier status string)
-  const [ameexLiveStatus, setAmeexLiveStatus] = useState<Record<string, string>>({});
-  const [syncingStatus, setSyncingStatus] = useState(false);
-
-  async function syncAmeexStatuses(silent = false) {
-    setSyncingStatus(true);
-    try {
-      const s = await fetch("/api/settings").then(r => r.json()).then(d => d.settings ?? {}).catch(() => ({}));
-      const c = s.ameex;
-      if (!c?.apiId) { if (!silent) showToast("Identifiants Ameex non configurés", false); setSyncingStatus(false); return; }
-
-      const depotId = c.depotId || "34";
-
-      // Ameex wraps everything as {login:"success", api:{...}} where the inner value
-      // may be an array, an object with data/parcels key, or an object-map (id→parcel)
-      // Parcels may also be nested as {api: {"1":{...parcel...}, "2":{...parcel...}}}
-      function toList(d: unknown): Record<string, unknown>[] {
-        function expandMap(obj: Record<string, unknown>): Record<string, unknown>[] {
-          const keys = Object.keys(obj);
-          if (keys.length > 0 && keys.every(k => /^\d+$/.test(k))) {
-            return Object.values(obj)
-              .filter(v => v && typeof v === "object" && !Array.isArray(v)) as Record<string, unknown>[];
-          }
-          return [obj];
-        }
-        function extractFromObj(obj: Record<string, unknown>): Record<string, unknown>[] {
-          if (Array.isArray(obj.data))    return obj.data    as Record<string, unknown>[];
-          if (Array.isArray(obj.parcels)) return obj.parcels as Record<string, unknown>[];
-          if (Array.isArray(obj.items))   return obj.items   as Record<string, unknown>[];
-          if (Array.isArray(obj.commandes)) return obj.commandes as Record<string, unknown>[];
-          const vals = Object.values(obj).filter(v => v && typeof v === "object" && !Array.isArray(v)) as Record<string, unknown>[];
-          if (vals.length > 0) return vals.flatMap(expandMap);
-          return [];
-        }
-        if (Array.isArray(d)) return d as Record<string, unknown>[];
-        const dd = d as Record<string, unknown>;
-        const api = dd?.api;
-        if (Array.isArray(api)) return api as Record<string, unknown>[];
-        if (api && typeof api === "object" && api !== null) {
-          const result = extractFromObj(api as Record<string, unknown>);
-          if (result.length > 0) return result;
-        }
-        return extractFromObj(dd);
-      }
-
-      // Try multiple param combinations — Ameex UI shows "STD" type
-      const calls = [
-        { type: "STD" },
-        { type: "STOCK", p_hub: depotId },
-        { type: "SIMPLE" },
-        {}, // no filter — get everything
-      ];
-      const results = await Promise.all(calls.map(extra =>
-        fetch("/api/ameex", { method: "POST", headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ action: "listParcels", apiId: c.apiId, apiKey: c.apiKey, ...extra }) }).then(r => r.json())
-      ));
-
-      // Merge all results, dedup by code/id
-      const seen = new Set<string>();
-      const allParcels: Record<string, unknown>[] = [];
-      for (const p of results.flatMap(toList)) {
-        const key = String(p.for_code ?? p.code ?? p.barcode ?? p.id ?? "");
-        if (key && seen.has(key)) continue;
-        if (key) seen.add(key);
-        allParcels.push(p);
-      }
-
-      const normName = (s: string) => s.toLowerCase().trim()
-        .normalize("NFD").replace(/[̀-ͯ]/g, "")
-        .replace(/[^a-z؀-ۿ\s]/g, "").replace(/\s+/g, " ");
-
-      // Build lookup maps — Ameex fields: for_code=tracking, statut=status
-      const byCode     = new Map<string, string>();
-      const byOrderNum = new Map<string, string>();
-      const byPhone    = new Map<string, string>();
-      const byName     = new Map<string, string>();
-      for (const p of allParcels) {
-        const status   = String(p.statut ?? p.status ?? p.state ?? p.etat ?? "");
-        const code     = String(p.for_code ?? p.code ?? p.barcode ?? p.reference ?? "").trim();
-        const orderNum = String(p.order_num ?? p.order_number ?? p.ref ?? p.reference ?? "").trim();
-        const phone    = String(p.phone ?? p.tel ?? p.mobile ?? p.telephone ?? "").replace(/\D/g, "").slice(-9);
-        const name     = normName(String(p.receiver ?? p.name ?? p.destinataire ?? p.client ?? ""));
-        if (code)     byCode.set(code.toLowerCase(), status);
-        if (orderNum) byOrderNum.set(orderNum, status);
-        if (phone)    byPhone.set(phone, status);
-        if (name)     byName.set(name, status);
-      }
-
-      const expedied = orders.filter(o => o.status === "expédié");
-      const newMap: Record<string, string> = {};
-      for (const o of expedied) {
-        const trackKey  = String(o.carrierTracking ?? "").trim().toLowerCase();
-        const orderKey  = (o.orderNumber || o.id.slice(-8)).trim();
-        const phoneKey  = String(o.phone ?? "").replace(/\D/g, "").slice(-9);
-        const nameKey   = normName(String(o.customer ?? ""));
-        const found = (trackKey && byCode.get(trackKey))
-                   || byOrderNum.get(orderKey)
-                   || (phoneKey && byPhone.get(phoneKey))
-                   || (nameKey  && byName.get(nameKey));
-        if (found) newMap[o.id] = found;
-      }
-
-      setAmeexLiveStatus(newMap);
-      const matched = Object.keys(newMap).length;
-      if (!silent) showToast(`${matched}/${expedied.length} commandes · ${allParcels.length} colis Ameex`, matched > 0 || allParcels.length > 0);
-    } catch (e) {
-      if (!silent) showToast("Erreur sync: " + String(e), false);
-    }
-    setSyncingStatus(false);
-  }
 
   // Current user role
   const [userRole, setUserRole] = useState<"admin" | "agent" | "viewer">("agent");
@@ -299,6 +190,7 @@ export default function CommandesPage() {
         noAnswer: Number(o.noAnswer ?? o.no_answer ?? 0),
         carrierTracking: o.carrierTracking ? String(o.carrierTracking) : undefined,
         carrierName: o.carrierName ? String(o.carrierName) : undefined,
+        carrierStatus: o.carrierStatus ? String(o.carrierStatus) : undefined,
       })));
     } catch { /* silent */ }
   }, []);
@@ -309,17 +201,6 @@ export default function CommandesPage() {
     return () => clearInterval(t);
   }, [fetchOrders]);
 
-  // Auto-sync Ameex statuses once orders load, then every 2 min silently
-  const autoSyncedRef = useRef(false);
-  useEffect(() => {
-    if (autoSyncedRef.current) return;
-    if (!orders.some(o => o.status === "expédié")) return;
-    autoSyncedRef.current = true;
-    syncAmeexStatuses(true);
-    const t = setInterval(() => syncAmeexStatuses(true), 120_000);
-    return () => clearInterval(t);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [orders]);
 
   // Clear carrier status when drawer changes order
   useEffect(() => { setCarrierStatus({ loading: false, text: null, ok: true }); }, [drawer?.id]);
@@ -683,46 +564,11 @@ export default function CommandesPage() {
         const msg = nested?.message ?? nested?.msg ?? nested?.description ?? d?.message ?? "";
         statusText = [st, msg].filter(Boolean).join(" — ");
 
-        // api:null means trackParcel didn't find it — fallback: scan listParcels
-        if (!statusText || d?.api === null) {
-          const code = String(order.carrierTracking ?? "").trim().toLowerCase();
-          function parseParcels(ld: unknown): Record<string, unknown>[] {
-            function expandMap(obj: Record<string, unknown>): Record<string, unknown>[] {
-              const keys = Object.keys(obj);
-              if (keys.length > 0 && keys.every(k => /^\d+$/.test(k))) {
-                return Object.values(obj)
-                  .filter(v => v && typeof v === "object" && !Array.isArray(v)) as Record<string, unknown>[];
-              }
-              return [obj];
-            }
-            function extr(obj: Record<string, unknown>): Record<string, unknown>[] {
-              if (Array.isArray(obj.data))      return obj.data      as Record<string, unknown>[];
-              if (Array.isArray(obj.parcels))   return obj.parcels   as Record<string, unknown>[];
-              if (Array.isArray(obj.commandes)) return obj.commandes as Record<string, unknown>[];
-              const vals = Object.values(obj).filter(v => v && typeof v === "object" && !Array.isArray(v)) as Record<string, unknown>[];
-              if (vals.length > 0) return vals.flatMap(expandMap);
-              return [];
-            }
-            if (Array.isArray(ld)) return ld as Record<string, unknown>[];
-            const dd = ld as Record<string, unknown>;
-            const api = dd?.api;
-            if (Array.isArray(api)) return api as Record<string, unknown>[];
-            if (api && typeof api === "object" && api !== null) {
-              const r = extr(api as Record<string, unknown>);
-              if (r.length > 0) return r;
-            }
-            return extr(dd);
-          }
-          // DEBUG: try 3 different approaches in parallel
-          const [rTrackGet, rListStatut, rListDate] = await Promise.all([
-            fetch("/api/ameex", { method: "POST", headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ action: "trackParcel", apiId: creds.apiId, apiKey: creds.apiKey, code }) }).then(r => r.json()),
-            fetch("/api/ameex", { method: "POST", headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ action: "listParcelsGet", apiId: creds.apiId, apiKey: creds.apiKey, statut: "ramassé" }) }).then(r => r.json()),
-            fetch("/api/ameex", { method: "POST", headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ action: "listParcelsGet", apiId: creds.apiId, apiKey: creds.apiKey, date_debut: "2026-01-01", date_fin: "2026-12-31" }) }).then(r => r.json()),
-          ]);
-          statusText = `trackGET=${JSON.stringify(rTrackGet?.api).slice(0,80)} | statut=${JSON.stringify(rListStatut?.api).slice(0,80)} | date=${JSON.stringify(rListDate?.api).slice(0,80)}`;
+        if (!statusText) {
+          // Show stored carrier status from webhook if available
+          statusText = order.carrierStatus
+            ? `Statut Ameex (webhook): ${order.carrierStatus}`
+            : "Aucun statut disponible — configurez le webhook Ameex vers /api/webhooks/ameex pour recevoir les mises à jour automatiquement";
         }
       } else {
         const creds = s.eagle ?? {};
@@ -981,14 +827,6 @@ export default function CommandesPage() {
                 <span className="hidden sm:inline">Expédier ({confirmedCount})</span>
               </button>
             )}
-            {orders.some(o => o.status === "expédié") && isAdmin && (
-              <button onClick={() => syncAmeexStatuses(false)} disabled={syncingStatus}
-                title="Voir statut Ameex pour les commandes expédiées"
-                className="flex items-center gap-2 bg-white border border-slate-200 hover:border-indigo-300 hover:bg-indigo-50 disabled:opacity-50 text-slate-600 hover:text-indigo-700 text-sm font-semibold px-3 py-2.5 rounded-xl transition-colors whitespace-nowrap">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className={`w-4 h-4 ${syncingStatus ? "animate-spin" : ""}`}><path d="M23 4v6h-6M1 20v-6h6"/><path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15"/></svg>
-                <span className="hidden sm:inline">{syncingStatus ? "Sync…" : "Statuts Ameex"}</span>
-              </button>
-            )}
             <button onClick={() => setShowModal(true)} className="bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold px-3 lg:px-5 py-2.5 rounded-xl shadow-md shadow-blue-200 transition-colors whitespace-nowrap">
               + Nouvelle commande
             </button>
@@ -1040,32 +878,26 @@ export default function CommandesPage() {
             </div>
           )}
 
-          {/* Ameex live status summary — shown when expédié orders exist and sync has run */}
-          {counts["expédié"] > 0 && Object.keys(ameexLiveStatus).length > 0 && (() => {
-            const expIds = orders.filter(o => o.status === "expédié").map(o => o.id);
-            const statuses = expIds.map(id => (ameexLiveStatus[id] ?? "").toLowerCase());
+          {/* Ameex status summary — from webhook data stored in DB */}
+          {counts["expédié"] > 0 && (() => {
+            const expOrders = orders.filter(o => o.status === "expédié");
+            const withStatus = expOrders.filter(o => o.carrierStatus);
+            if (withStatus.length === 0) return null;
+            const statuses = withStatus.map(o => (o.carrierStatus ?? "").toLowerCase());
             const livré    = statuses.filter(s => s.includes("livr")).length;
             const retourné = statuses.filter(s => s.includes("retour")).length;
-            const ramassé  = statuses.filter(s => s.includes("ramassé") || s.includes("picked")).length;
+            const ramassé  = statuses.filter(s => s.includes("ramassé") || s.includes("picked") || s.includes("collecté")).length;
             const enCours  = statuses.filter(s => s.includes("voyage") || s.includes("livraison") || s.includes("cours")).length;
-            const synced   = statuses.filter(s => s.length > 0).length;
             return (
               <div className="bg-white border border-slate-100 rounded-2xl px-4 py-3 mb-3 flex flex-wrap items-center gap-x-5 gap-y-2 shadow-sm">
-                <span className="text-xs font-bold text-slate-400 uppercase tracking-wide shrink-0">Ameex · {synced}/{counts["expédié"]}</span>
+                <span className="text-xs font-bold text-slate-400 uppercase tracking-wide shrink-0">Ameex · {withStatus.length}/{expOrders.length}</span>
                 {ramassé  > 0 && <span className="flex items-center gap-1.5 text-sm font-bold text-indigo-700"><span className="w-2 h-2 rounded-full bg-indigo-400" />Ramassé <span className="text-indigo-500 font-black">{ramassé}</span></span>}
                 {enCours  > 0 && <span className="flex items-center gap-1.5 text-sm font-bold text-blue-700"><span className="w-2 h-2 rounded-full bg-blue-400" />En cours <span className="text-blue-500 font-black">{enCours}</span></span>}
                 {livré    > 0 && <span className="flex items-center gap-1.5 text-sm font-bold text-emerald-700"><span className="w-2 h-2 rounded-full bg-emerald-400" />Livré <span className="text-emerald-600 font-black">{livré}</span></span>}
                 {retourné > 0 && <span className="flex items-center gap-1.5 text-sm font-bold text-red-600"><span className="w-2 h-2 rounded-full bg-red-400" />Retourné <span className="text-red-500 font-black">{retourné}</span></span>}
-                {syncingStatus && <span className="text-xs text-slate-400 ml-auto">↻ sync…</span>}
               </div>
             );
           })()}
-          {counts["expédié"] > 0 && Object.keys(ameexLiveStatus).length === 0 && syncingStatus && (
-            <div className="bg-slate-50 border border-slate-100 rounded-2xl px-4 py-2.5 mb-3 flex items-center gap-2">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="w-3.5 h-3.5 text-slate-400 animate-spin shrink-0"><path d="M23 4v6h-6M1 20v-6h6"/><path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15"/></svg>
-              <span className="text-xs text-slate-400">Chargement statuts Ameex…</span>
-            </div>
-          )}
 
           {/* Search + filter */}
           <div className="flex flex-col sm:flex-row gap-3 mb-4">
@@ -1157,14 +989,14 @@ export default function CommandesPage() {
                         <span className={`w-1.5 h-1.5 rounded-full ${cfg.dot}`} />
                         {cfg.label}
                       </span>
-                      {ameexLiveStatus[o.id] && (
+                      {o.carrierStatus && (
                         <span className={`text-xs font-semibold px-2 py-0.5 rounded-lg ${
-                          ameexLiveStatus[o.id].toLowerCase().includes("livr") ? "bg-emerald-50 text-emerald-700" :
-                          ameexLiveStatus[o.id].toLowerCase().includes("retour") ? "bg-red-50 text-red-600" :
-                          ameexLiveStatus[o.id].toLowerCase().includes("ramassé") || ameexLiveStatus[o.id].toLowerCase().includes("picked") ? "bg-indigo-50 text-indigo-700" :
+                          o.carrierStatus.toLowerCase().includes("livr") ? "bg-emerald-50 text-emerald-700" :
+                          o.carrierStatus.toLowerCase().includes("retour") ? "bg-red-50 text-red-600" :
+                          o.carrierStatus.toLowerCase().includes("ramassé") || o.carrierStatus.toLowerCase().includes("picked") ? "bg-indigo-50 text-indigo-700" :
                           "bg-blue-50 text-blue-700"
                         }`}>
-                          📦 {ameexLiveStatus[o.id].split(/[\n,]+/)[0].trim().slice(0, 20)}
+                          📦 {o.carrierStatus.split(/[\n,]+/)[0].trim().slice(0, 20)}
                         </span>
                       )}
                     </div>
@@ -1341,8 +1173,8 @@ export default function CommandesPage() {
                             <span className={`w-1.5 h-1.5 rounded-full ${cfg.dot}`} />
                             {cfg.label}
                           </span>
-                          {ameexLiveStatus[o.id] && (() => {
-                            const s = ameexLiveStatus[o.id].toLowerCase();
+                          {o.carrierStatus && (() => {
+                            const s = o.carrierStatus.toLowerCase();
                             const isLivr   = s.includes("livr");
                             const isRetour = s.includes("retour");
                             const isRam    = s.includes("ramassé") || s.includes("picked");
@@ -1352,7 +1184,7 @@ export default function CommandesPage() {
                                                       "bg-blue-100 text-blue-700";
                             return (
                               <span className={`mt-1 flex items-center gap-1 text-xs font-bold px-2 py-0.5 rounded-lg whitespace-nowrap ${style}`}>
-                                {isLivr ? "✓" : isRetour ? "↩" : "📦"} {ameexLiveStatus[o.id].split(/[\n,]+/)[0].trim().slice(0, 20)}
+                                {isLivr ? "✓" : isRetour ? "↩" : "📦"} {o.carrierStatus.split(/[\n,]+/)[0].trim().slice(0, 20)}
                               </span>
                             );
                           })()}
