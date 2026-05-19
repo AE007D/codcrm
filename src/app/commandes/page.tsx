@@ -25,6 +25,7 @@ type Order = {
   noAnswer: number;
   carrierTracking?: string;
   carrierName?: string;
+  carrierStatus?: string;
 };
 
 
@@ -242,6 +243,7 @@ export default function CommandesPage() {
         noAnswer: Number(o.noAnswer ?? o.no_answer ?? 0),
         carrierTracking: o.carrierTracking ? String(o.carrierTracking) : undefined,
         carrierName: o.carrierName ? String(o.carrierName) : undefined,
+        carrierStatus: o.carrierStatus ? String(o.carrierStatus) : undefined,
       })));
     } catch { /* silent */ }
   }, []);
