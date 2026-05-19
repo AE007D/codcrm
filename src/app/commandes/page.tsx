@@ -1810,29 +1810,51 @@ export default function CommandesPage() {
               )}
               {drawer.status === "expédié" && (
                 <div className="space-y-3">
-                  {/* Carrier tracking info */}
-                  {drawer.carrierTracking && (
-                    <div className="bg-indigo-50 border border-indigo-200 rounded-2xl p-4 space-y-2">
-                      <div className="flex items-center justify-between gap-2">
-                        <div>
-                          <p className="text-xs font-semibold text-indigo-600 uppercase tracking-wide">Suivi transporteur</p>
-                          <p className="font-mono text-sm font-bold text-indigo-800 mt-0.5">{drawer.carrierTracking}</p>
+                  {drawer.carrierTracking && (() => {
+                    const cs = drawer.carrierStatus ?? "";
+                    const sl = cs.toLowerCase();
+                    const isLivr   = sl.includes("livr");
+                    const isRetour = sl.includes("retour") || sl.includes("hors") || sl.includes("zone");
+                    const isRam    = sl.includes("ramassé") || sl.includes("collecté") || sl.includes("picked");
+                    const isPasRep = sl.includes("pas de réponse") || sl.includes("pas reponse") || sl.includes("absent");
+                    const isReport = sl.includes("reporté") || sl.includes("reporte");
+                    const bgColor  = cs
+                      ? isLivr    ? "bg-emerald-50 border-emerald-200"
+                      : isRetour  ? "bg-red-50 border-red-200"
+                      : isRam     ? "bg-indigo-50 border-indigo-200"
+                      : isPasRep  ? "bg-amber-50 border-amber-200"
+                      : isReport  ? "bg-orange-50 border-orange-200"
+                      :             "bg-blue-50 border-blue-200"
+                      : "bg-slate-50 border-slate-200";
+                    const textColor = cs
+                      ? isLivr   ? "text-emerald-700"
+                      : isRetour ? "text-red-600"
+                      : isRam    ? "text-indigo-700"
+                      : isPasRep ? "text-amber-700"
+                      : isReport ? "text-orange-700"
+                      :            "text-blue-700"
+                      : "text-slate-400";
+                    return (
+                      <div className={`border rounded-2xl p-4 space-y-2 ${bgColor}`}>
+                        <div className="flex items-center justify-between gap-2">
+                          <div>
+                            <p className="text-xs font-semibold text-slate-400 uppercase tracking-wide">Suivi Ameex</p>
+                            <p className="font-mono text-xs font-bold text-slate-500 mt-0.5">{drawer.carrierTracking}</p>
+                          </div>
+                          {cs && (
+                            <span className={`text-xs font-bold px-2.5 py-1 rounded-xl ${bgColor} ${textColor} border`}>
+                              {isLivr ? "✓" : isRetour ? "↩" : isPasRep ? "📵" : isReport ? "📅" : "📦"} {cs.split(/[\n,]+/)[0].trim().slice(0, 22)}
+                            </span>
+                          )}
                         </div>
-                        <button
-                          onClick={() => checkCarrierStatus(drawer)}
-                          disabled={carrierStatus.loading}
-                          className="shrink-0 text-xs font-bold px-3 py-2 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-60 text-white rounded-xl transition-colors"
-                        >
-                          {carrierStatus.loading ? "…" : "↻ Vérifier"}
-                        </button>
+                        {cs ? (
+                          <p className={`text-xs font-semibold ${textColor}`}>{cs}</p>
+                        ) : (
+                          <p className="text-xs text-slate-400">Pas encore reçu — le statut s'affichera automatiquement au prochain changement Ameex.</p>
+                        )}
                       </div>
-                      {carrierStatus.text && (
-                        <p className={`text-xs px-3 py-2 rounded-xl ${carrierStatus.ok ? "bg-white text-indigo-700 border border-indigo-100" : "bg-red-50 text-red-600"}`}>
-                          {carrierStatus.text}
-                        </p>
-                      )}
-                    </div>
-                  )}
+                    );
+                  })()}
                   {isAdmin && (
                     <div className="flex gap-2">
                       <button onClick={() => setStatus(drawer.id, "livré")} className="flex-1 py-3 rounded-2xl bg-teal-600 hover:bg-teal-700 text-white text-sm font-bold shadow-md shadow-teal-200">✓ Livré</button>
