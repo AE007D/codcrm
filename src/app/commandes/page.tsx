@@ -951,6 +951,33 @@ export default function CommandesPage() {
             </div>
           )}
 
+          {/* Ameex live status summary — shown when expédié orders exist and sync has run */}
+          {counts["expédié"] > 0 && Object.keys(ameexLiveStatus).length > 0 && (() => {
+            const expIds = orders.filter(o => o.status === "expédié").map(o => o.id);
+            const statuses = expIds.map(id => (ameexLiveStatus[id] ?? "").toLowerCase());
+            const livré    = statuses.filter(s => s.includes("livr")).length;
+            const retourné = statuses.filter(s => s.includes("retour")).length;
+            const ramassé  = statuses.filter(s => s.includes("ramassé") || s.includes("picked")).length;
+            const enCours  = statuses.filter(s => s.includes("voyage") || s.includes("livraison") || s.includes("cours")).length;
+            const synced   = statuses.filter(s => s.length > 0).length;
+            return (
+              <div className="bg-white border border-slate-100 rounded-2xl px-4 py-3 mb-3 flex flex-wrap items-center gap-x-5 gap-y-2 shadow-sm">
+                <span className="text-xs font-bold text-slate-400 uppercase tracking-wide shrink-0">Ameex · {synced}/{counts["expédié"]}</span>
+                {ramassé  > 0 && <span className="flex items-center gap-1.5 text-sm font-bold text-indigo-700"><span className="w-2 h-2 rounded-full bg-indigo-400" />Ramassé <span className="text-indigo-500 font-black">{ramassé}</span></span>}
+                {enCours  > 0 && <span className="flex items-center gap-1.5 text-sm font-bold text-blue-700"><span className="w-2 h-2 rounded-full bg-blue-400" />En cours <span className="text-blue-500 font-black">{enCours}</span></span>}
+                {livré    > 0 && <span className="flex items-center gap-1.5 text-sm font-bold text-emerald-700"><span className="w-2 h-2 rounded-full bg-emerald-400" />Livré <span className="text-emerald-600 font-black">{livré}</span></span>}
+                {retourné > 0 && <span className="flex items-center gap-1.5 text-sm font-bold text-red-600"><span className="w-2 h-2 rounded-full bg-red-400" />Retourné <span className="text-red-500 font-black">{retourné}</span></span>}
+                {syncingStatus && <span className="text-xs text-slate-400 ml-auto">↻ sync…</span>}
+              </div>
+            );
+          })()}
+          {counts["expédié"] > 0 && Object.keys(ameexLiveStatus).length === 0 && syncingStatus && (
+            <div className="bg-slate-50 border border-slate-100 rounded-2xl px-4 py-2.5 mb-3 flex items-center gap-2">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="w-3.5 h-3.5 text-slate-400 animate-spin shrink-0"><path d="M23 4v6h-6M1 20v-6h6"/><path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15"/></svg>
+              <span className="text-xs text-slate-400">Chargement statuts Ameex…</span>
+            </div>
+          )}
+
           {/* Search + filter */}
           <div className="flex flex-col sm:flex-row gap-3 mb-4">
             <div className="relative flex-1">
@@ -1225,16 +1252,21 @@ export default function CommandesPage() {
                             <span className={`w-1.5 h-1.5 rounded-full ${cfg.dot}`} />
                             {cfg.label}
                           </span>
-                          {ameexLiveStatus[o.id] && (
-                            <span className={`mt-1 flex items-center gap-1 text-xs font-semibold px-2 py-0.5 rounded-lg ${
-                              ameexLiveStatus[o.id].toLowerCase().includes("livr") ? "bg-emerald-50 text-emerald-700" :
-                              ameexLiveStatus[o.id].toLowerCase().includes("retour") ? "bg-red-50 text-red-600" :
-                              ameexLiveStatus[o.id].toLowerCase().includes("ramassé") || ameexLiveStatus[o.id].toLowerCase().includes("picked") ? "bg-indigo-50 text-indigo-700" :
-                              "bg-blue-50 text-blue-700"
-                            }`}>
-                              📦 {ameexLiveStatus[o.id].split(/[\n,]+/)[0].trim().slice(0, 25)}
-                            </span>
-                          )}
+                          {ameexLiveStatus[o.id] && (() => {
+                            const s = ameexLiveStatus[o.id].toLowerCase();
+                            const isLivr   = s.includes("livr");
+                            const isRetour = s.includes("retour");
+                            const isRam    = s.includes("ramassé") || s.includes("picked");
+                            const style = isLivr   ? "bg-emerald-500 text-white" :
+                                          isRetour  ? "bg-red-500 text-white" :
+                                          isRam     ? "bg-indigo-100 text-indigo-700" :
+                                                      "bg-blue-100 text-blue-700";
+                            return (
+                              <span className={`mt-1 flex items-center gap-1 text-xs font-bold px-2 py-0.5 rounded-lg whitespace-nowrap ${style}`}>
+                                {isLivr ? "✓" : isRetour ? "↩" : "📦"} {ameexLiveStatus[o.id].split(/[\n,]+/)[0].trim().slice(0, 20)}
+                              </span>
+                            );
+                          })()}
                         </td>
                         <td className="px-5 py-3.5" onClick={e => e.stopPropagation()}>
                           <div className="flex items-center gap-1.5">
