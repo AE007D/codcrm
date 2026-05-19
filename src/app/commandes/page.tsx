@@ -1491,51 +1491,7 @@ export default function CommandesPage() {
                           <span className="text-xs text-slate-400 self-center shrink-0">🏭 Hub</span>
                         </div>
                       )}
-                      {/* Product per order — uses CRM SKU as Ameex Réf in goods=REF:1 format */}
-                      {ameexShipType === "STOCK" && (() => {
-                        const selectedOrders = orders.filter(o => selected.has(o.id));
-                        return (
-                          <div className="space-y-1.5 pt-1">
-                            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Produit (Réf SKU) :</p>
-                            {selectedOrders.map(o => {
-                              // Match CRM catalog to get SKU = Ameex Réf
-                              const catalogMatch = catalog.find(p =>
-                                p.name.toLowerCase() === (o.product ?? "").toLowerCase() ||
-                                (o.product ?? "").toLowerCase().includes(p.name.toLowerCase()) ||
-                                p.name.toLowerCase().includes((o.product ?? "").toLowerCase())
-                              );
-                              const autoSku = catalogMatch?.sku ?? "";
-                              // Display: manual override > auto-matched SKU
-                              const current = ameexProductIds[o.id] || autoSku;
-                              return (
-                                <div key={o.id} className="space-y-0.5">
-                                  <div className="flex items-center gap-2">
-                                    <span className="text-xs text-slate-600 w-16 truncate shrink-0">{o.customer}</span>
-                                    <input
-                                      type="text"
-                                      placeholder="Réf SKU du produit…"
-                                      value={current}
-                                      onChange={e => setAmeexProductIds(prev => ({ ...prev, [o.id]: e.target.value }))}
-                                      className={`flex-1 text-xs font-mono border rounded-lg px-2 py-1.5 outline-none focus:border-blue-400 ${current ? "border-emerald-300 bg-emerald-50" : "border-amber-300 bg-amber-50"}`}
-                                    />
-                                    {current && <span className="text-emerald-600 text-xs shrink-0">✓</span>}
-                                  </div>
-                                  {current && (
-                                    <p className="text-[10px] text-emerald-600 pl-[4.5rem]">
-                                      Sera envoyé comme goods=&quot;{current}:1&quot;
-                                    </p>
-                                  )}
-                                  {!current && (
-                                    <p className="text-[10px] text-amber-500 pl-[4.5rem]">
-                                      ⚠ Produit non trouvé dans le catalogue CRM — entrez le SKU manuellement
-                                    </p>
-                                  )}
-                                </div>
-                              );
-                            })}
-                          </div>
-                        );
-                      })()}
+                      {/* Product SKU auto-matched silently from catalog — no UI shown */}
                     </div>
                   )}
                 </div>
@@ -1559,14 +1515,23 @@ export default function CommandesPage() {
                 </div>
               )}
 
-              {/* Ameex — city selector: before send AND after errors for failed orders */}
+              {/* Ameex — city selector: only for orders with unresolved city */}
               {shipCarrier === "ameex" && (() => {
                 const failedIds = new Set(shipResults.filter(r => !r.ok).map(r => r.id));
-                const ordersToShow = shipResults.length > 0
+                const pool = shipResults.length > 0
                   ? orders.filter(o => failedIds.has(o.id))
                   : orders.filter(o => selected.has(o.id));
-                if (ordersToShow.length === 0) return null;
+                if (pool.length === 0) return null;
                 const hasRealIds = ameexRealIds.size > 0;
+
+                // Only show orders that need manual city selection
+                const needsCity = pool.filter(o => {
+                  const autoId = resolveAmeexCityId(o.city ?? "", ameexCities) ?? "";
+                  const currentVal = cityOverrides[o.id] ?? autoId;
+                  return !currentVal || (hasRealIds && !ameexRealIds.has(currentVal));
+                });
+                const okCount = pool.length - needsCity.length;
+
                 return (
                   <div className="space-y-2">
                     {syncCityMsg && (
@@ -1579,29 +1544,31 @@ export default function CommandesPage() {
                         <p className="text-[11px] text-amber-700">
                           {syncingCities ? "⏳ Chargement des villes Ameex…" : "⚠ Villes non synchronisées — IDs invalides"}
                         </p>
-                        <button
-                          onClick={syncAmeexCities}
-                          disabled={syncingCities}
-                          className="shrink-0 text-[11px] font-bold px-2 py-1 bg-amber-600 hover:bg-amber-700 disabled:opacity-60 text-white rounded-lg transition-colors"
-                        >
+                        <button onClick={syncAmeexCities} disabled={syncingCities}
+                          className="shrink-0 text-[11px] font-bold px-2 py-1 bg-amber-600 hover:bg-amber-700 disabled:opacity-60 text-white rounded-lg transition-colors">
                           {syncingCities ? "…" : "↻ Sync"}
                         </button>
                       </div>
                     )}
-                    <p className="text-xs font-semibold text-slate-500">
-                      {shipResults.length > 0 ? "🔴 Corrigez la ville et réessayez :" : "🏙 Choisissez la ville de chaque commande :"}
-                    </p>
-                    {ordersToShow.map(o => {
+                    {okCount > 0 && needsCity.length === 0 && (
+                      <p className="text-xs text-emerald-600 font-semibold">✓ Toutes les villes sont configurées ({okCount})</p>
+                    )}
+                    {okCount > 0 && needsCity.length > 0 && (
+                      <p className="text-xs text-slate-400">{okCount} ville(s) OK — {needsCity.length} à corriger :</p>
+                    )}
+                    {needsCity.length > 0 && shipResults.length > 0 && (
+                      <p className="text-xs font-semibold text-red-600">🔴 Corrigez la ville et réessayez :</p>
+                    )}
+                    {needsCity.map(o => {
                       const autoId = resolveAmeexCityId(o.city ?? "", ameexCities) ?? "";
                       const currentVal = cityOverrides[o.id] ?? autoId;
-                      const isConfirmed = !!currentVal && (!hasRealIds || ameexRealIds.has(currentVal));
                       return (
-                        <div key={o.id} className={`flex items-center gap-2 p-2 rounded-xl border ${!currentVal ? "border-red-300 bg-red-50" : isConfirmed ? "border-emerald-200 bg-emerald-50" : "border-amber-300 bg-amber-50"}`}>
+                        <div key={o.id} className={`flex items-center gap-2 p-2 rounded-xl border ${!currentVal ? "border-red-300 bg-red-50" : "border-amber-300 bg-amber-50"}`}>
                           <span className="text-xs font-semibold text-slate-700 w-20 truncate shrink-0">{o.customer}</span>
                           <select
                             value={currentVal}
                             onChange={e => setCityOverrides(prev => ({ ...prev, [o.id]: e.target.value }))}
-                            className={`flex-1 text-xs border rounded-lg px-2 py-1.5 outline-none focus:border-blue-400 bg-white ${!currentVal ? "border-red-300" : isConfirmed ? "border-emerald-300" : "border-amber-300"}`}
+                            className={`flex-1 text-xs border rounded-lg px-2 py-1.5 outline-none focus:border-blue-400 bg-white ${!currentVal ? "border-red-300" : "border-amber-300"}`}
                           >
                             <option value="">— Choisissez une ville —</option>
                             {ameexCities.map(c => (
