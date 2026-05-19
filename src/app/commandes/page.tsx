@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { resolveCity, resolveAmeexCityId, AMEEX_CITIES_FALLBACK } from "@/lib/moroccanCities";
 import { cachedFetch, invalidateCache } from "@/lib/clientCache";
 import Sidebar from "@/components/Sidebar";
@@ -149,12 +149,12 @@ export default function CommandesPage() {
   const [ameexLiveStatus, setAmeexLiveStatus] = useState<Record<string, string>>({});
   const [syncingStatus, setSyncingStatus] = useState(false);
 
-  async function syncAmeexStatuses() {
+  async function syncAmeexStatuses(silent = false) {
     setSyncingStatus(true);
     try {
       const s = await fetch("/api/settings").then(r => r.json()).then(d => d.settings ?? {}).catch(() => ({}));
       const c = s.ameex;
-      if (!c?.apiId) { showToast("Identifiants Ameex non configurés", false); setSyncingStatus(false); return; }
+      if (!c?.apiId) { if (!silent) showToast("Identifiants Ameex non configurés", false); setSyncingStatus(false); return; }
 
       const depotId = c.depotId || "34";
       function toList(d: unknown): Record<string, unknown>[] {
@@ -174,31 +174,37 @@ export default function CommandesPage() {
 
       const allParcels = [...toList(rSimple), ...toList(rStock)];
 
-      // Build lookup: order_num → status AND code → status
-      const byOrderNum = new Map<string, string>();
-      const byCode = new Map<string, string>();
+      // Build multiple lookup maps for matching
+      const byCode     = new Map<string, string>(); // tracking code → status
+      const byOrderNum = new Map<string, string>(); // order_num → status
+      const byPhone    = new Map<string, string>(); // phone → status (most reliable for old orders)
       for (const p of allParcels) {
-        const status = String(p.status ?? p.state ?? p.etat ?? "");
+        const status   = String(p.status ?? p.state ?? p.etat ?? "");
+        const code     = String(p.code ?? p.barcode ?? "").trim();
         const orderNum = String(p.order_num ?? p.order_number ?? "").trim();
-        const code = String(p.code ?? p.barcode ?? "").trim();
+        const phone    = String(p.phone ?? p.tel ?? p.mobile ?? "").replace(/\s+/g, "").trim();
+        if (code)     byCode.set(code, status);
         if (orderNum) byOrderNum.set(orderNum, status);
-        if (code) byCode.set(code, status);
+        if (phone)    byPhone.set(phone, status);
       }
 
       const expedied = orders.filter(o => o.status === "expédié");
       const newMap: Record<string, string> = {};
       for (const o of expedied) {
-        const key1 = String(o.carrierTracking ?? "").trim();
-        const key2 = (o.orderNumber || o.id.slice(-8)).trim();
-        const found = (key1 && byCode.get(key1)) || byOrderNum.get(key2);
+        const trackKey  = String(o.carrierTracking ?? "").trim();
+        const orderKey  = (o.orderNumber || o.id.slice(-8)).trim();
+        const phoneKey  = String(o.phone ?? "").replace(/\s+/g, "").trim();
+        const found = (trackKey && byCode.get(trackKey))
+                   || byOrderNum.get(orderKey)
+                   || (phoneKey && byPhone.get(phoneKey));
         if (found) newMap[o.id] = found;
       }
 
       setAmeexLiveStatus(newMap);
       const matched = Object.keys(newMap).length;
-      showToast(`${matched} commande(s) synchronisée(s) sur ${expedied.length} expédiée(s)`, matched > 0);
+      if (!silent) showToast(`${matched} / ${expedied.length} commande(s) synchronisée(s)`, true);
     } catch (e) {
-      showToast("Erreur sync: " + String(e), false);
+      if (!silent) showToast("Erreur sync: " + String(e), false);
     }
     setSyncingStatus(false);
   }
@@ -255,6 +261,18 @@ export default function CommandesPage() {
     const t = setInterval(fetchOrders, 30_000);
     return () => clearInterval(t);
   }, [fetchOrders]);
+
+  // Auto-sync Ameex statuses once orders load, then every 2 min silently
+  const autoSyncedRef = useRef(false);
+  useEffect(() => {
+    if (autoSyncedRef.current) return;
+    if (!orders.some(o => o.status === "expédié")) return;
+    autoSyncedRef.current = true;
+    syncAmeexStatuses(true);
+    const t = setInterval(() => syncAmeexStatuses(true), 120_000);
+    return () => clearInterval(t);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [orders]);
 
   // Clear carrier status when drawer changes order
   useEffect(() => { setCarrierStatus({ loading: false, text: null, ok: true }); }, [drawer?.id]);
@@ -875,7 +893,7 @@ export default function CommandesPage() {
               </button>
             )}
             {orders.some(o => o.status === "expédié") && isAdmin && (
-              <button onClick={syncAmeexStatuses} disabled={syncingStatus}
+              <button onClick={() => syncAmeexStatuses(false)} disabled={syncingStatus}
                 title="Voir statut Ameex pour les commandes expédiées"
                 className="flex items-center gap-2 bg-white border border-slate-200 hover:border-indigo-300 hover:bg-indigo-50 disabled:opacity-50 text-slate-600 hover:text-indigo-700 text-sm font-semibold px-3 py-2.5 rounded-xl transition-colors whitespace-nowrap">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className={`w-4 h-4 ${syncingStatus ? "animate-spin" : ""}`}><path d="M23 4v6h-6M1 20v-6h6"/><path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15"/></svg>
