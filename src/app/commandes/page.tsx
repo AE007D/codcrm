@@ -174,35 +174,44 @@ export default function CommandesPage() {
 
       const allParcels = [...toList(rSimple), ...toList(rStock)];
 
-      // Build multiple lookup maps for matching
-      const byCode     = new Map<string, string>(); // tracking code → status
-      const byOrderNum = new Map<string, string>(); // order_num → status
-      const byPhone    = new Map<string, string>(); // phone → status (most reliable for old orders)
+      const normName = (s: string) => s.toLowerCase().trim()
+        .normalize("NFD").replace(/[̀-ͯ]/g, "")
+        .replace(/[^a-z؀-ۿ\s]/g, "").replace(/\s+/g, " ");
+
+      // Build lookup maps — try every possible field Ameex might return
+      const byCode     = new Map<string, string>();
+      const byOrderNum = new Map<string, string>();
+      const byPhone    = new Map<string, string>();
+      const byName     = new Map<string, string>();
       for (const p of allParcels) {
         const status   = String(p.status ?? p.state ?? p.etat ?? "");
-        const code     = String(p.code ?? p.barcode ?? "").trim();
-        const orderNum = String(p.order_num ?? p.order_number ?? "").trim();
-        const phone    = String(p.phone ?? p.tel ?? p.mobile ?? "").replace(/\s+/g, "").trim();
-        if (code)     byCode.set(code, status);
+        const code     = String(p.code ?? p.barcode ?? p.reference ?? "").trim();
+        const orderNum = String(p.order_num ?? p.order_number ?? p.ref ?? p.reference ?? "").trim();
+        const phone    = String(p.phone ?? p.tel ?? p.mobile ?? p.telephone ?? "").replace(/\D/g, "").slice(-9);
+        const name     = normName(String(p.receiver ?? p.name ?? p.destinataire ?? p.client ?? ""));
+        if (code)     byCode.set(code.toLowerCase(), status);
         if (orderNum) byOrderNum.set(orderNum, status);
         if (phone)    byPhone.set(phone, status);
+        if (name)     byName.set(name, status);
       }
 
       const expedied = orders.filter(o => o.status === "expédié");
       const newMap: Record<string, string> = {};
       for (const o of expedied) {
-        const trackKey  = String(o.carrierTracking ?? "").trim();
+        const trackKey  = String(o.carrierTracking ?? "").trim().toLowerCase();
         const orderKey  = (o.orderNumber || o.id.slice(-8)).trim();
-        const phoneKey  = String(o.phone ?? "").replace(/\s+/g, "").trim();
+        const phoneKey  = String(o.phone ?? "").replace(/\D/g, "").slice(-9);
+        const nameKey   = normName(String(o.customer ?? ""));
         const found = (trackKey && byCode.get(trackKey))
                    || byOrderNum.get(orderKey)
-                   || (phoneKey && byPhone.get(phoneKey));
+                   || (phoneKey && byPhone.get(phoneKey))
+                   || (nameKey  && byName.get(nameKey));
         if (found) newMap[o.id] = found;
       }
 
       setAmeexLiveStatus(newMap);
       const matched = Object.keys(newMap).length;
-      if (!silent) showToast(`${matched} / ${expedied.length} commande(s) synchronisée(s)`, true);
+      if (!silent) showToast(`${matched}/${expedied.length} commandes · ${allParcels.length} colis Ameex`, matched > 0 || allParcels.length > 0);
     } catch (e) {
       if (!silent) showToast("Erreur sync: " + String(e), false);
     }
@@ -631,10 +640,33 @@ export default function CommandesPage() {
           method: "POST", headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ action: "trackParcel", apiId: creds.apiId, apiKey: creds.apiKey, code: order.carrierTracking }),
         }).then(r => r.json());
-        const nested = d?.api?.data ?? d?.data ?? d;
+        const nested = d?.api?.data ?? d?.data ?? null;
         const st = nested?.status ?? nested?.statut ?? nested?.state ?? nested?.etat ?? d?.api?.type ?? d?.status ?? "";
         const msg = nested?.message ?? nested?.msg ?? nested?.description ?? d?.message ?? "";
-        statusText = [st, msg].filter(Boolean).join(" — ") || JSON.stringify(d).slice(0, 100);
+        statusText = [st, msg].filter(Boolean).join(" — ");
+
+        // api:null means trackParcel didn't find it — fallback: scan listParcels
+        if (!statusText || d?.api === null) {
+          const code = String(order.carrierTracking ?? "").trim().toLowerCase();
+          const lists = await Promise.all(["SIMPLE", "STOCK"].map(type =>
+            fetch("/api/ameex", { method: "POST", headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ action: "listParcels", apiId: creds.apiId, apiKey: creds.apiKey, type }) }).then(r => r.json())
+          ));
+          const all: Record<string, unknown>[] = lists.flatMap(ld =>
+            Array.isArray(ld) ? ld : Array.isArray(ld?.data) ? ld.data : Array.isArray(ld?.parcels) ? ld.parcels : []
+          );
+          const match = all.find(p =>
+            String(p.code ?? p.barcode ?? "").trim().toLowerCase() === code ||
+            String(p.barcode ?? "").trim().toLowerCase() === code
+          );
+          if (match) {
+            const ms = String(match.status ?? match.state ?? match.etat ?? "");
+            const mm = String(match.message ?? match.msg ?? "");
+            statusText = [ms, mm].filter(Boolean).join(" — ");
+          } else {
+            statusText = `Colis non trouvé dans Ameex (${all.length} colis vérifiés)`;
+          }
+        }
       } else {
         const creds = s.eagle ?? {};
         const d = await fetch("/api/eagle", {
