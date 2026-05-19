@@ -716,8 +716,7 @@ export default function CommandesPage() {
           // DEBUG: show raw Ameex response before any parsing
           const rawNoFilter = await fetch("/api/ameex", { method: "POST", headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ action: "listParcels", apiId: creds.apiId, apiKey: creds.apiKey }) }).then(r => r.json());
-          statusText = `RAW keys: ${Object.keys(rawNoFilter?.api ?? rawNoFilter ?? {}).join(",")} · api sample: ${JSON.stringify(rawNoFilter?.api).slice(0, 350)}`;
-          return;
+          statusText = `RAW keys: ${Object.keys(rawNoFilter?.api ?? rawNoFilter ?? {}).join(",")} · api: ${JSON.stringify(rawNoFilter?.api).slice(0, 300)}`;
         }
       } else {
         const creds = s.eagle ?? {};
