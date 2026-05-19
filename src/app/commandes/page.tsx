@@ -713,10 +713,10 @@ export default function CommandesPage() {
             }
             return extr(dd);
           }
-          // DEBUG: show raw POST listParcels response
-          const rawPost = await fetch("/api/ameex", { method: "POST", headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ action: "listParcels", apiId: creds.apiId, apiKey: creds.apiKey }) }).then(r => r.json());
-          statusText = `POST keys: ${Object.keys(rawPost?.api ?? rawPost ?? {}).join(",")} · ${JSON.stringify(rawPost?.api ?? rawPost).slice(0, 250)}`;
+          // DEBUG: trackParcel result + try /Action/Type/List
+          const rawList = await fetch("/api/ameex", { method: "POST", headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ action: "listParcelsDirect", apiId: creds.apiId, apiKey: creds.apiKey }) }).then(r => r.json());
+          statusText = `track=${JSON.stringify(d).slice(0,120)} | list/Action/Type/List=${JSON.stringify(rawList?.api ?? rawList).slice(0,150)}`;
         }
       } else {
         const creds = s.eagle ?? {};
