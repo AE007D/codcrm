@@ -676,7 +676,7 @@ export default function CommandesPage() {
         const creds = s.ameex ?? {};
         const d = await fetch("/api/ameex", {
           method: "POST", headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ action: "trackParcel", apiId: creds.apiId, apiKey: creds.apiKey, code: order.carrierTracking }),
+          body: JSON.stringify({ action: "trackParcel", apiId: creds.apiId, apiKey: creds.apiKey, barcode: order.carrierTracking, code: order.carrierTracking }),
         }).then(r => r.json());
         const nested = d?.api?.data ?? d?.data ?? null;
         const st = nested?.status ?? nested?.statut ?? nested?.state ?? nested?.etat ?? d?.api?.type ?? d?.status ?? "";
@@ -713,10 +713,10 @@ export default function CommandesPage() {
             }
             return extr(dd);
           }
-          // DEBUG: show raw Ameex response before any parsing
-          const rawNoFilter = await fetch("/api/ameex", { method: "POST", headers: { "Content-Type": "application/json" },
+          // DEBUG: show raw POST listParcels response
+          const rawPost = await fetch("/api/ameex", { method: "POST", headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ action: "listParcels", apiId: creds.apiId, apiKey: creds.apiKey }) }).then(r => r.json());
-          statusText = `RAW keys: ${Object.keys(rawNoFilter?.api ?? rawNoFilter ?? {}).join(",")} · api: ${JSON.stringify(rawNoFilter?.api).slice(0, 300)}`;
+          statusText = `POST keys: ${Object.keys(rawPost?.api ?? rawPost ?? {}).join(",")} · ${JSON.stringify(rawPost?.api ?? rawPost).slice(0, 250)}`;
         }
       } else {
         const creds = s.eagle ?? {};
