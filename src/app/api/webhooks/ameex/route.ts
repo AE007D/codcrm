@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { updateOrderByTracking } from "@/lib/supabaseOrderStore";
+import { storeDebugPayload } from "@/app/api/webhook-debug/route";
 
 export const dynamic = "force-dynamic";
 
@@ -44,6 +45,8 @@ export async function POST(request: NextRequest) {
       statutSName = body.STATUT_S_NAME;
       statutName  = body.STATUT_NAME;
     }
+
+    storeDebugPayload({ source: "ameex", code, statut, statutName, statutSName });
 
     if (!code || !statut) {
       return NextResponse.json({ error: "Missing CODE or STATUT" }, { status: 400 });

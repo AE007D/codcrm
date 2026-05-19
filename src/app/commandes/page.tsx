@@ -565,10 +565,17 @@ export default function CommandesPage() {
         statusText = [st, msg].filter(Boolean).join(" — ");
 
         if (!statusText) {
-          // Show stored carrier status from webhook if available
-          statusText = order.carrierStatus
-            ? `Statut Ameex (webhook): ${order.carrierStatus}`
-            : "En attente d'une mise à jour Ameex — le statut s'affichera automatiquement dès qu'Ameex enverra une notification.";
+          // Re-fetch fresh from DB — webhook may have updated it since last load
+          const fresh = await fetch("/api/orders").then(r => r.json()).catch(() => ({}));
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          const freshOrder = (fresh.orders ?? []).find((o: any) => o.id === order.id);
+          const freshStatus = freshOrder?.carrier_status ?? freshOrder?.carrierStatus ?? null;
+          if (freshStatus) {
+            statusText = freshStatus;
+            setOrders(prev => prev.map(o => o.id === order.id ? { ...o, carrierStatus: freshStatus } : o));
+          } else {
+            statusText = "En attente d'une mise à jour Ameex — le statut s'affichera automatiquement dès qu'Ameex enverra une notification.";
+          }
         }
       } else {
         const creds = s.eagle ?? {};
