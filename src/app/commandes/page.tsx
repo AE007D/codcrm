@@ -728,8 +728,8 @@ export default function CommandesPage() {
             const mm = String(match.message ?? match.msg ?? "");
             statusText = [ms, mm].filter(Boolean).join(" — ");
           } else {
-            const foundCodes = all.slice(0, 6).map(p => String(p.for_code ?? p.code ?? p.barcode ?? "?")).join(", ");
-            statusText = `Colis non trouvé dans Ameex (${all.length} vérifiés · codes: ${foundCodes || "aucun"})`;
+            const firstParcel = all[0] ? JSON.stringify(all[0]).slice(0, 300) : "aucun";
+            statusText = `Non trouvé (${all.length} colis) · 1er: ${firstParcel}`;
           }
         }
       } else {
