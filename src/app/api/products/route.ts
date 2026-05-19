@@ -82,11 +82,18 @@ export async function POST(request: NextRequest) {
           commissionAmount: parseFloat(String(commissionAmount ?? "0")) || 0,
         };
         settingsPatch.productCommissions = commissions;
+
+        if (String(boutiqueNom ?? "").trim()) {
+          const boutiques: string[] = Array.isArray(settings.boutiques) ? settings.boutiques : [];
+          if (!boutiques.includes(String(boutiqueNom).trim())) {
+            settingsPatch.boutiques = [...boutiques, String(boutiqueNom).trim()];
+          }
+        }
       }
       await saveSettings(user.workspaceId, settingsPatch);
     }
 
-    return NextResponse.json({ ok: true, product });
+    return NextResponse.json({ ok: true, product: { ...product, facebookPixelId: facebookPixelId ? String(facebookPixelId).trim() : "" } });
   } catch (err) {
     const msg = err instanceof Error ? err.message : "Erreur serveur";
     return NextResponse.json({ error: msg }, { status: 500 });
@@ -143,6 +150,15 @@ export async function PATCH(request: NextRequest) {
           commissionAmount: rest.commissionAmount !== undefined ? parseFloat(String(rest.commissionAmount)) || 0 : existing.commissionAmount,
         };
         settingsPatch.productCommissions = commissions;
+
+        // Maintain boutiques list
+        const boutiqueNom = commissions[id].boutiqueNom.trim();
+        if (boutiqueNom) {
+          const boutiques: string[] = Array.isArray(settings.boutiques) ? settings.boutiques : [];
+          if (!boutiques.includes(boutiqueNom)) {
+            settingsPatch.boutiques = [...boutiques, boutiqueNom];
+          }
+        }
       }
 
       await saveSettings(user.workspaceId, settingsPatch);

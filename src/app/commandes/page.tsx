@@ -145,6 +145,64 @@ export default function CommandesPage() {
   const [ameexStockProducts, setAmeexStockProducts] = useState<{ id: string; ref: string; name: string }[]>([]); // Ameex warehouse products
   const [carrierStatus, setCarrierStatus] = useState<{ loading: boolean; text: string | null; ok: boolean }>({ loading: false, text: null, ok: true });
 
+  // Live Ameex statuses synced from carrier (orderId → carrier status string)
+  const [ameexLiveStatus, setAmeexLiveStatus] = useState<Record<string, string>>({});
+  const [syncingStatus, setSyncingStatus] = useState(false);
+
+  async function syncAmeexStatuses() {
+    setSyncingStatus(true);
+    try {
+      const s = await fetch("/api/settings").then(r => r.json()).then(d => d.settings ?? {}).catch(() => ({}));
+      const c = s.ameex;
+      if (!c?.apiId) { showToast("Identifiants Ameex non configurés", false); setSyncingStatus(false); return; }
+
+      const depotId = c.depotId || "34";
+      function toList(d: unknown): Record<string, unknown>[] {
+        if (Array.isArray(d)) return d as Record<string, unknown>[];
+        const dd = d as Record<string, unknown>;
+        if (Array.isArray(dd?.data)) return dd.data as Record<string, unknown>[];
+        if (Array.isArray(dd?.parcels)) return dd.parcels as Record<string, unknown>[];
+        return [];
+      }
+
+      const [rSimple, rStock] = await Promise.all([
+        fetch("/api/ameex", { method: "POST", headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ action: "listParcels", apiId: c.apiId, apiKey: c.apiKey, type: "SIMPLE" }) }).then(r => r.json()),
+        fetch("/api/ameex", { method: "POST", headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ action: "listParcels", apiId: c.apiId, apiKey: c.apiKey, type: "STOCK", p_hub: depotId }) }).then(r => r.json()),
+      ]);
+
+      const allParcels = [...toList(rSimple), ...toList(rStock)];
+
+      // Build lookup: order_num → status AND code → status
+      const byOrderNum = new Map<string, string>();
+      const byCode = new Map<string, string>();
+      for (const p of allParcels) {
+        const status = String(p.status ?? p.state ?? p.etat ?? "");
+        const orderNum = String(p.order_num ?? p.order_number ?? "").trim();
+        const code = String(p.code ?? p.barcode ?? "").trim();
+        if (orderNum) byOrderNum.set(orderNum, status);
+        if (code) byCode.set(code, status);
+      }
+
+      const expedied = orders.filter(o => o.status === "expédié");
+      const newMap: Record<string, string> = {};
+      for (const o of expedied) {
+        const key1 = String(o.carrierTracking ?? "").trim();
+        const key2 = (o.orderNumber || o.id.slice(-8)).trim();
+        const found = (key1 && byCode.get(key1)) || byOrderNum.get(key2);
+        if (found) newMap[o.id] = found;
+      }
+
+      setAmeexLiveStatus(newMap);
+      const matched = Object.keys(newMap).length;
+      showToast(`${matched} commande(s) synchronisée(s) sur ${expedied.length} expédiée(s)`, matched > 0);
+    } catch (e) {
+      showToast("Erreur sync: " + String(e), false);
+    }
+    setSyncingStatus(false);
+  }
+
   // Current user role
   const [userRole, setUserRole] = useState<"admin" | "agent" | "viewer">("agent");
   const isAdmin = userRole === "admin";
@@ -816,6 +874,14 @@ export default function CommandesPage() {
                 <span className="hidden sm:inline">Expédier ({confirmedCount})</span>
               </button>
             )}
+            {orders.some(o => o.status === "expédié") && isAdmin && (
+              <button onClick={syncAmeexStatuses} disabled={syncingStatus}
+                title="Voir statut Ameex pour les commandes expédiées"
+                className="flex items-center gap-2 bg-white border border-slate-200 hover:border-indigo-300 hover:bg-indigo-50 disabled:opacity-50 text-slate-600 hover:text-indigo-700 text-sm font-semibold px-3 py-2.5 rounded-xl transition-colors whitespace-nowrap">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className={`w-4 h-4 ${syncingStatus ? "animate-spin" : ""}`}><path d="M23 4v6h-6M1 20v-6h6"/><path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15"/></svg>
+                <span className="hidden sm:inline">{syncingStatus ? "Sync…" : "Statuts Ameex"}</span>
+              </button>
+            )}
             <button onClick={() => setShowModal(true)} className="bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold px-3 lg:px-5 py-2.5 rounded-xl shadow-md shadow-blue-200 transition-colors whitespace-nowrap">
               + Nouvelle commande
             </button>
@@ -952,10 +1018,22 @@ export default function CommandesPage() {
                     <input type="checkbox" checked={isSelected} onChange={() => toggleSelect(o.id)}
                       className="w-4 h-4 rounded accent-blue-600 cursor-pointer shrink-0" />
                     <span className="font-mono text-xs text-slate-400 flex-1 truncate">{o.orderNumber}</span>
-                    <span className={`inline-flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-bold border shrink-0 ${cfg.bg} ${cfg.color} ${cfg.border}`}>
-                      <span className={`w-1.5 h-1.5 rounded-full ${cfg.dot}`} />
-                      {cfg.label}
-                    </span>
+                    <div className="flex flex-col items-end gap-1 shrink-0">
+                      <span className={`inline-flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-bold border ${cfg.bg} ${cfg.color} ${cfg.border}`}>
+                        <span className={`w-1.5 h-1.5 rounded-full ${cfg.dot}`} />
+                        {cfg.label}
+                      </span>
+                      {ameexLiveStatus[o.id] && (
+                        <span className={`text-xs font-semibold px-2 py-0.5 rounded-lg ${
+                          ameexLiveStatus[o.id].toLowerCase().includes("livr") ? "bg-emerald-50 text-emerald-700" :
+                          ameexLiveStatus[o.id].toLowerCase().includes("retour") ? "bg-red-50 text-red-600" :
+                          ameexLiveStatus[o.id].toLowerCase().includes("ramassé") || ameexLiveStatus[o.id].toLowerCase().includes("picked") ? "bg-indigo-50 text-indigo-700" :
+                          "bg-blue-50 text-blue-700"
+                        }`}>
+                          📦 {ameexLiveStatus[o.id].split(/[\n,]+/)[0].trim().slice(0, 20)}
+                        </span>
+                      )}
+                    </div>
                     <span className="text-xs text-slate-400 shrink-0">{o.date}</span>
                   </div>
 
@@ -1129,6 +1207,16 @@ export default function CommandesPage() {
                             <span className={`w-1.5 h-1.5 rounded-full ${cfg.dot}`} />
                             {cfg.label}
                           </span>
+                          {ameexLiveStatus[o.id] && (
+                            <span className={`mt-1 flex items-center gap-1 text-xs font-semibold px-2 py-0.5 rounded-lg ${
+                              ameexLiveStatus[o.id].toLowerCase().includes("livr") ? "bg-emerald-50 text-emerald-700" :
+                              ameexLiveStatus[o.id].toLowerCase().includes("retour") ? "bg-red-50 text-red-600" :
+                              ameexLiveStatus[o.id].toLowerCase().includes("ramassé") || ameexLiveStatus[o.id].toLowerCase().includes("picked") ? "bg-indigo-50 text-indigo-700" :
+                              "bg-blue-50 text-blue-700"
+                            }`}>
+                              📦 {ameexLiveStatus[o.id].split(/[\n,]+/)[0].trim().slice(0, 25)}
+                            </span>
+                          )}
                         </td>
                         <td className="px-5 py-3.5" onClick={e => e.stopPropagation()}>
                           <div className="flex items-center gap-1.5">
