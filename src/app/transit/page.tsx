@@ -70,11 +70,30 @@ export default function TransitPage() {
     const depotId = c.depotId || "34";
 
     function toList(d: unknown): Parcel[] {
+      function expandMap(obj: Record<string, unknown>): Parcel[] {
+        const keys = Object.keys(obj);
+        if (keys.length > 0 && keys.every(k => /^\d+$/.test(k))) {
+          return Object.values(obj).filter(v => v && typeof v === "object" && !Array.isArray(v)) as Parcel[];
+        }
+        return [obj as Parcel];
+      }
+      function extr(obj: Record<string, unknown>): Parcel[] {
+        if (Array.isArray(obj.data))    return obj.data    as Parcel[];
+        if (Array.isArray(obj.parcels)) return obj.parcels as Parcel[];
+        if (Array.isArray(obj.items))   return obj.items   as Parcel[];
+        const vals = Object.values(obj).filter(v => v && typeof v === "object" && !Array.isArray(v)) as Record<string, unknown>[];
+        if (vals.length > 0) return vals.flatMap(expandMap);
+        return [];
+      }
       if (Array.isArray(d)) return d as Parcel[];
       const dd = d as Record<string, unknown>;
-      if (Array.isArray(dd?.data)) return dd.data as Parcel[];
-      if (Array.isArray(dd?.parcels)) return dd.parcels as Parcel[];
-      return [];
+      const api = dd?.api;
+      if (Array.isArray(api)) return api as Parcel[];
+      if (api && typeof api === "object" && api !== null) {
+        const r = extr(api as Record<string, unknown>);
+        if (r.length > 0) return r;
+      }
+      return extr(dd);
     }
 
     try {

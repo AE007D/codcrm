@@ -160,15 +160,23 @@ export default function CommandesPage() {
 
       // Ameex wraps everything as {login:"success", api:{...}} where the inner value
       // may be an array, an object with data/parcels key, or an object-map (id→parcel)
+      // Parcels may also be nested as {api: {"1":{...parcel...}, "2":{...parcel...}}}
       function toList(d: unknown): Record<string, unknown>[] {
+        function expandMap(obj: Record<string, unknown>): Record<string, unknown>[] {
+          const keys = Object.keys(obj);
+          if (keys.length > 0 && keys.every(k => /^\d+$/.test(k))) {
+            return Object.values(obj)
+              .filter(v => v && typeof v === "object" && !Array.isArray(v)) as Record<string, unknown>[];
+          }
+          return [obj];
+        }
         function extractFromObj(obj: Record<string, unknown>): Record<string, unknown>[] {
           if (Array.isArray(obj.data))    return obj.data    as Record<string, unknown>[];
           if (Array.isArray(obj.parcels)) return obj.parcels as Record<string, unknown>[];
           if (Array.isArray(obj.items))   return obj.items   as Record<string, unknown>[];
           if (Array.isArray(obj.commandes)) return obj.commandes as Record<string, unknown>[];
-          // Object-map keyed by id (same format as cities API)
-          const vals = Object.values(obj).filter(v => v && typeof v === "object" && !Array.isArray(v));
-          if (vals.length > 0) return vals as Record<string, unknown>[];
+          const vals = Object.values(obj).filter(v => v && typeof v === "object" && !Array.isArray(v)) as Record<string, unknown>[];
+          if (vals.length > 0) return vals.flatMap(expandMap);
           return [];
         }
         if (Array.isArray(d)) return d as Record<string, unknown>[];
@@ -679,12 +687,20 @@ export default function CommandesPage() {
         if (!statusText || d?.api === null) {
           const code = String(order.carrierTracking ?? "").trim().toLowerCase();
           function parseParcels(ld: unknown): Record<string, unknown>[] {
+            function expandMap(obj: Record<string, unknown>): Record<string, unknown>[] {
+              const keys = Object.keys(obj);
+              if (keys.length > 0 && keys.every(k => /^\d+$/.test(k))) {
+                return Object.values(obj)
+                  .filter(v => v && typeof v === "object" && !Array.isArray(v)) as Record<string, unknown>[];
+              }
+              return [obj];
+            }
             function extr(obj: Record<string, unknown>): Record<string, unknown>[] {
               if (Array.isArray(obj.data))      return obj.data      as Record<string, unknown>[];
               if (Array.isArray(obj.parcels))   return obj.parcels   as Record<string, unknown>[];
               if (Array.isArray(obj.commandes)) return obj.commandes as Record<string, unknown>[];
-              const vals = Object.values(obj).filter(v => v && typeof v === "object" && !Array.isArray(v));
-              if (vals.length > 0) return vals as Record<string, unknown>[];
+              const vals = Object.values(obj).filter(v => v && typeof v === "object" && !Array.isArray(v)) as Record<string, unknown>[];
+              if (vals.length > 0) return vals.flatMap(expandMap);
               return [];
             }
             if (Array.isArray(ld)) return ld as Record<string, unknown>[];
