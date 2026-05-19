@@ -112,6 +112,22 @@ export async function updateOrderByTracking(
   return (data?.length ?? 0) > 0;
 }
 
+// Only updates carrier_status — does NOT touch the CRM status field
+export async function updateCarrierStatusOnly(
+  carrierTracking: string,
+  carrierStatus: string
+): Promise<boolean> {
+  const code = carrierTracking.trim();
+  const { data, error } = await supabase
+    .from("crm_orders")
+    .update({ carrier_status: carrierStatus })
+    .ilike("carrier_tracking", code)
+    .select("id");
+  if (error) { console.error("updateCarrierStatusOnly:", error.message); return false; }
+  if (!data?.length) console.warn(`updateCarrierStatusOnly: no row matched carrier_tracking="${code}"`);
+  return (data?.length ?? 0) > 0;
+}
+
 export async function updateOrderFields(
   id: string,
   workspaceId: string,

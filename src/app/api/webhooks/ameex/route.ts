@@ -1,10 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
-import { updateOrderByTracking } from "@/lib/supabaseOrderStore";
+import { updateOrderByTracking, updateCarrierStatusOnly } from "@/lib/supabaseOrderStore";
 import { storeDebugPayload } from "@/app/api/webhook-debug/route";
 
 export const dynamic = "force-dynamic";
 
-// Ameex → CRM status mapping
+// Statuses that change the CRM status field
 const AMEEX_STATUS_MAP: Record<string, string> = {
   DELIVERED:        "livré",
   DISTRIBUTION:     "expédié",
@@ -18,6 +18,13 @@ const AMEEX_STATUS_MAP: Record<string, string> = {
   CANCELLED:        "annulé",
   CANCELED:         "annulé",
 };
+
+// Intermediate statuses — only update carrier_status, keep CRM status unchanged
+const AMEEX_INTERMEDIATE = new Set([
+  "PAS_REPONSE", "ABSENT", "REPORTED", "POSTPONED", "REPORTEE",
+  "EN_TRANSIT", "TENTATIVE", "NOT_DELIVERED", "FAILED_DELIVERY",
+  "LIVRAISON", "EN_COURS", "AVIS_DE_PASSAGE",
+]);
 
 // POST /api/webhooks/ameex
 // Ameex sends application/x-www-form-urlencoded with fields:
@@ -34,10 +41,10 @@ export async function POST(request: NextRequest) {
     if (contentType.includes("application/x-www-form-urlencoded")) {
       const text = await request.text();
       const params = new URLSearchParams(text);
-      code        = params.get("CODE")         ?? undefined;
-      statut      = params.get("STATUT")       ?? undefined;
+      code        = params.get("CODE")          ?? undefined;
+      statut      = params.get("STATUT")        ?? undefined;
       statutSName = params.get("STATUT_S_NAME") ?? undefined;
-      statutName  = params.get("STATUT_NAME")  ?? undefined;
+      statutName  = params.get("STATUT_NAME")   ?? undefined;
     } else {
       const body = await request.json().catch(() => ({}));
       code        = body.CODE;
@@ -52,25 +59,35 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Missing CODE or STATUT" }, { status: 400 });
     }
 
-    // STATUT_NAME = main readable status (En cours, Livré, Ramassé…)
-    // STATUT_S_NAME = sub-status detail (Pas de réponse, En transit…)
+    // Prefer STATUT_NAME (human-readable), fall back to STATUT_S_NAME, then raw code
     const carrierStatus = statutName || statutSName || statut;
+    const statutUp = statut.toUpperCase();
 
-    const crmStatus = AMEEX_STATUS_MAP[statut.toUpperCase()];
-    if (!crmStatus) {
-      console.log(`Ameex webhook: unhandled status "${statut}" for code="${code}"`);
-      await updateOrderByTracking(code, statut, carrierStatus).catch(() => {});
-      return NextResponse.json({ ok: true, skipped: true });
+    const crmStatus = AMEEX_STATUS_MAP[statutUp];
+
+    if (crmStatus) {
+      // Known status → update both CRM status and carrier_status
+      const updated = await updateOrderByTracking(code, crmStatus, carrierStatus);
+      if (!updated) {
+        console.warn(`Ameex webhook: NO ORDER FOUND with carrier_tracking="${code}" — ${crmStatus} not applied`);
+      } else {
+        console.log(`Ameex webhook: ${code} → ${statut} (${carrierStatus}) → ${crmStatus} ✓`);
+      }
+      return NextResponse.json({ ok: true, code, crmStatus });
     }
 
-    const updated = await updateOrderByTracking(code, crmStatus, carrierStatus);
-    if (!updated) {
-      console.warn(`Ameex webhook: NO ORDER FOUND with carrier_tracking="${code}" — status ${crmStatus} not applied`);
-    } else {
-      console.log(`Ameex webhook: ${code} → ${statut} (${carrierStatus}) → ${crmStatus} ✓`);
+    if (AMEEX_INTERMEDIATE.has(statutUp)) {
+      // Intermediate status (Pas de réponse, Absent…) → only update carrier_status
+      const updated = await updateCarrierStatusOnly(code, carrierStatus);
+      console.log(`Ameex webhook: ${code} → intermediate "${statut}" (${carrierStatus}) — carrier_status updated: ${updated}`);
+      return NextResponse.json({ ok: true, code, intermediate: true, carrierStatus });
     }
 
-    return NextResponse.json({ ok: true, code, crmStatus });
+    // Completely unknown status → only update carrier_status, never touch CRM status
+    console.log(`Ameex webhook: unknown status "${statut}" for code="${code}" — saving carrier_status only`);
+    await updateCarrierStatusOnly(code, carrierStatus);
+    return NextResponse.json({ ok: true, skipped: true });
+
   } catch (err) {
     console.error("Ameex webhook error:", err);
     return NextResponse.json({ error: "Internal error" }, { status: 500 });
