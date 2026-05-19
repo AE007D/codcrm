@@ -5,13 +5,17 @@ export const dynamic = "force-dynamic";
 
 // Ameex → CRM status mapping
 const AMEEX_STATUS_MAP: Record<string, string> = {
-  DELIVERED:    "livré",
-  DISTRIBUTION: "expédié",   // out for delivery
-  IN_PROGRESS:  "expédié",   // in transit
-  RETURNED:     "retourné",
-  RETURN:       "retourné",
-  CANCELLED:    "annulé",
-  CANCELED:     "annulé",
+  DELIVERED:        "livré",
+  DISTRIBUTION:     "expédié",
+  IN_PROGRESS:      "expédié",
+  PICKED_UP:        "expédié",
+  COLLECTED:        "expédié",
+  RAMASSE:          "expédié",
+  RETURNED:         "retourné",
+  RETURN:           "retourné",
+  RETURN_PROGRESS:  "retourné",
+  CANCELLED:        "annulé",
+  CANCELED:         "annulé",
 };
 
 // POST /api/webhooks/ameex
@@ -45,8 +49,9 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Missing CODE or STATUT" }, { status: 400 });
     }
 
-    // Store the detailed carrier status name for display in the UI
-    const carrierStatus = statutSName || statutName || statut;
+    // STATUT_NAME = main readable status (En cours, Livré, Ramassé…)
+    // STATUT_S_NAME = sub-status detail (Pas de réponse, En transit…)
+    const carrierStatus = statutName || statutSName || statut;
 
     const crmStatus = AMEEX_STATUS_MAP[statut.toUpperCase()];
     if (!crmStatus) {
