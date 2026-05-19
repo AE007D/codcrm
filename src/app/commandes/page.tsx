@@ -206,7 +206,7 @@ export default function CommandesPage() {
       const seen = new Set<string>();
       const allParcels: Record<string, unknown>[] = [];
       for (const p of results.flatMap(toList)) {
-        const key = String(p.code ?? p.barcode ?? p.id ?? "");
+        const key = String(p.for_code ?? p.code ?? p.barcode ?? p.id ?? "");
         if (key && seen.has(key)) continue;
         if (key) seen.add(key);
         allParcels.push(p);
@@ -216,14 +216,14 @@ export default function CommandesPage() {
         .normalize("NFD").replace(/[̀-ͯ]/g, "")
         .replace(/[^a-z؀-ۿ\s]/g, "").replace(/\s+/g, " ");
 
-      // Build lookup maps — try every possible field Ameex might return
+      // Build lookup maps — Ameex fields: for_code=tracking, statut=status
       const byCode     = new Map<string, string>();
       const byOrderNum = new Map<string, string>();
       const byPhone    = new Map<string, string>();
       const byName     = new Map<string, string>();
       for (const p of allParcels) {
-        const status   = String(p.status ?? p.state ?? p.etat ?? "");
-        const code     = String(p.code ?? p.barcode ?? p.reference ?? "").trim();
+        const status   = String(p.statut ?? p.status ?? p.state ?? p.etat ?? "");
+        const code     = String(p.for_code ?? p.code ?? p.barcode ?? p.reference ?? "").trim();
         const orderNum = String(p.order_num ?? p.order_number ?? p.ref ?? p.reference ?? "").trim();
         const phone    = String(p.phone ?? p.tel ?? p.mobile ?? p.telephone ?? "").replace(/\D/g, "").slice(-9);
         const name     = normName(String(p.receiver ?? p.name ?? p.destinataire ?? p.client ?? ""));
@@ -721,21 +721,15 @@ export default function CommandesPage() {
           );
           const all: Record<string, unknown>[] = lists.flatMap(parseParcels);
           const match = all.find(p =>
-            String(p.code ?? p.barcode ?? "").trim().toLowerCase() === code ||
-            String(p.barcode ?? "").trim().toLowerCase() === code
+            String(p.for_code ?? p.code ?? p.barcode ?? "").trim().toLowerCase() === code
           );
           if (match) {
-            const ms = String(match.status ?? match.state ?? match.etat ?? "");
+            const ms = String(match.statut ?? match.status ?? match.state ?? match.etat ?? "");
             const mm = String(match.message ?? match.msg ?? "");
             statusText = [ms, mm].filter(Boolean).join(" — ");
           } else {
-            // Debug: show what codes Ameex actually returned
-            const sampleCodes = all.slice(0, 5).map(p => {
-              const keys = Object.keys(p).join(",");
-              const c = p.code ?? p.barcode ?? p.tracking_code ?? p.reference ?? p.ref ?? "?";
-              return `[${c}|keys:${keys}]`;
-            }).join(" ");
-            statusText = `Colis non trouvé (${all.length} vérifiés, cherché: ${code}, exemples: ${sampleCodes || "aucun"})`;
+            const foundCodes = all.slice(0, 6).map(p => String(p.for_code ?? p.code ?? p.barcode ?? "?")).join(", ");
+            statusText = `Colis non trouvé dans Ameex (${all.length} vérifiés · codes: ${foundCodes || "aucun"})`;
           }
         }
       } else {
