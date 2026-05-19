@@ -1022,7 +1022,7 @@ export default function CommandesPage() {
                         onChange={toggleSelectAll}
                         className="w-4 h-4 rounded accent-blue-600 cursor-pointer" />
                     </th>
-                    {["#", "Client", "Ville", "Téléphone", "Produit", "Montant", "Source", "Statut", "Actions"].map(h => (
+                    {["#", "Client", "Ville", "Téléphone", "Produit", "Montant", "Source", "Statut", "Ameex", "Actions"].map(h => (
                       <th key={h} className="text-left px-5 py-3 font-semibold uppercase tracking-wide whitespace-nowrap">{h}</th>
                     ))}
                   </tr>
@@ -1081,16 +1081,29 @@ export default function CommandesPage() {
                             <span className={`w-1.5 h-1.5 rounded-full ${cfg.dot}`} />
                             {cfg.label}
                           </span>
-                          {ameexLiveStatus[o.id] && (
-                            <span className={`mt-1 flex items-center gap-1 text-xs font-semibold px-2 py-0.5 rounded-lg ${
-                              ameexLiveStatus[o.id].toLowerCase().includes("livr") ? "bg-emerald-50 text-emerald-700" :
-                              ameexLiveStatus[o.id].toLowerCase().includes("retour") ? "bg-red-50 text-red-600" :
-                              ameexLiveStatus[o.id].toLowerCase().includes("ramassé") || ameexLiveStatus[o.id].toLowerCase().includes("picked") ? "bg-indigo-50 text-indigo-700" :
-                              "bg-blue-50 text-blue-700"
-                            }`}>
-                              📦 {ameexLiveStatus[o.id].split(/[\n,]+/)[0].trim().slice(0, 25)}
-                            </span>
-                          )}
+                        </td>
+                        <td className="px-5 py-3.5 whitespace-nowrap" onClick={() => setDrawer(o)}>
+                          {o.status === "expédié" ? (() => {
+                            if (!o.carrierStatus) return (
+                              <span className="text-xs text-slate-300 font-medium">— en attente</span>
+                            );
+                            const s = o.carrierStatus.toLowerCase();
+                            const isLivr   = s.includes("livr");
+                            const isRetour = s.includes("retour");
+                            const isRam    = s.includes("ramassé") || s.includes("collecté") || s.includes("picked");
+                            const isCours  = s.includes("cours") || s.includes("voyage") || s.includes("livraison");
+                            const style = isLivr   ? "bg-emerald-100 text-emerald-700 border-emerald-200" :
+                                          isRetour  ? "bg-red-100 text-red-600 border-red-200" :
+                                          isRam     ? "bg-indigo-100 text-indigo-700 border-indigo-200" :
+                                          isCours   ? "bg-blue-100 text-blue-700 border-blue-200" :
+                                                      "bg-slate-100 text-slate-600 border-slate-200";
+                            const icon = isLivr ? "✓" : isRetour ? "↩" : isRam ? "📦" : "🚚";
+                            return (
+                              <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl text-xs font-bold border ${style}`}>
+                                {icon} {o.carrierStatus.split(/[\n,]+/)[0].trim().slice(0, 18)}
+                              </span>
+                            );
+                          })() : <span className="text-slate-200">—</span>}
                         </td>
                         <td className="px-5 py-3.5" onClick={e => e.stopPropagation()}>
                           <div className="flex items-center gap-1.5">
