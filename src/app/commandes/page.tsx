@@ -713,10 +713,16 @@ export default function CommandesPage() {
             }
             return extr(dd);
           }
-          // DEBUG: trackParcel result + try /Action/Type/List
-          const rawList = await fetch("/api/ameex", { method: "POST", headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ action: "listParcelsDirect", apiId: creds.apiId, apiKey: creds.apiKey }) }).then(r => r.json());
-          statusText = `track=${JSON.stringify(d).slice(0,120)} | list/Action/Type/List=${JSON.stringify(rawList?.api ?? rawList).slice(0,150)}`;
+          // DEBUG: try 3 different approaches in parallel
+          const [rTrackGet, rListStatut, rListDate] = await Promise.all([
+            fetch("/api/ameex", { method: "POST", headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ action: "trackParcel", apiId: creds.apiId, apiKey: creds.apiKey, code }) }).then(r => r.json()),
+            fetch("/api/ameex", { method: "POST", headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ action: "listParcelsGet", apiId: creds.apiId, apiKey: creds.apiKey, statut: "ramassé" }) }).then(r => r.json()),
+            fetch("/api/ameex", { method: "POST", headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ action: "listParcelsGet", apiId: creds.apiId, apiKey: creds.apiKey, date_debut: "2026-01-01", date_fin: "2026-12-31" }) }).then(r => r.json()),
+          ]);
+          statusText = `trackGET=${JSON.stringify(rTrackGet?.api).slice(0,80)} | statut=${JSON.stringify(rListStatut?.api).slice(0,80)} | date=${JSON.stringify(rListDate?.api).slice(0,80)}`;
         }
       } else {
         const creds = s.eagle ?? {};
