@@ -163,17 +163,27 @@ export default function IntegrationsPage() {
   const loadAmeexParcels = useCallback(async () => {
     if (!ameexSaved) return;
     setLoading(true);
-    const d = await ameexCall("listParcels", ameexSaved);
+    // Try both SIMPLE and STOCK types — Ameex requires type parameter
+    const [dSimple, dStock] = await Promise.all([
+      ameexCall("listParcels", ameexSaved, { type: "SIMPLE" }),
+      ameexCall("listParcels", ameexSaved, { type: "STOCK" }),
+    ]);
     setLoading(false);
-    // Ameex may wrap: {login,api:{data:[...]}} or {data:[...]} or plain array
-    const list: Parcel[] = Array.isArray(d) ? d
-      : Array.isArray(d?.api?.data) ? d.api.data
-      : Array.isArray(d?.api?.parcels) ? d.api.parcels
-      : Array.isArray(d?.data) ? d.data
-      : Array.isArray(d?.parcels) ? d.parcels
-      : [];
-    if (list.length) setAmeexParcels(list);
-    else showToast(`Aucun colis retourné (réponse: ${JSON.stringify(d).slice(0, 120)})`, false);
+    function toList(d: unknown): Parcel[] {
+      if (Array.isArray(d)) return d as Parcel[];
+      const dd = d as Record<string, Record<string, unknown>>;
+      if (Array.isArray(dd?.api?.data)) return dd.api.data as Parcel[];
+      if (Array.isArray(dd?.api?.parcels)) return dd.api.parcels as Parcel[];
+      if (Array.isArray((d as Record<string,unknown>)?.data)) return (d as Record<string,unknown>).data as Parcel[];
+      if (Array.isArray((d as Record<string,unknown>)?.parcels)) return (d as Record<string,unknown>).parcels as Parcel[];
+      return [];
+    }
+    const list = [...toList(dSimple), ...toList(dStock)];
+    if (list.length) {
+      setAmeexParcels(list);
+    } else {
+      showToast(`Aucun colis — SIMPLE: ${JSON.stringify(dSimple).slice(0,80)} | STOCK: ${JSON.stringify(dStock).slice(0,80)}`, false);
+    }
   }, [ameexSaved]);
   const loadAmeexCities = useCallback(async () => {
     if (!ameexSaved) { showToast("Configurez Ameex d'abord.", false); return; }
