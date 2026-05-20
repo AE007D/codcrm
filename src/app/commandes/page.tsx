@@ -718,49 +718,80 @@ export default function CommandesPage() {
         CANCELLED: "annulé", CANCELED: "annulé", LOST: "annulé", PERDU: "annulé",
       };
 
-      // Track each expédié order individually — listParcels may not return delivered parcels
-      const ordersToSync = orders.filter(o => o.carrierTracking && o.status === "expédié");
-      if (!ordersToSync.length) { showToast("Aucune commande expédiée à synchroniser"); setSyncingStatuses(false); return; }
+      const expOrders = orders.filter(o => o.status === "expédié");
+      if (!expOrders.length) { showToast("Aucune commande expédiée à synchroniser"); setSyncingStatuses(false); return; }
+
+      // Step 1: fetch full parcel list from Ameex (to find tracking codes for orders that don't have one)
+      let ameexByCode = new Map<string, Record<string, unknown>>();
+      let ameexByPhone = new Map<string, Record<string, unknown>>();
+      try {
+        const listRes = await fetch("/api/ameex", {
+          method: "POST", headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ action: "listParcels", apiId: c.apiId, apiKey: c.apiKey }),
+        }).then(r => r.json());
+        const rawList: Record<string, unknown>[] = Array.isArray(listRes) ? listRes
+          : Array.isArray(listRes?.data) ? listRes.data
+          : Array.isArray(listRes?.api?.data) ? listRes.api.data : [];
+        for (const p of rawList) {
+          const code = String(p.code ?? p.barcode ?? p.id ?? "").trim();
+          const phone = String(p.phone ?? p.receiver_phone ?? p.tel ?? "").replace(/\D/g, "").slice(-9);
+          if (code) ameexByCode.set(code.toUpperCase(), p);
+          if (phone) ameexByPhone.set(phone, p);
+        }
+      } catch { /* listParcels failed — continue with trackParcel fallback */ }
 
       let updated = 0;
       const patchPromises: Promise<void>[] = [];
 
-      for (const order of ordersToSync) {
+      for (const order of expOrders) {
         try {
-          const d = await fetch("/api/ameex", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ action: "trackParcel", apiId: c.apiId, apiKey: c.apiKey, code: order.carrierTracking }),
-          }).then(r => r.json());
+          let parcel: Record<string, unknown> | null = null;
 
-          // Ameex trackParcel may return status in various fields; could also be array of events
-          const raw = d?.api?.data ?? d?.data ?? d ?? {};
-          // If array of events, take the last entry (most recent)
-          const nested: Record<string, unknown> = Array.isArray(raw) ? (raw[raw.length - 1] ?? {}) : raw;
+          // If we have a tracking code, try trackParcel first
+          if (order.carrierTracking) {
+            const key = order.carrierTracking.trim().toUpperCase();
+            parcel = ameexByCode.get(key) ?? null;
+
+            if (!parcel) {
+              // trackParcel per-order for the specific code
+              const d = await fetch("/api/ameex", {
+                method: "POST", headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ action: "trackParcel", apiId: c.apiId, apiKey: c.apiKey, code: order.carrierTracking }),
+              }).then(r => r.json()).catch(() => ({}));
+              const raw = d?.api?.data ?? d?.data ?? d ?? {};
+              parcel = (Array.isArray(raw) ? raw[raw.length - 1] : raw) as Record<string, unknown>;
+            }
+          } else {
+            // No tracking code — try to match by phone number from Ameex list
+            const phone = (order.phone ?? "").replace(/\D/g, "").slice(-9);
+            if (phone) parcel = ameexByPhone.get(phone) ?? null;
+          }
+
+          if (!parcel) continue;
+
           const statusRaw = String(
-            nested?.status ?? nested?.statut ?? nested?.etat ?? nested?.state ??
-            (d as Record<string,unknown>)?.status ?? (d as Record<string,unknown>)?.statut ?? ""
+            parcel?.status ?? parcel?.statut ?? parcel?.etat ?? parcel?.state ?? ""
           ).trim().toUpperCase();
           const statusName = String(
-            nested?.status_name ?? nested?.statut_name ?? nested?.label ?? nested?.description ??
-            (d as Record<string,unknown>)?.status_name ?? statusRaw
+            parcel?.status_name ?? parcel?.statut_name ?? parcel?.label ?? statusRaw
           ).trim();
-
-          if (!statusRaw) continue;
+          const trackingCode = String(parcel?.code ?? parcel?.barcode ?? parcel?.id ?? "").trim();
 
           const crmStatus = AMEEX_CRM_MAP[statusRaw];
-          if (!crmStatus) continue;
-
           const newCarrierStatus = statusName || statusRaw;
-          if (crmStatus === order.status && newCarrierStatus === order.carrierStatus) continue;
+          const newTracking = !order.carrierTracking && trackingCode ? trackingCode : order.carrierTracking;
+
+          if (!crmStatus && !newTracking) continue;
+          const targetStatus = (crmStatus ?? order.status) as OrderStatus;
+          if (targetStatus === order.status && newCarrierStatus === order.carrierStatus && newTracking === order.carrierTracking) continue;
 
           updated++;
           setOrders(prev => prev.map(o => o.id === order.id
-            ? { ...o, status: crmStatus as OrderStatus, carrierStatus: newCarrierStatus, carrierName: "ameex" }
+            ? { ...o, status: targetStatus, carrierStatus: newCarrierStatus, carrierName: "ameex", ...(newTracking ? { carrierTracking: newTracking } : {}) }
             : o));
           patchPromises.push(
             fetch("/api/orders", { method: "PATCH", headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ id: order.id, status: crmStatus, carrierStatus: newCarrierStatus, carrierName: "ameex" }),
+              body: JSON.stringify({ id: order.id, status: targetStatus, carrierStatus: newCarrierStatus, carrierName: "ameex", ...(newTracking ? { carrierTracking: newTracking } : {}) }),
             }).then(() => {}).catch(() => {})
           );
         } catch { /* skip this order on error */ }
@@ -941,6 +972,12 @@ export default function CommandesPage() {
     setShipping(false);
     if (results.every(r => r.ok)) {
       setSelected(new Set());
+      // Auto-close modal and switch to expédié view so orders don't appear to "disappear"
+      setTimeout(() => {
+        setShipModal(false);
+        setShipResults([]);
+        setFilter("expédié");
+      }, 1200);
     }
   }
 
