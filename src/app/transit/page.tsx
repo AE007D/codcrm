@@ -70,11 +70,30 @@ export default function TransitPage() {
     const depotId = c.depotId || "34";
 
     function toList(d: unknown): Parcel[] {
+      function expandMap(obj: Record<string, unknown>): Parcel[] {
+        const keys = Object.keys(obj);
+        if (keys.length > 0 && keys.every(k => /^\d+$/.test(k))) {
+          return Object.values(obj).filter(v => v && typeof v === "object" && !Array.isArray(v)) as Parcel[];
+        }
+        return [obj as Parcel];
+      }
+      function extr(obj: Record<string, unknown>): Parcel[] {
+        if (Array.isArray(obj.data))    return obj.data    as Parcel[];
+        if (Array.isArray(obj.parcels)) return obj.parcels as Parcel[];
+        if (Array.isArray(obj.items))   return obj.items   as Parcel[];
+        const vals = Object.values(obj).filter(v => v && typeof v === "object" && !Array.isArray(v)) as Record<string, unknown>[];
+        if (vals.length > 0) return vals.flatMap(expandMap);
+        return [];
+      }
       if (Array.isArray(d)) return d as Parcel[];
       const dd = d as Record<string, unknown>;
-      if (Array.isArray(dd?.data)) return dd.data as Parcel[];
-      if (Array.isArray(dd?.parcels)) return dd.parcels as Parcel[];
-      return [];
+      const api = dd?.api;
+      if (Array.isArray(api)) return api as Parcel[];
+      if (api && typeof api === "object" && api !== null) {
+        const r = extr(api as Record<string, unknown>);
+        if (r.length > 0) return r;
+      }
+      return extr(dd);
     }
 
     try {
@@ -98,7 +117,7 @@ export default function TransitPage() {
       const seen = new Set<string>();
       const merged: Parcel[] = [];
       for (const p of [...stockList, ...simpleList]) {
-        const key = String(p.code ?? p.barcode ?? "");
+        const key = String(p.for_code ?? p.code ?? p.barcode ?? "");
         if (!key || seen.has(key)) continue;
         seen.add(key);
         merged.push(p);
@@ -112,10 +131,10 @@ export default function TransitPage() {
   }, []);
 
   // Derived stats
-  const delivered = parcels.filter(p => String(p.status ?? "").toLowerCase().includes("livr"));
-  const returned  = parcels.filter(p => String(p.status ?? "").toLowerCase().includes("retour"));
+  const delivered = parcels.filter(p => String(p.statut ?? p.status ?? "").toLowerCase().includes("livr"));
+  const returned  = parcels.filter(p => String(p.statut ?? p.status ?? "").toLowerCase().includes("retour"));
   const inTransit = parcels.filter(p => {
-    const s = String(p.status ?? "").toLowerCase();
+    const s = String(p.statut ?? p.status ?? "").toLowerCase();
     return s.includes("voyage") || s.includes("livraison") || s.includes("cours") || s.includes("ramassé") || s.includes("picked");
   });
   const totalCOD = parcels.reduce((sum, p) => sum + parseFloat(String(p.cod ?? p.price ?? "0")), 0);
@@ -123,7 +142,7 @@ export default function TransitPage() {
   const simpleCount = parcels.filter(p => p._type === "SIMPLE").length;
 
   const filtered = parcels.filter(p => {
-    const s = String(p.status ?? "").toLowerCase();
+    const s = String(p.statut ?? p.status ?? "").toLowerCase();
     const matchFilter =
       filter === "Tous"     ? true :
       filter === "Livré"    ? s.includes("livr") :
@@ -133,7 +152,7 @@ export default function TransitPage() {
       true;
     const matchType = typeFilter === "Tous" || p._type === typeFilter;
     const matchSearch = !search || (
-      String(p.code ?? p.barcode ?? "").toLowerCase().includes(search.toLowerCase()) ||
+      String(p.for_code ?? p.code ?? p.barcode ?? "").toLowerCase().includes(search.toLowerCase()) ||
       String(p.receiver ?? p.name ?? "").toLowerCase().includes(search.toLowerCase()) ||
       String(p.city ?? p.ville ?? "").toLowerCase().includes(search.toLowerCase())
     );
@@ -219,7 +238,7 @@ export default function TransitPage() {
                       {f}
                       {f !== "Tous" && (
                         <span className="ml-1 opacity-60">
-                          ({f === "Livré" ? delivered.length : f === "Retourné" ? returned.length : f === "En cours" ? inTransit.length : parcels.filter(p => String(p.status ?? "").toLowerCase().includes("annul")).length})
+                          ({f === "Livré" ? delivered.length : f === "Retourné" ? returned.length : f === "En cours" ? inTransit.length : parcels.filter(p => String(p.statut ?? p.status ?? "").toLowerCase().includes("annul")).length})
                         </span>
                       )}
                     </button>
@@ -265,13 +284,13 @@ export default function TransitPage() {
                       {filtered.length === 0 ? (
                         <tr><td colSpan={7} className="px-5 py-12 text-center text-slate-400 text-sm">Aucun colis</td></tr>
                       ) : filtered.map((p, i) => {
-                        const rawStatus = String(p.status ?? p.state ?? p.etat ?? "");
+                        const rawStatus = String(p.statut ?? p.status ?? p.state ?? p.etat ?? "");
                         const st = statusStyle(rawStatus);
                         const days = daysSince(String(p.created_at ?? p.date ?? p.date_creation ?? ""));
                         const pType = String(p._type ?? "");
                         return (
                           <tr key={i} className="border-b border-slate-50 hover:bg-slate-50/60 transition-colors">
-                            <td className="px-5 py-3.5 font-mono text-xs text-blue-600 whitespace-nowrap">{String(p.code ?? p.barcode ?? "—")}</td>
+                            <td className="px-5 py-3.5 font-mono text-xs text-blue-600 whitespace-nowrap">{String(p.for_code ?? p.code ?? p.barcode ?? "—")}</td>
                             <td className="px-5 py-3.5">
                               <p className="font-semibold text-slate-800">{String(p.receiver ?? p.name ?? p.destinataire ?? "—")}</p>
                             </td>

@@ -80,7 +80,6 @@ const INTEGRATIONS = [
   { id: "eagle",          label: "Eagle Express",    category: "shipping", color: "bg-amber-500",   desc: "API · eagleexpress.ma",        logo: "https://eagleexpress.ma/favicon.ico" },
   { id: "facebook-ads",   label: "Facebook Ads",     category: "ads",      color: "bg-blue-600",    desc: "Graph API · Meta Business",    logo: "https://www.facebook.com/favicon.ico" },
   { id: "tiktok-ads",     label: "TikTok Ads",       category: "ads",      color: "bg-slate-900",   desc: "Marketing API · TikTok",       logo: "https://www.tiktok.com/favicon.ico" },
-  { id: "pixels",          label: "Pixels",           category: "pixels",   color: "bg-purple-600",  desc: "Multi-pixels · FB + TikTok",   logo: "" },
 ];
 
 /* ═══════════════════════════════════════════════════════
@@ -135,11 +134,6 @@ export default function IntegrationsPage() {
   const [tiktokAds, setTiktokAds] = useState({ accessToken: "", advertiserId: "" });
   const [tiktokAdsSaved, setTiktokAdsSaved] = useState<{ accessToken: string; advertiserId: string } | null>(null);
 
-  /* Multi-pixel state */
-  type PixelEntry = { pixelId: string; platform: "facebook" | "tiktok"; productName: string };
-  const [pixels, setPixels] = useState<PixelEntry[]>([]);
-  const [pixelForm, setPixelForm] = useState<PixelEntry>({ pixelId: "", platform: "facebook", productName: "" });
-
   /* Load settings from server (per-user, not localStorage) */
   useEffect(() => {
     fetch("/api/settings").then(r => r.json()).then(d => {
@@ -149,15 +143,6 @@ export default function IntegrationsPage() {
       if (s.shopify)          { setShopifySaved(s.shopify);      setShopify(s.shopify); }
       if (s.facebook)         { setFbAdsSaved(s.facebook);       setFbAds(s.facebook); }
       if (s.tiktok)           { setTiktokAdsSaved(s.tiktok);     setTiktokAds(s.tiktok); }
-      /* Multi-pixel — new format with legacy compat */
-      if (Array.isArray(s.pixels) && s.pixels.length > 0) {
-        setPixels(s.pixels as PixelEntry[]);
-      } else {
-        const legacy: PixelEntry[] = [];
-        if (s.facebookPixelId) legacy.push({ pixelId: s.facebookPixelId as string, platform: "facebook", productName: "" });
-        if (s.tiktokPixelId)   legacy.push({ pixelId: s.tiktokPixelId as string,   platform: "tiktok",   productName: "" });
-        if (legacy.length > 0) setPixels(legacy);
-      }
     }).catch(() => {});
     fetch("/api/auth/me").then(r => r.json()).then(d => { if (d.workspaceId) setCurrentWorkspaceId(d.workspaceId); else if (d.id) setCurrentWorkspaceId(d.id); }).catch(() => {});
   }, []);
@@ -179,17 +164,22 @@ export default function IntegrationsPage() {
     const d = await ameexCall("cities", ameexSaved);
     setLoading(false);
     setAmeexCitiesRaw(JSON.stringify(d, null, 2));
-    // Try all known response shapes
-    const raw = Array.isArray(d) ? d
+    // Ameex returns cities as an object keyed by ID: {"api":{"cities":{"1":{...},"2":{...}}}}
+    const raw: unknown[] = Array.isArray(d) ? d
+      : d?.api?.cities && typeof d.api.cities === "object" && !Array.isArray(d.api.cities)
+        ? Object.values(d.api.cities as Record<string, unknown>)
+      : Array.isArray(d?.api?.cities) ? d.api.cities
       : Array.isArray(d?.api?.data) ? d.api.data
       : Array.isArray(d?.data) ? d.data
       : Array.isArray(d?.cities) ? d.cities
       : Array.isArray(d?.result) ? d.result
       : [];
-    if (raw.length) {
-      setAmeexCities(raw);
+    const parsedCities = raw.map((c) => { const r = c as Record<string,unknown>; return { id: String(r.id ?? r.city_id ?? ""), name: String(r.name ?? r.city_name ?? r.ville ?? "") }; }).filter(c => c.id && c.name);
+    if (parsedCities.length) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      setAmeexCities(parsedCities as any);
       // Also cache in localStorage for commandes page
-      try { localStorage.setItem("codcrm_ameex_cities", JSON.stringify(raw.map((c: Record<string,unknown>) => ({ id: String(c.id ?? c.city_id ?? ""), name: String(c.name ?? c.city_name ?? c.ville ?? "") })).filter((c: {id:string;name:string}) => c.id && c.name))); } catch { /* */ }
+      try { localStorage.setItem("codcrm_ameex_cities", JSON.stringify(parsedCities)); } catch { /* */ }
     }
   }, [ameexSaved]);
   async function addAmeex() { if (!ameexSaved) { showToast("Configurez Ameex d'abord.", false); return; } if (!ameexForm.receiver || !ameexForm.phone || !ameexForm.city || !ameexForm.address || !ameexForm.cod) { showToast("Champs obligatoires manquants.", false); return; } setLoading(true); const d = await ameexCall("addParcel", ameexSaved, { ...ameexForm }); setLoading(false); const nested = d?.api?.data ?? d?.data ?? null; const trackCode = nested?.code ?? nested?.id ?? d?.code ?? d?.id ?? d?.tracking ?? d?.barcode; const ok = trackCode != null || d?.api?.type === "success" || d?.status === "success"; const errMsg = d?.api?.msg ?? d?.message ?? JSON.stringify(d); const label = ok ? `Colis créé ✓ — ${trackCode ?? d?.api?.msg ?? "OK"}` : `Erreur: ${errMsg}`; showToast(label, ok); if (ok) setAmeexForm({ receiver: "", phone: "", city: "", address: "", cod: "", product: "", order_num: "", comment: "", type: "SIMPLE", open: "NO", try: "NO", fragile: "0", replace: "false" }); }
@@ -219,12 +209,18 @@ export default function IntegrationsPage() {
     if (!eagleSaved) return;
     setEagleApiTesting(true);
     try {
-      // Use list endpoint to verify credentials without creating a real parcel
-      const d = await eagleCall("list", eagleSaved);
+      // Use list endpoint (read-only GET) — safer than add, no risk of creating test parcels
+      const d = await eagleCall("list", eagleSaved, { per_page: "1", page: "1" });
       const msg = String(d?.message ?? "").toLowerCase();
-      if (Array.isArray(d) || Array.isArray(d?.data)) setEagleApiStatus("ok");
-      else if (msg.includes("permission") || msg.includes("403") || msg.includes("unauthorized") || msg.includes("invalid")) setEagleApiStatus("broken");
-      else setEagleApiStatus("ok"); // got a response = credentials work
+      if (Array.isArray(d) || Array.isArray(d?.data)) {
+        setEagleApiStatus("ok");
+      } else if (msg.includes("permission") || msg.includes("403") || msg.includes("unauthorized") || msg.includes("invalid token")) {
+        setEagleApiStatus("broken");
+      } else if (msg.includes("parameter")) {
+        setEagleApiStatus("broken");
+      } else {
+        setEagleApiStatus("ok");
+      }
     } catch {
       setEagleApiStatus("broken");
     }
@@ -243,38 +239,16 @@ export default function IntegrationsPage() {
   /* TikTok Ads save */
   function saveTiktokAds() { if (!tiktokAds.accessToken || !tiktokAds.advertiserId) { showToast("Access Token et Advertiser ID requis.", false); return; } patchSettings({ tiktok: tiktokAds }).then(() => { setTiktokAdsSaved(tiktokAds); showToast("TikTok Ads connecté ✓"); }); }
 
-  /* Multi-pixel: add */
-  function addPixel() {
-    if (!pixelForm.pixelId.trim()) { showToast("Pixel ID requis.", false); return; }
-    if (!pixelForm.productName.trim()) { showToast("Nom du produit requis.", false); return; }
-    const updated = [...pixels, { ...pixelForm, pixelId: pixelForm.pixelId.trim(), productName: pixelForm.productName.trim() }];
-    patchSettings({ pixels: updated }).then(() => {
-      setPixels(updated);
-      setPixelForm({ pixelId: "", platform: "facebook", productName: "" });
-      showToast("Pixel ajouté ✓");
-    });
-  }
-
-  /* Multi-pixel: delete */
-  function deletePixel(idx: number) {
-    const updated = pixels.filter((_, i) => i !== idx);
-    patchSettings({ pixels: updated }).then(() => {
-      setPixels(updated);
-      showToast("Pixel supprimé");
-    });
-  }
-
   useEffect(() => {
     if (active === "ameex" && ameexTab === "parcels") loadAmeexParcels();
     if (active === "ameex" && ameexTab === "cities" && ameexCities.length === 0) loadAmeexCities();
   }, [active, ameexTab, loadAmeexParcels, loadAmeexCities, ameexCities.length]);
   useEffect(() => { if (active === "eagle" && eagleTab === "parcels") loadEagleParcels(); if (active === "eagle" && eagleTab === "cities" && eagleCities.length === 0) loadEagleCities(); }, [active, eagleTab, loadEagleParcels, loadEagleCities, eagleCities.length]);
 
-  const connected: Record<string, boolean> = { lightfunnels: lfEvents > 0, shopify: !!shopifySaved?.store, ameex: !!ameexSaved?.apiId, eagle: !!eagleSaved?.tk, "facebook-ads": !!fbAdsSaved?.accessToken, "tiktok-ads": !!tiktokAdsSaved?.accessToken, pixels: pixels.length > 0 };
-  const sources    = INTEGRATIONS.filter(i => i.category === "source");
-  const shippers   = INTEGRATIONS.filter(i => i.category === "shipping");
-  const adsInteg   = INTEGRATIONS.filter(i => i.category === "ads");
-  const pixelInteg = INTEGRATIONS.filter(i => i.category === "pixels");
+  const connected: Record<string, boolean> = { lightfunnels: lfEvents > 0, shopify: !!shopifySaved?.store, ameex: !!ameexSaved?.apiId, eagle: !!eagleSaved?.tk, "facebook-ads": !!fbAdsSaved?.accessToken, "tiktok-ads": !!tiktokAdsSaved?.accessToken };
+  const sources  = INTEGRATIONS.filter(i => i.category === "source");
+  const shippers = INTEGRATIONS.filter(i => i.category === "shipping");
+  const adsInteg = INTEGRATIONS.filter(i => i.category === "ads");
 
   return (
     <div className="flex min-h-screen bg-[#F0F4FF]">
@@ -301,7 +275,6 @@ export default function IntegrationsPage() {
               { label: "Sources", items: sources },
               { label: "Livraison", items: shippers },
               { label: "Publicité", items: adsInteg },
-              { label: "Pixels", items: pixelInteg },
             ].map(({ label, items }) => (
               <div key={label}>
                 <p className="text-xs font-bold text-slate-400 uppercase tracking-wider px-2 mb-2">{label}</p>
@@ -696,10 +669,10 @@ export default function IntegrationsPage() {
                           {eagleApiStatus === "ok" && <p className="font-semibold text-emerald-700">API Eagle Express opérationnelle</p>}
                           {eagleApiStatus === "broken" && (
                             <>
-                              <p className="font-semibold text-red-700">API Eagle Express indisponible</p>
+                              <p className="font-semibold text-red-700">Accès API refusé</p>
                               <p className="text-red-600 text-xs mt-1">
-                                L&apos;endpoint <code className="font-mono bg-red-100 px-1 rounded">addcolis.php</code> renvoie une erreur pour toutes les requêtes.
-                                Contactez Eagle Express sur WhatsApp <strong>0690666093</strong> ou par email <strong>eagleexpress@gmail.com</strong> pour réactiver votre accès API.
+                                Eagle Express refuse les requêtes avec ces identifiants. Votre accès API est peut-être désactivé.
+                                Contactez Eagle Express : WhatsApp <strong>0690666093</strong> · <strong>eagleexpress@gmail.com</strong>
                               </p>
                             </>
                           )}
@@ -863,108 +836,6 @@ export default function IntegrationsPage() {
                     <p className="text-sm font-semibold text-slate-800">Une fois connecté</p>
                     <p className="text-sm text-slate-600">Allez dans <strong>Ads Manager</strong> → bouton <strong>Sync TikTok</strong> pour importer automatiquement vos campagnes et leurs métriques.</p>
                   </div>
-                </div>
-              </div>
-            )}
-
-            {/* ── PIXELS ── */}
-            {active === "pixels" && (
-              <div className="max-w-2xl space-y-5">
-                {/* Header */}
-                <div className="flex items-center gap-3 mb-2">
-                  <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-purple-500 to-purple-700 flex items-center justify-center text-white font-bold text-lg shrink-0 shadow-md shadow-purple-200">
-                    Px
-                  </div>
-                  <div>
-                    <h2 className="font-bold text-slate-900 text-lg">Pixels Tracking</h2>
-                    <p className="text-xs text-slate-400">Multi-pixels · Facebook &amp; TikTok</p>
-                  </div>
-                  <Badge connected={connected.pixels} />
-                </div>
-
-                {/* Info box */}
-                <div className="bg-purple-50 border border-purple-100 rounded-2xl p-4 flex gap-3">
-                  <span className="text-purple-500 text-lg">📡</span>
-                  <p className="text-sm text-purple-700">Chaque pixel fire sur toutes les pages du CRM. Vous pouvez configurer plusieurs pixels par plateforme, chacun associé à un produit.</p>
-                </div>
-
-                {/* Add form */}
-                <div className="bg-white rounded-2xl border border-slate-100 p-5">
-                  <h3 className="font-bold text-slate-900 mb-4">Ajouter un pixel</h3>
-                  <div className="flex flex-col sm:flex-row gap-3">
-                    {/* Platform */}
-                    <select
-                      value={pixelForm.platform}
-                      onChange={e => setPixelForm(f => ({ ...f, platform: e.target.value as "facebook" | "tiktok" }))}
-                      className="text-sm border border-slate-200 rounded-xl px-3 py-2.5 outline-none focus:border-purple-400 shrink-0 bg-white"
-                    >
-                      <option value="facebook">🔵 Facebook</option>
-                      <option value="tiktok">⚫ TikTok</option>
-                    </select>
-                    {/* Pixel ID */}
-                    <input
-                      type="text"
-                      placeholder="Pixel ID"
-                      value={pixelForm.pixelId}
-                      onChange={e => setPixelForm(f => ({ ...f, pixelId: e.target.value }))}
-                      className="flex-1 text-sm border border-slate-200 rounded-xl px-4 py-2.5 outline-none focus:border-purple-400 font-mono min-w-0"
-                    />
-                    {/* Product name */}
-                    <input
-                      type="text"
-                      placeholder="Nom du produit"
-                      value={pixelForm.productName}
-                      onChange={e => setPixelForm(f => ({ ...f, productName: e.target.value }))}
-                      className="flex-1 text-sm border border-slate-200 rounded-xl px-4 py-2.5 outline-none focus:border-purple-400 min-w-0"
-                    />
-                    {/* Submit */}
-                    <button
-                      onClick={addPixel}
-                      className="shrink-0 px-5 py-2.5 bg-purple-600 hover:bg-purple-700 text-white font-semibold text-sm rounded-xl shadow-md shadow-purple-200 transition-colors"
-                    >
-                      Ajouter
-                    </button>
-                  </div>
-                </div>
-
-                {/* Pixel list */}
-                <div className="bg-white rounded-2xl border border-slate-100 overflow-hidden">
-                  <div className="px-5 py-3 border-b border-slate-100 flex items-center justify-between">
-                    <span className="font-semibold text-slate-800">Pixels configurés</span>
-                    <span className="text-xs font-semibold text-slate-400">{pixels.length} pixel{pixels.length !== 1 ? "s" : ""}</span>
-                  </div>
-                  {pixels.length === 0 ? (
-                    <div className="flex flex-col items-center py-14 gap-2 text-slate-400">
-                      <span className="text-3xl">📭</span>
-                      <p className="text-sm">Aucun pixel configuré. Ajoutez-en un ci-dessus.</p>
-                    </div>
-                  ) : (
-                    <ul className="divide-y divide-slate-50">
-                      {pixels.map((p, i) => (
-                        <li key={i} className="flex items-center gap-3 px-5 py-3 hover:bg-slate-50/60 transition-colors">
-                          <span className="text-lg shrink-0">{p.platform === "facebook" ? "🔵" : "⚫"}</span>
-                          <code className="font-mono text-sm text-slate-700 flex-1 truncate">{p.pixelId}</code>
-                          {p.productName && (
-                            <span className="text-xs font-semibold bg-purple-50 text-purple-700 px-2.5 py-1 rounded-full shrink-0 max-w-[140px] truncate">
-                              {p.productName}
-                            </span>
-                          )}
-                          <span className="text-xs font-semibold text-slate-400 uppercase tracking-wide shrink-0">
-                            {p.platform === "facebook" ? "FB" : "TT"}
-                          </span>
-                          <button
-                            onClick={() => deletePixel(i)}
-                            className="shrink-0 p-1.5 text-slate-300 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
-                            title="Supprimer"
-                          >
-                            <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                              <polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/>
-                            </svg>
-                          </button>
-                        </li>
-                      ))}
-                    </ul>
-                  )}
                 </div>
               </div>
             )}

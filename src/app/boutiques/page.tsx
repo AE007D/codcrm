@@ -56,6 +56,8 @@ function StoreLogo({ logo, name, size = 48 }: { logo: string; name: string; size
   );
 }
 
+type Product = { id: string; name: string; agentName?: string; boutiqueNom?: string; commissionAmount?: number };
+
 const emptyForm = { name: "", logo: "", city: "", address: "", phone: "", manager: "", shippingMode: "ramassage" as ShippingMode };
 
 export default function BoutiquesPage() {
@@ -66,6 +68,14 @@ export default function BoutiquesPage() {
   const [editStore, setEditStore] = useState<Store | null>(null);
   const [form, setForm] = useState(emptyForm);
   const [error, setError] = useState("");
+  const [fetchOk, setFetchOk] = useState(false);
+
+  // Product assignment panel
+  const [assignBoutique, setAssignBoutique] = useState<Store | null>(null);
+  const [allProducts, setAllProducts] = useState<Product[]>([]);
+  const [boutiqueAssignForm, setBoutiqueAssignForm] = useState<Record<string, boolean>>({});
+  const [assignLoading, setAssignLoading] = useState(false);
+  const [assignSaving, setAssignSaving] = useState(false);
 
   /* ── Load from Supabase settings on mount ── */
   useEffect(() => {
@@ -73,7 +83,11 @@ export default function BoutiquesPage() {
       .then(r => r.json())
       .then(d => {
         const bs = d.settings?.boutiques;
-        if (Array.isArray(bs)) setStores(bs);
+        if (Array.isArray(bs)) {
+          // normalize: old data may mix Store objects and plain strings
+          setStores(bs.map((b: unknown) => typeof b === "object" && b !== null ? b as Store : { id: Date.now() + Math.random(), name: String(b), logo: "", city: "", address: "", phone: "", manager: "", shippingMode: "ramassage" as ShippingMode, status: "Active" as const }));
+        }
+        setFetchOk(true);
       })
       .catch(() => {})
       .finally(() => setLoaded(true));
@@ -81,13 +95,13 @@ export default function BoutiquesPage() {
 
   /* ── Persist to Supabase settings whenever stores change ── */
   useEffect(() => {
-    if (!loaded) return; // don't overwrite DB before initial load
+    if (!loaded || !fetchOk) return; // don't overwrite DB before successful initial load
     fetch("/api/settings", {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ boutiques: stores }),
     }).catch(() => {});
-  }, [stores, loaded]);
+  }, [stores, loaded, fetchOk]);
 
   const filtered = stores.filter(s =>
     s.name.toLowerCase().includes(search.toLowerCase()) ||
@@ -129,6 +143,37 @@ export default function BoutiquesPage() {
   function handleDelete(id: number) {
     if (!confirm("Supprimer cette boutique ?")) return;
     setStores(prev => prev.filter(s => s.id !== id));
+  }
+
+  async function openBoutiqueAssign(store: Store) {
+    setAssignBoutique(store);
+    setAssignLoading(true);
+    try {
+      const res = await fetch("/api/products");
+      const products: Product[] = res.ok ? (await res.json()).products ?? [] : [];
+      setAllProducts(products);
+      const form: Record<string, boolean> = {};
+      for (const p of products) form[p.id] = p.boutiqueNom === store.name;
+      setBoutiqueAssignForm(form);
+    } finally { setAssignLoading(false); }
+  }
+
+  async function saveBoutiqueAssign() {
+    if (!assignBoutique) return;
+    setAssignSaving(true);
+    try {
+      await Promise.all(allProducts.map(p => {
+        const shouldBelong = boutiqueAssignForm[p.id];
+        const belongsNow = p.boutiqueNom === assignBoutique.name;
+        if (shouldBelong === belongsNow) return Promise.resolve();
+        return fetch("/api/products", {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ id: p.id, boutiqueNom: shouldBelong ? assignBoutique.name : "" }),
+        });
+      }));
+      setAssignBoutique(null);
+    } finally { setAssignSaving(false); }
   }
 
   const activeCount = stores.filter(s => s.status === "Active").length;
@@ -189,7 +234,7 @@ export default function BoutiquesPage() {
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
               {filtered.map(s => {
-                const mode = SHIPPING_MODE_LABELS[s.shippingMode];
+                const mode = SHIPPING_MODE_LABELS[s.shippingMode] ?? SHIPPING_MODE_LABELS["ramassage"];
                 return (
                   <div key={s.id} className="bg-white rounded-2xl border border-slate-100 shadow-sm hover:shadow-md transition-shadow flex flex-col">
                     {/* Card header */}
@@ -238,7 +283,11 @@ export default function BoutiquesPage() {
                     </div>
 
                     {/* Actions */}
-                    <div className="px-5 pb-5 flex gap-2">
+                    <div className="px-5 pb-5 flex gap-2 flex-wrap">
+                      <button onClick={() => openBoutiqueAssign(s)}
+                        className="flex-1 text-xs font-semibold py-2 rounded-lg border border-emerald-200 text-emerald-600 hover:bg-emerald-50 transition-colors">
+                        Produits
+                      </button>
                       <button onClick={() => openEdit(s)} className="flex-1 text-xs font-semibold py-2 rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-50 transition-colors">
                         Modifier
                       </button>
@@ -256,6 +305,54 @@ export default function BoutiquesPage() {
           )}
         </main>
       </div>
+
+      {/* Product assignment panel */}
+      {assignBoutique && (
+        <div className="fixed inset-0 bg-black/30 backdrop-blur-sm flex items-end sm:items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-lg flex flex-col max-h-[85vh]">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100">
+              <div>
+                <h2 className="text-base font-bold text-slate-900">Produits — {assignBoutique.name}</h2>
+                <p className="text-xs text-slate-400 mt-0.5">Cochez les produits appartenant à cette boutique</p>
+              </div>
+              <button onClick={() => setAssignBoutique(null)} className="text-slate-400 hover:text-slate-600">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="w-5 h-5"><path d="M18 6L6 18M6 6l12 12"/></svg>
+              </button>
+            </div>
+            <div className="flex-1 overflow-y-auto px-6 py-4">
+              {assignLoading ? (
+                <div className="flex items-center justify-center py-12">
+                  <div className="w-7 h-7 border-2 border-blue-600 border-t-transparent rounded-full animate-spin" />
+                </div>
+              ) : allProducts.length === 0 ? (
+                <p className="text-center text-sm text-slate-400 py-12">Aucun produit dans le catalogue.</p>
+              ) : (
+                <div className="flex flex-col gap-2">
+                  {allProducts.map(p => (
+                    <label key={p.id} className={`flex items-center gap-3 rounded-2xl border p-4 cursor-pointer transition-colors ${boutiqueAssignForm[p.id] ? "border-emerald-200 bg-emerald-50/40" : "border-slate-100 bg-white hover:bg-slate-50/50"}`}>
+                      <input type="checkbox" checked={!!boutiqueAssignForm[p.id]}
+                        onChange={e => setBoutiqueAssignForm(prev => ({ ...prev, [p.id]: e.target.checked }))}
+                        className="w-4 h-4 rounded accent-emerald-600 shrink-0" />
+                      <div className="flex-1 min-w-0">
+                        <p className="font-semibold text-slate-800 text-sm truncate">{p.name}</p>
+                        {p.agentName && <p className="text-xs text-slate-400">Agent: {p.agentName}</p>}
+                      </div>
+                    </label>
+                  ))}
+                </div>
+              )}
+            </div>
+            <div className="px-6 py-4 border-t border-slate-100 flex gap-3">
+              <button onClick={() => setAssignBoutique(null)}
+                className="flex-1 py-2.5 rounded-xl border border-slate-200 text-sm font-semibold text-slate-600 hover:bg-slate-50">Annuler</button>
+              <button onClick={saveBoutiqueAssign} disabled={assignSaving || assignLoading}
+                className="flex-1 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white text-sm font-semibold shadow-md shadow-emerald-200">
+                {assignSaving ? "Enregistrement…" : "Enregistrer"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Add / Edit modal */}
       {showModal && (

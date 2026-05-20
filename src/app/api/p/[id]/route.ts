@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabase } from "@/lib/supabase";
+import { getSettings } from "@/lib/supabaseSettingsStore";
 import { upsertLead } from "@/lib/supabaseLeadStore";
 import crypto from "crypto";
 
@@ -10,7 +11,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
   const { id } = await params;
   const { data, error } = await supabase
     .from("crm_products")
-    .select("id, name, image, sell_price, owner_id, facebook_pixel_id")
+    .select("id, name, image, sell_price, owner_id")
     .eq("id", id)
     .maybeSingle();
 
@@ -19,13 +20,28 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
   // Increment page views (silently ignored if column doesn't exist yet)
   void supabase.rpc("increment_page_views", { product_id: id });
 
+  const settings = await getSettings(data.owner_id);
+  const productPixels = (settings.productPixels as Record<string, string>) ?? {};
+
+  // Per-product pixel takes priority; fall back to first workspace FB pixel
+  let facebookPixelId = productPixels[id] ?? "";
+
+  if (!facebookPixelId) {
+    type PixelEntry = { pixelId: string; platform: string; productName: string };
+    const pixels: PixelEntry[] = Array.isArray(settings.pixels) ? (settings.pixels as PixelEntry[]) : [];
+    const productName = (data.name as string).trim().toLowerCase();
+    const matched = pixels.find(p => p.platform === "facebook" && p.productName.trim().toLowerCase() === productName)
+      ?? pixels.find(p => p.platform === "facebook");
+    if (matched) facebookPixelId = matched.pixelId;
+  }
+
   return NextResponse.json({
     id: data.id,
     name: data.name,
     image: data.image ?? "",
     price: parseFloat(data.sell_price ?? "0"),
     ownerId: data.owner_id,
-    facebookPixelId: data.facebook_pixel_id ?? "",
+    facebookPixelId,
   });
 }
 

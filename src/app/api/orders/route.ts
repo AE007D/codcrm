@@ -6,6 +6,7 @@ import {
   updateOrderFields,
   deleteOrder,
 } from "@/lib/supabaseOrderStore";
+import { sendPushToWorkspace } from "@/app/api/push/route";
 import { getProducts } from "@/lib/supabaseProductStore";
 import { getSettings } from "@/lib/supabaseSettingsStore";
 import { supabase } from "@/lib/supabase";
@@ -57,6 +58,14 @@ export async function POST(request: NextRequest) {
   });
 
   if (!order) return NextResponse.json({ error: "Erreur création commande." }, { status: 500 });
+
+  sendPushToWorkspace(user.workspaceId, {
+    title: "Nouvelle commande 🛍️",
+    body: `${String(customer)} — ${String(product)} (${parseFloat(amount) || 0} MAD)`,
+    url: "/commandes",
+    tag: `order-${id}`,
+  }).catch(() => {});
+
   return NextResponse.json({ ok: true, order });
 }
 
@@ -68,7 +77,6 @@ export async function PATCH(request: NextRequest) {
   const { id, ...patch } = body;
   if (!id) return NextResponse.json({ error: "ID requis." }, { status: 400 });
 
-  // Fetch current status before update to detect livré transition
   const { data: currentRow } = await supabase
     .from("crm_orders")
     .select("status, product")
@@ -79,7 +87,6 @@ export async function PATCH(request: NextRequest) {
   const updated = await updateOrderFields(id, user.workspaceId, patch);
   if (!updated) return NextResponse.json({ error: "Commande introuvable." }, { status: 404 });
 
-  // Auto-create commission when order transitions to livré for the first time
   if (patch.status === "livré" && currentRow?.status !== "livré") {
     try {
       const [products, settings] = await Promise.all([
@@ -87,10 +94,11 @@ export async function PATCH(request: NextRequest) {
         getSettings(user.workspaceId),
       ]);
       const productName = String(currentRow?.product ?? updated.product ?? "").trim();
-      const matchedProduct = products.find(p => p.name.trim() === productName);
-      if (matchedProduct) {
-        const commissions = (settings.productCommissions as Record<string, { boutiqueNom: string; agentId: string; agentName: string; commissionAmount: number }>) ?? {};
-        const commission = commissions[matchedProduct.id];
+      const matched = products.find(p => p.name.trim() === productName);
+      if (matched) {
+        type CR = { boutiqueNom: string; agentId: string; agentName: string; commissionAmount: number };
+        const commissions = (settings.productCommissions as Record<string, CR>) ?? {};
+        const commission = commissions[matched.id];
         if (commission?.agentId && commission.commissionAmount > 0) {
           await supabase.from("crm_payment_requests").insert({
             id: crypto.randomUUID(),

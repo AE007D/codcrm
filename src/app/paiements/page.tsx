@@ -13,7 +13,6 @@ type PayRequest = {
   created_at: string;
 };
 
-
 const STATUS_LABELS: Record<string, { label: string; color: string; bg: string }> = {
   pending:  { label: "En attente", color: "text-amber-700",  bg: "bg-amber-50 border-amber-200" },
   paid:     { label: "Payé ✓",    color: "text-emerald-700", bg: "bg-emerald-50 border-emerald-200" },
@@ -89,7 +88,6 @@ export default function PaiementsPage() {
 
   const pendingTotal = requests.filter(r => r.status === "pending").reduce((s, r) => s + r.amount, 0);
   const paidTotal = requests.filter(r => r.status === "paid").reduce((s, r) => s + r.amount, 0);
-  // Commissions auto-created on delivery — pending = owed but not yet paid out
   const totalEarned = pendingTotal + paidTotal;
   const availableBalance = pendingTotal;
 

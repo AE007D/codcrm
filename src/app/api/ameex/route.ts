@@ -6,7 +6,7 @@ const BASE = "https://api.ameex.app/customer";
 
 const ENDPOINTS: Record<string, { path: string; method: string }> = {
   addParcel:      { path: "/Delivery/Parcels/Action/Type/Add", method: "POST" },
-  listParcels:    { path: "/Delivery/Parcels", method: "GET" },
+  listParcels:    { path: "/Delivery/Parcels", method: "POST" },
   trackParcel:    { path: "/Delivery/Parcels/Track", method: "GET" },
   deliveryNote:   { path: "/Delivery/Parcels/Note", method: "GET" },
   pickupRequest:  { path: "/Pickup/Request", method: "POST" },

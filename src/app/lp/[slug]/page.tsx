@@ -67,10 +67,11 @@ export default function LandingPageView() {
       const data = await res.json();
       if (!data.ok) { setFormError(data.error || "Erreur"); return; }
       if (page?.facebookPixelId) {
-        trackFBEvent("Lead", {
+        trackFBEvent("Purchase", {
           value: page.price,
           currency: page.currency,
           content_name: page.title,
+          content_type: "product",
         });
       }
       setSubmitted(true);

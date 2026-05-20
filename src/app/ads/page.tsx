@@ -20,14 +20,13 @@ export type Campaign = {
 };
 
 type CatalogProduct = { id: string; name: string; sku: string; sellPrice: number };
+type OrderRow = { product: string; totalPrice: number; receivedAt?: string; status: string };
 
 const emptyForm = {
   platform: "Facebook" as Platform,
   name: "",
   sku: "",
   spend: "",
-  impressions: "",
-  clicks: "",
   orders: "",
   delivered: "",
   revenue: "",
@@ -64,6 +63,8 @@ function fmtDate(d: string) {
 export default function AdsPage() {
   const [campaigns, setCampaigns] = useState<Campaign[]>([]);
   const [catalog, setCatalog] = useState<CatalogProduct[]>([]);
+  const [allOrders, setAllOrders] = useState<OrderRow[]>([]);
+  const [autoFilled, setAutoFilled] = useState(false);
   const [loaded, setLoaded] = useState(false);
   const [showModal, setShowModal] = useState(false);
   const [form, setForm] = useState(emptyForm);
@@ -75,18 +76,47 @@ export default function AdsPage() {
   const [saving, setSaving] = useState(false);
   const [viewMode, setViewMode] = useState<"campaigns" | "daily">("campaigns");
 
-  // Load campaigns from Supabase settings
+  // Load campaigns, catalog, and orders
   useEffect(() => {
     Promise.all([
       fetch("/api/settings").then(r => r.ok ? r.json() : null),
       fetch("/api/products").then(r => r.ok ? r.json() : { products: [] }),
-    ]).then(([settingsData, productsData]) => {
+      fetch("/api/orders").then(r => r.ok ? r.json() : { orders: [] }),
+    ]).then(([settingsData, productsData, ordersData]) => {
       const saved = settingsData?.settings?.adCampaigns;
       if (Array.isArray(saved)) setCampaigns(saved);
       setCatalog(productsData?.products ?? []);
+      setAllOrders(ordersData?.orders ?? []);
       setLoaded(true);
     }).catch(() => setLoaded(true));
   }, []);
+
+  // Auto-fill orders/delivered/revenue when date + SKU are both set
+  useEffect(() => {
+    if (!form.date || !form.sku) { setAutoFilled(false); return; }
+    const productName = catalog.find(p => p.sku === form.sku)?.name?.toLowerCase().trim() ?? "";
+    if (!productName) { setAutoFilled(false); return; }
+    const dayOrders = allOrders.filter(o => {
+      if (!o.receivedAt) return false;
+      const s = String(o.status ?? "").toLowerCase();
+      if (s === "annulé" || s === "annule") return false;
+      const orderDay = new Date(o.receivedAt).toISOString().slice(0, 10);
+      return orderDay === form.date && String(o.product ?? "").toLowerCase().trim() === productName;
+    });
+    if (dayOrders.length === 0) { setAutoFilled(false); return; }
+    const deliveredOrders = dayOrders.filter(o => {
+      const s = String(o.status ?? "").toLowerCase();
+      return s === "livré" || s === "livre" || s === "delivered";
+    });
+    const autoRevenue = deliveredOrders.reduce((sum, o) => sum + (Number(o.totalPrice) || 0), 0);
+    setForm(f => ({
+      ...f,
+      orders: String(dayOrders.length),
+      delivered: String(deliveredOrders.length),
+      revenue: autoRevenue > 0 ? String(autoRevenue) : f.revenue,
+    }));
+    setAutoFilled(true);
+  }, [form.date, form.sku, allOrders, catalog]);
 
   // Persist campaigns to Supabase whenever they change
   const saveToServer = useCallback((updated: Campaign[]) => {
@@ -119,6 +149,7 @@ export default function AdsPage() {
   function selectProduct(p: CatalogProduct) {
     setForm(f => ({ ...f, name: p.name, sku: p.sku }));
     setProductSearch("");
+    setAutoFilled(false);
   }
 
   function handleAdd() {
@@ -137,8 +168,8 @@ export default function AdsPage() {
       name: name.trim(),
       sku: form.sku.trim(),
       spend: Number(spend),
-      impressions: Number(form.impressions) || 0,
-      clicks: Number(form.clicks) || 0,
+      impressions: 0,
+      clicks: 0,
       orders: Number(orders),
       delivered: Number(delivered),
       revenue: Number(revenue),
@@ -373,7 +404,7 @@ export default function AdsPage() {
                 <table className="w-full text-sm">
                   <thead>
                     <tr className="text-xs text-slate-400 border-b border-slate-50">
-                      {["Plateforme", "Campagne / Produit", "Dépense", "Impressions", "Clics", "Commandes", "Livrés", "Revenue", "CPP", "CPD", "ROAS", "Date", ""].map(h => (
+                      {["Plateforme", "Campagne / Produit", "Dépense", "Commandes", "Livrés", "Revenue", "CPP", "CPD", "ROAS", "Date", ""].map(h => (
                         <th key={h} className="text-left px-4 py-3 font-semibold uppercase tracking-wide whitespace-nowrap">{h}</th>
                       ))}
                     </tr>
@@ -381,7 +412,7 @@ export default function AdsPage() {
                   <tbody>
                     {filtered.length === 0 && (
                       <tr>
-                        <td colSpan={13} className="text-center py-16 text-slate-400 text-sm">
+                        <td colSpan={11} className="text-center py-16 text-slate-400 text-sm">
                           {loaded ? 'Aucune campagne — cliquez "+ Ajouter campagne"' : "Chargement…"}
                         </td>
                       </tr>
@@ -407,8 +438,6 @@ export default function AdsPage() {
                             )}
                           </td>
                           <td className="px-4 py-3.5 font-bold text-slate-800">{mad(c.spend)}</td>
-                          <td className="px-4 py-3.5 text-slate-500">{fmt(c.impressions)}</td>
-                          <td className="px-4 py-3.5 text-slate-500">{fmt(c.clicks)}</td>
                           <td className="px-4 py-3.5 text-slate-600 font-medium">{c.orders}</td>
                           <td className="px-4 py-3.5">
                             <span className="bg-emerald-50 text-emerald-600 text-xs font-semibold px-2 py-0.5 rounded-lg">{c.delivered}</span>
@@ -448,7 +477,7 @@ export default function AdsPage() {
           <div className="bg-white rounded-2xl shadow-xl w-full max-w-lg p-6 max-h-[92vh] overflow-y-auto">
             <div className="flex items-center justify-between mb-5">
               <h2 className="text-lg font-bold text-slate-900">Nouvelle campagne</h2>
-              <button onClick={() => { setShowModal(false); setError(""); setForm(emptyForm); setProductSearch(""); }}
+              <button onClick={() => { setShowModal(false); setError(""); setForm(emptyForm); setProductSearch(""); setAutoFilled(false); }}
                 className="text-slate-400 hover:text-slate-600">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="w-5 h-5"><path d="M18 6L6 18M6 6l12 12"/></svg>
               </button>
@@ -528,20 +557,23 @@ export default function AdsPage() {
               {[
                 { key: "date",        label: "Date *",                     placeholder: "",        type: "date"   },
                 { key: "spend",       label: "Budget dépensé (MAD) *",     placeholder: "1200"              },
-                { key: "revenue",     label: "Revenue généré (MAD) *",     placeholder: "16800"             },
-                { key: "orders",      label: "Commandes *",                placeholder: "48"                },
-                { key: "delivered",   label: "Livrées *",                  placeholder: "41"                },
-                { key: "impressions", label: "Impressions",                placeholder: "85000"             },
-                { key: "clicks",      label: "Clics",                      placeholder: "1240"              },
-              ].map(({ key, label, placeholder, type }) => (
+                { key: "revenue",     label: "Revenue généré (MAD) *",     placeholder: "16800",  auto: true   },
+                { key: "orders",      label: "Commandes *",                placeholder: "48",     auto: true   },
+                { key: "delivered",   label: "Livrées *",                  placeholder: "41",     auto: true   },
+              ].map(({ key, label, placeholder, type, auto }) => (
                 <div key={key}>
-                  <label className="text-xs font-semibold text-slate-600 mb-1 block">{label}</label>
+                  <label className="text-xs font-semibold text-slate-600 mb-1 flex items-center gap-1.5">
+                    {label}
+                    {auto && autoFilled && (
+                      <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-md bg-emerald-100 text-emerald-600">Auto ✓</span>
+                    )}
+                  </label>
                   <input
                     type={type || "text"}
                     placeholder={placeholder}
                     value={form[key as keyof typeof form] as string}
-                    onChange={e => setForm(f => ({ ...f, [key]: e.target.value }))}
-                    className="w-full text-sm border border-slate-200 rounded-xl px-4 py-2.5 outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-50"
+                    onChange={e => { setForm(f => ({ ...f, [key]: e.target.value })); if (auto) setAutoFilled(false); }}
+                    className={`w-full text-sm border rounded-xl px-4 py-2.5 outline-none focus:ring-2 focus:ring-blue-50 ${auto && autoFilled ? "border-emerald-300 bg-emerald-50/50 focus:border-emerald-400" : "border-slate-200 focus:border-blue-400"}`}
                   />
                 </div>
               ))}
@@ -569,7 +601,7 @@ export default function AdsPage() {
             )}
 
             <div className="flex gap-3 mt-5">
-              <button onClick={() => { setShowModal(false); setError(""); setForm(emptyForm); setProductSearch(""); }}
+              <button onClick={() => { setShowModal(false); setError(""); setForm(emptyForm); setProductSearch(""); setAutoFilled(false); }}
                 className="flex-1 py-2.5 rounded-xl border border-slate-200 text-sm font-semibold text-slate-600 hover:bg-slate-50 transition-colors">
                 Annuler
               </button>

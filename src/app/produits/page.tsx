@@ -70,8 +70,9 @@ export default function ProduitsPage() {
   const [fbPixels, setFbPixels] = useState<{ id: string; name: string }[]>([]);
   const [loadingPixels, setLoadingPixels] = useState(false);
 
-  // Agents for commission assignment
+  // Agents and boutiques for commission assignment
   const [agents, setAgents] = useState<{ id: string; name: string }[]>([]);
+  const [boutiques, setBoutiques] = useState<string[]>([]);
 
   async function fetchFbPixels() {
     setLoadingPixels(true);
@@ -101,10 +102,11 @@ export default function ProduitsPage() {
 
   const fetchProducts = useCallback(async () => {
     try {
-      const [pRes, oRes, aRes] = await Promise.all([
+      const [pRes, oRes, aRes, bRes] = await Promise.all([
         fetch("/api/products"),
         fetch("/api/lf-orders"),
         fetch("/api/auth/users"),
+        fetch("/api/boutiques"),
       ]);
       if (pRes.status === 401) { window.location.href = "/login"; return; }
       const pData = await pRes.json();
@@ -126,6 +128,10 @@ export default function ProduitsPage() {
       if (aRes.ok) {
         const aData = await aRes.json();
         setAgents((aData.users ?? []).filter((u: { id: string; name: string; role: string }) => u.role === "agent" || u.role === "admin"));
+      }
+      if (bRes.ok) {
+        const bData = await bRes.json();
+        setBoutiques(bData.boutiques ?? []);
       }
     } catch { /* silent */ }
     finally { setLoading(false); }
@@ -547,14 +553,75 @@ export default function ProduitsPage() {
                 <p className="text-xs font-bold text-blue-600 uppercase tracking-wider mb-3">🔵 Facebook Pixel</p>
                 <div>
                   <label className="text-xs font-semibold text-slate-600 mb-1.5 block">Pixel ID (facultatif)</label>
-                  <input
-                    type="text"
-                    placeholder="Ex: 1234567890123456"
-                    value={form.facebookPixelId}
-                    onChange={e => setForm(f => ({ ...f, facebookPixelId: e.target.value.trim() }))}
-                    className="w-full text-sm border border-blue-200 rounded-xl px-4 py-2.5 outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-50 bg-white font-mono"
-                  />
-                  <p className="text-xs text-slate-400 mt-1.5">Se déclenche automatiquement sur la page produit et envoie un événement Lead à chaque commande.</p>
+                  <div className="flex gap-2">
+                    <input
+                      type="text"
+                      placeholder="Ex: 1234567890123456"
+                      value={form.facebookPixelId}
+                      onChange={e => setForm(f => ({ ...f, facebookPixelId: e.target.value.trim() }))}
+                      className="flex-1 text-sm border border-blue-200 rounded-xl px-4 py-2.5 outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-50 bg-white font-mono min-w-0"
+                    />
+                    <button type="button" onClick={fetchFbPixels} disabled={loadingPixels}
+                      className="shrink-0 px-3 py-2.5 bg-blue-600 hover:bg-blue-700 disabled:opacity-60 text-white text-xs font-bold rounded-xl transition-colors">
+                      {loadingPixels ? "…" : "Fetch"}
+                    </button>
+                  </div>
+                  {fbPixels.length > 0 && (
+                    <select onChange={e => { if (e.target.value) setForm(f => ({ ...f, facebookPixelId: e.target.value })); }} defaultValue=""
+                      className="w-full mt-2 text-sm border border-blue-200 rounded-xl px-4 py-2.5 outline-none focus:border-blue-400 bg-white">
+                      <option value="">— Choisir un pixel —</option>
+                      {fbPixels.map(p => <option key={p.id} value={p.id}>{p.name} ({p.id})</option>)}
+                    </select>
+                  )}
+                  <p className="text-xs text-slate-400 mt-1.5">Se déclenche sur la page produit et envoie un événement Purchase à chaque commande.</p>
+                </div>
+              </div>
+
+              {/* Boutique + Commission */}
+              <div className="bg-emerald-50 rounded-2xl p-4">
+                <p className="text-xs font-bold text-emerald-700 uppercase tracking-wider mb-3">🏪 Boutique & Commission</p>
+                <div className="flex flex-col gap-3">
+                  <div>
+                    <label className="text-xs font-semibold text-slate-600 mb-1.5 block">Boutique (store)</label>
+                    {boutiques.length > 0 ? (
+                      <select value={form.boutiqueNom}
+                        onChange={e => setForm(f => ({ ...f, boutiqueNom: e.target.value }))}
+                        className="w-full text-sm border border-emerald-200 rounded-xl px-4 py-2.5 outline-none focus:border-emerald-400 bg-white">
+                        <option value="">— Aucune —</option>
+                        {boutiques.map(b => <option key={b} value={b}>{b}</option>)}
+                      </select>
+                    ) : (
+                      <input type="text" placeholder="Ex: Layanpromo, Atlas Store…"
+                        value={form.boutiqueNom}
+                        onChange={e => setForm(f => ({ ...f, boutiqueNom: e.target.value }))}
+                        className="w-full text-sm border border-emerald-200 rounded-xl px-4 py-2.5 outline-none focus:border-emerald-400 focus:ring-2 focus:ring-emerald-50 bg-white" />
+                    )}
+                    {boutiques.length === 0 && (
+                      <p className="text-xs text-slate-400 mt-1">Créez des boutiques dans <strong>Équipe → Boutiques</strong> pour avoir un menu déroulant.</p>
+                    )}
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="text-xs font-semibold text-slate-600 mb-1.5 block">Agent assigné</label>
+                      <select value={form.agentId}
+                        onChange={e => {
+                          const agent = agents.find(a => a.id === e.target.value);
+                          setForm(f => ({ ...f, agentId: e.target.value, agentName: agent?.name ?? "" }));
+                        }}
+                        className="w-full text-sm border border-emerald-200 rounded-xl px-4 py-2.5 outline-none focus:border-emerald-400 bg-white">
+                        <option value="">— Aucun —</option>
+                        {agents.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
+                      </select>
+                    </div>
+                    <div>
+                      <label className="text-xs font-semibold text-slate-600 mb-1.5 block">Commission / livraison (MAD)</label>
+                      <input type="number" placeholder="15" min="0"
+                        value={form.commissionAmount}
+                        onChange={e => setForm(f => ({ ...f, commissionAmount: e.target.value }))}
+                        className="w-full text-sm border border-emerald-200 rounded-xl px-4 py-2.5 outline-none focus:border-emerald-400 focus:ring-2 focus:ring-emerald-50 bg-white" />
+                    </div>
+                  </div>
+                  <p className="text-xs text-slate-400">La commission est créditée automatiquement à l&apos;agent dès qu&apos;une commande est marquée Livrée.</p>
                 </div>
               </div>
 

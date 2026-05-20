@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useMemo } from "react";
+import { useEffect, useState, useMemo, useCallback, useRef } from "react";
 import Sidebar from "@/components/Sidebar";
 import {
   AreaChart, Area, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip,
@@ -150,12 +150,15 @@ export default function Home() {
   const [allOrders, setAllOrders] = useState<Order[]>([]);
   const [team, setTeam] = useState<TeamUser[]>([]);
   const [loading, setLoading] = useState(true);
+  const [lastRefresh, setLastRefresh] = useState<Date | null>(null);
   const [period, setPeriod] = useState<Period>("today");
   const [chartMode, setChartMode] = useState<"commandes" | "revenue">("commandes");
+  const isFirstLoad = useRef(true);
 
   const now = useMemo(() => new Date(), []);
 
-  useEffect(() => {
+  const fetchData = useCallback(() => {
+    if (isFirstLoad.current) setLoading(true);
     Promise.all([
       fetch("/api/orders").then(r => {
         if (r.status === 401) { window.location.href = "/login"; return { orders: [] }; }
@@ -163,7 +166,6 @@ export default function Home() {
       }),
       fetch("/api/auth/users").then(r => r.ok ? r.json() : { users: [] }),
     ]).then(([ordersData, teamData]) => {
-      // Normalize Supabase camelCase fields to the dashboard's expected format
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const normalized = (ordersData.orders ?? []).map((o: any) => ({
         id: o.id,
@@ -180,8 +182,18 @@ export default function Home() {
       }));
       setAllOrders(normalized);
       setTeam((teamData.users ?? []).filter((u: TeamUser) => u.active));
-    }).finally(() => setLoading(false));
+      setLastRefresh(new Date());
+    }).finally(() => {
+      setLoading(false);
+      isFirstLoad.current = false;
+    });
   }, []);
+
+  useEffect(() => {
+    fetchData();
+    const interval = setInterval(fetchData, 60_000);
+    return () => clearInterval(interval);
+  }, [fetchData]);
 
   // ── Filtered orders for selected period ──────────────────────────────────────
   const orders = useMemo(() => filterByPeriod(allOrders, period, now), [allOrders, period, now]);
@@ -265,7 +277,14 @@ export default function Home() {
         <header className="bg-white border-b border-slate-100 px-4 lg:px-8 py-4 pl-14 lg:pl-8 flex items-center justify-between gap-4">
           <div>
             <h1 className="text-xl font-bold text-slate-900">Dashboard</h1>
-            <p className="text-sm text-slate-400 hidden sm:block">Vue d&apos;ensemble de votre activité</p>
+            <div className="flex items-center gap-1.5">
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse shrink-0" />
+              <p className="text-xs text-slate-400">
+                {lastRefresh
+                  ? `Mis à jour ${lastRefresh.toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })} · auto 1 min`
+                  : "Chargement…"}
+              </p>
+            </div>
           </div>
           <a href="/commandes" className="bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold px-4 py-2.5 rounded-xl transition-colors shadow-md shadow-blue-200 whitespace-nowrap">
             + Nouvelle commande

@@ -22,6 +22,8 @@ export type CrmOrder = {
   noAnswer: number;
   receivedAt: string;
   carrierTracking?: string;
+  carrierName?: string;
+  carrierStatus?: string;
 };
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -47,6 +49,8 @@ function rowToOrder(row: any): CrmOrder {
     noAnswer: row.no_answer ?? 0,
     receivedAt: row.received_at ?? new Date().toISOString(),
     carrierTracking: row.carrier_tracking ?? undefined,
+    carrierName: row.carrier_name ?? undefined,
+    carrierStatus: row.carrier_status ?? undefined,
   };
 }
 
@@ -92,20 +96,42 @@ export async function upsertOrder(order: Omit<CrmOrder, never>): Promise<CrmOrde
 
 export async function updateOrderByTracking(
   carrierTracking: string,
-  status: string
+  status: string,
+  carrierStatus?: string
 ): Promise<boolean> {
-  const { error } = await supabase
+  const code = carrierTracking.trim();
+  const patch: Record<string, unknown> = { status };
+  if (carrierStatus) patch.carrier_status = carrierStatus;
+  const { data, error } = await supabase
     .from("crm_orders")
-    .update({ status })
-    .eq("carrier_tracking", carrierTracking);
+    .update(patch)
+    .ilike("carrier_tracking", code)
+    .select("id");
   if (error) { console.error("updateOrderByTracking:", error.message); return false; }
-  return true;
+  if (!data?.length) console.warn(`updateOrderByTracking: no row matched carrier_tracking="${code}"`);
+  return (data?.length ?? 0) > 0;
+}
+
+// Only updates carrier_status — does NOT touch the CRM status field
+export async function updateCarrierStatusOnly(
+  carrierTracking: string,
+  carrierStatus: string
+): Promise<boolean> {
+  const code = carrierTracking.trim();
+  const { data, error } = await supabase
+    .from("crm_orders")
+    .update({ carrier_status: carrierStatus })
+    .ilike("carrier_tracking", code)
+    .select("id");
+  if (error) { console.error("updateCarrierStatusOnly:", error.message); return false; }
+  if (!data?.length) console.warn(`updateCarrierStatusOnly: no row matched carrier_tracking="${code}"`);
+  return (data?.length ?? 0) > 0;
 }
 
 export async function updateOrderFields(
   id: string,
   workspaceId: string,
-  patch: Partial<{ status: string; notes: string; attempts: number; noAnswer: number; carrierTracking: string; customerName: string; customerPhone: string; city: string; address: string; product: string; totalPrice: number }>
+  patch: Partial<{ status: string; notes: string; attempts: number; noAnswer: number; carrierTracking: string; carrierName: string; carrierStatus: string; customerName: string; customerPhone: string; city: string; address: string; product: string; totalPrice: number }>
 ): Promise<CrmOrder | null> {
   const dbPatch: Record<string, unknown> = {};
   if (patch.status !== undefined) dbPatch.status = patch.status;
@@ -113,6 +139,8 @@ export async function updateOrderFields(
   if (patch.attempts !== undefined) dbPatch.attempts = patch.attempts;
   if (patch.noAnswer !== undefined) dbPatch.no_answer = patch.noAnswer;
   if (patch.carrierTracking !== undefined) dbPatch.carrier_tracking = patch.carrierTracking;
+  if (patch.carrierName !== undefined) dbPatch.carrier_name = patch.carrierName;
+  if (patch.carrierStatus !== undefined) dbPatch.carrier_status = patch.carrierStatus;
   if (patch.customerName !== undefined) dbPatch.customer_name = patch.customerName;
   if (patch.customerPhone !== undefined) dbPatch.customer_phone = patch.customerPhone;
   if (patch.city !== undefined) dbPatch.city = patch.city;

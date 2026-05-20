@@ -131,7 +131,7 @@ function hoursUntilNext(lastRun: number) {
   return `${Math.floor(diff / 3600000)}h ${Math.floor((diff % 3600000) / 60000)}m`;
 }
 
-const emptyForm = { name: "", purchasePrice: "", sellPrice: "", shippingCost: "", cpd: "", confirmationCost: "", platform: "Facebook" };
+const emptyForm = { name: "", purchasePrice: "", sellPrice: "", shippingCost: "", adSpend: "", adOrders: "", confirmationCost: "", platform: "Facebook" };
 
 /* ── Match ad campaigns to a product by SKU (exact) or name (fuzzy) ── */
 function matchCampaigns(name: string, sku: string, campaigns: AdCampaign[]) {
@@ -254,7 +254,7 @@ export default function CalculateurPage() {
 
   function handleAdd() {
     const { name, purchasePrice, sellPrice, shippingCost } = form;
-    const cpdVal = formAdsCpd !== null ? formAdsCpd : Number(form.cpd);
+    const cpdVal = Number(form.adOrders) > 0 ? Number(form.adSpend) / Number(form.adOrders) : 0;
     if (!name || !purchasePrice || !sellPrice || !shippingCost || !cpdVal) { setError("Veuillez remplir tous les champs obligatoires (*)"); return; }
     setProducts(prev => [...prev, {
       id: Date.now(), name,
@@ -290,20 +290,20 @@ export default function CalculateurPage() {
     return map;
   }, [products, catalog, adCampaigns]);
 
-  /* ── Auto-compute CPD from ads for the add-product form ── */
-  const formAdsCpd = useMemo(() => {
+  /* ── Auto-compute spend/orders from ads for the add-product form ── */
+  const formAdsData = useMemo(() => {
     if (!form.name) return null;
     const matched = matchCampaigns(form.name, "", adCampaigns);
     if (matched.length === 0) return null;
     const spend  = matched.reduce((a, c) => a + c.spend,  0);
     const orders = matched.reduce((a, c) => a + c.orders, 0);
-    return orders > 0 ? spend / orders : null;
+    return { spend, orders };
   }, [form.name, adCampaigns]);
 
-  // Auto-fill form CPD when a matching campaign is found
+  // Auto-fill adSpend/adOrders when a matching campaign is found
   useEffect(() => {
-    if (formAdsCpd !== null) setForm(f => ({ ...f, cpd: formAdsCpd.toFixed(1) }));
-  }, [formAdsCpd]);
+    if (formAdsData !== null) setForm(f => ({ ...f, adSpend: formAdsData.spend.toFixed(1), adOrders: String(Math.round(formAdsData.orders)) }));
+  }, [formAdsData]);
 
   const FALLBACK_RATE = 70;
   // Use ads CPP as effective CPD when campaigns are linked (auto-calculated)
@@ -323,8 +323,9 @@ export default function CalculateurPage() {
   const lastRunDate = new Date(lastRun).toLocaleDateString("fr-MA", { day: "2-digit", month: "2-digit", year: "numeric" });
   const lastSyncStr = lastSync ? new Date(lastSync).toLocaleTimeString("fr-MA", { hour: "2-digit", minute: "2-digit" }) : null;
 
-  const previewProfit = form.sellPrice && form.purchasePrice && form.shippingCost && form.cpd
-    ? calcMetrics({ id: 0, name: "", purchasePrice: Number(form.purchasePrice), sellPrice: Number(form.sellPrice), shippingCost: Number(form.shippingCost), cpd: Number(form.cpd), confirmationCost: Number(form.confirmationCost) || 0, platform: form.platform }, FALLBACK_RATE)
+  const formCpd = Number(form.adOrders) > 0 ? Number(form.adSpend) / Number(form.adOrders) : 0;
+  const previewProfit = form.sellPrice && form.purchasePrice && form.shippingCost && formCpd > 0
+    ? calcMetrics({ id: 0, name: "", purchasePrice: Number(form.purchasePrice), sellPrice: Number(form.sellPrice), shippingCost: Number(form.shippingCost), cpd: formCpd, confirmationCost: Number(form.confirmationCost) || 0, platform: form.platform }, FALLBACK_RATE)
     : null;
 
   const sourceLabel: Record<NonNullable<Product["rateSource"]>, string> = { ameex: "Ameex", eagle: "Eagle", both: "Ameex + Eagle", manual: "Manuel" };
@@ -665,7 +666,8 @@ export default function CalculateurPage() {
                 { key: "purchasePrice", label: "Prix d'achat (MAD) *", placeholder: "120" },
                 { key: "sellPrice", label: "Prix de vente (MAD) *", placeholder: "350" },
                 { key: "shippingCost", label: "Frais livraison (MAD) *", placeholder: "25" },
-                { key: "cpd", label: formAdsCpd !== null ? `CPD pub (MAD) — 🔗 auto ads: ${formAdsCpd.toFixed(1)}` : "CPD pub (MAD) *", placeholder: "29.3" },
+                { key: "adSpend", label: formAdsData ? `Dépenses pub (MAD) — 🔗 auto: ${formAdsData.spend.toFixed(1)}` : "Dépenses pub (MAD) *", placeholder: "500" },
+                { key: "adOrders", label: formAdsData ? `Commandes reçues — 🔗 auto: ${Math.round(formAdsData.orders)}` : "Commandes reçues *", placeholder: "17" },
                 { key: "confirmationCost", label: "Coût confirmation (MAD)", placeholder: "5" },
               ].map(({ key, label, placeholder, full }) => (
                 <div key={key} className={full ? "col-span-2" : ""}>
@@ -676,6 +678,13 @@ export default function CalculateurPage() {
                 </div>
               ))}
             </div>
+            {formCpd > 0 && (
+              <div className="mt-2 flex items-center gap-2 text-xs text-slate-500 bg-slate-50 rounded-xl px-3 py-2">
+                <span>CPD calculé :</span>
+                <span className="font-bold text-slate-700">{formCpd.toFixed(1)} MAD</span>
+                <span className="text-slate-400">(dépenses ÷ commandes)</span>
+              </div>
+            )}
             {previewProfit !== null && (
               <div className={`mt-4 p-4 rounded-xl border ${previewProfit.isWinner ? "bg-emerald-50 border-emerald-200" : "bg-red-50 border-red-200"}`}>
                 <div className="flex items-center justify-between">

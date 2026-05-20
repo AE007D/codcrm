@@ -34,7 +34,7 @@ const navItems: NavItem[] = [
       <path d="M12 2v20M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/>
     </svg>
   )},
-  { label: "Funnels & Leads", href: "/funnels", adminOnly: true, icon: (
+  { label: "Abandons Checkout", href: "/funnels", agentVisible: true, icon: (
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="w-5 h-5">
       <path d="M22 3H2l8 9.46V19l4 2v-8.54L22 3z"/>
     </svg>
@@ -154,7 +154,9 @@ export default function Sidebar() {
   }
 
   // ── New order sound + polling ─────────────────────────────────────────────
-  const [soundEnabled, setSoundEnabled] = useState(true);
+  const [soundEnabled, setSoundEnabled] = useState(() => {
+    try { return localStorage.getItem("codcrm_sound") !== "0"; } catch { return true; }
+  });
   const lastOrderCount = useRef<number | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const audioUnlocked = useRef(false);
@@ -492,7 +494,7 @@ export default function Sidebar() {
         <div className="p-3 border-t border-slate-100">
           {/* Sound toggle */}
           <button
-            onClick={() => setSoundEnabled(v => !v)}
+            onClick={() => setSoundEnabled(v => { const next = !v; try { localStorage.setItem("codcrm_sound", next ? "1" : "0"); } catch {} return next; })}
             title={soundEnabled ? "Désactiver le son" : "Activer le son"}
             className="w-full mb-1 flex items-center gap-2 px-3 py-2 rounded-xl text-sm text-slate-400 hover:bg-slate-50 hover:text-slate-700 transition-colors"
           >

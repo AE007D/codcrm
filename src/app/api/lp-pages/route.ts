@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getPages, getPageBySlug, savePage, deletePage, LandingPage } from "@/lib/supabasePageStore";
 import { getRequestUser } from "@/lib/getRequestUser";
+import { getSettings, saveSettings } from "@/lib/supabaseSettingsStore";
 
 export const dynamic = "force-dynamic";
 
@@ -16,7 +17,9 @@ export async function GET(request: NextRequest) {
     if (user && page.ownerId !== user.workspaceId) {
       return NextResponse.json({ error: "Not found" }, { status: 404 });
     }
-    return NextResponse.json(page);
+    const settings = await getSettings(page.ownerId);
+    const pagePixels = (settings.pagePixels as Record<string, string>) ?? {};
+    return NextResponse.json({ ...page, facebookPixelId: pagePixels[page.id] ?? "" });
   }
 
   // List pages — auth required
@@ -80,8 +83,16 @@ export async function PATCH(request: NextRequest) {
   if (!existing) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
   try {
-    const updated = await savePage({ ...existing, ...body, ownerId: user.workspaceId });
-    return NextResponse.json({ ok: true, page: updated });
+    const { facebookPixelId, ...pageBody } = body as Partial<LandingPage> & { id: string; facebookPixelId?: string };
+    const updated = await savePage({ ...existing, ...pageBody, ownerId: user.workspaceId });
+
+    if (facebookPixelId !== undefined) {
+      const settings = await getSettings(user.workspaceId);
+      const pagePixels = { ...(settings.pagePixels as Record<string, string> ?? {}), [updated.id]: String(facebookPixelId).trim() };
+      await saveSettings(user.workspaceId, { pagePixels });
+    }
+
+    return NextResponse.json({ ok: true, page: { ...updated, facebookPixelId: facebookPixelId ?? "" } });
   } catch (err) {
     const msg = err instanceof Error ? err.message : "Erreur serveur";
     return NextResponse.json({ error: msg }, { status: 500 });

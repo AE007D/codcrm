@@ -4,6 +4,8 @@ import { getProducts, createProduct, updateProduct, deleteProduct, addStock } fr
 import { getSettings, saveSettings } from "@/lib/supabaseSettingsStore";
 import { supabase } from "@/lib/supabase";
 
+type CommissionRecord = { boutiqueNom: string; agentId: string; agentName: string; commissionAmount: number };
+
 export async function GET() {
   const user = await getRequestUser();
   if (!user) return NextResponse.json({ error: "Non authentifié." }, { status: 401 });
@@ -13,9 +15,8 @@ export async function GET() {
     getSettings(user.workspaceId),
   ]);
   const productPixels: Record<string, string> = (settings.productPixels as Record<string, string>) ?? {};
-  const productCommissions = (settings.productCommissions as Record<string, { boutiqueNom: string; agentId: string; agentName: string; commissionAmount: number }>) ?? {};
+  const productCommissions = (settings.productCommissions as Record<string, CommissionRecord>) ?? {};
 
-  // Fetch page order counts per product (source='page') in one query
   const { data: pageOrders } = await supabase
     .from("crm_orders")
     .select("product")
@@ -50,7 +51,7 @@ export async function POST(request: NextRequest) {
 
   try {
     const body = await request.json();
-    const { name, sku, image, sellPrice, purchasePrice, stock, minStock, facebookPixelId } = body;
+    const { name, sku, image, sellPrice, purchasePrice, stock, minStock, facebookPixelId, boutiqueNom, agentId, agentName, commissionAmount } = body;
     if (!name) return NextResponse.json({ error: "Le nom est requis." }, { status: 400 });
 
     const product = await createProduct({
@@ -64,9 +65,7 @@ export async function POST(request: NextRequest) {
       minStock: parseInt(minStock) || 5,
     });
 
-    const { boutiqueNom, agentId, agentName, commissionAmount } = body;
     const needsSave = facebookPixelId || boutiqueNom || agentId || commissionAmount;
-
     if (needsSave) {
       const settings = await getSettings(user.workspaceId);
       const settingsPatch: Record<string, unknown> = {};
@@ -75,14 +74,14 @@ export async function POST(request: NextRequest) {
         settingsPatch.productPixels = { ...(settings.productPixels as Record<string, string> ?? {}), [product.id]: String(facebookPixelId).trim() };
       }
       if (boutiqueNom || agentId || commissionAmount) {
-        const productCommissions = { ...(settings.productCommissions as Record<string, { boutiqueNom: string; agentId: string; agentName: string; commissionAmount: number }> ?? {}) };
-        productCommissions[product.id] = {
+        const commissions = { ...(settings.productCommissions as Record<string, CommissionRecord> ?? {}) };
+        commissions[product.id] = {
           boutiqueNom: String(boutiqueNom ?? ""),
           agentId: String(agentId ?? ""),
           agentName: String(agentName ?? ""),
           commissionAmount: parseFloat(String(commissionAmount ?? "0")) || 0,
         };
-        settingsPatch.productCommissions = productCommissions;
+        settingsPatch.productCommissions = commissions;
 
         if (String(boutiqueNom ?? "").trim()) {
           const boutiques: string[] = Array.isArray(settings.boutiques) ? settings.boutiques : [];
@@ -116,7 +115,6 @@ export async function PATCH(request: NextRequest) {
       return NextResponse.json({ ok: true, product: updated });
     }
 
-    // Normalize field names
     const patch: Record<string, unknown> = {};
     if (rest.name !== undefined) patch.name = rest.name;
     if (rest.sku !== undefined) patch.sku = rest.sku;
@@ -136,27 +134,25 @@ export async function PATCH(request: NextRequest) {
 
     if (needsSettingsSave) {
       const settings = await getSettings(user.workspaceId);
-
       const settingsPatch: Record<string, unknown> = {};
 
       if (rest.facebookPixelId !== undefined) {
-        const productPixels = { ...(settings.productPixels as Record<string, string> ?? {}), [id]: String(rest.facebookPixelId).trim() };
-        settingsPatch.productPixels = productPixels;
+        settingsPatch.productPixels = { ...(settings.productPixels as Record<string, string> ?? {}), [id]: String(rest.facebookPixelId).trim() };
       }
 
       if (rest.boutiqueNom !== undefined || rest.agentId !== undefined || rest.commissionAmount !== undefined) {
-        const productCommissions = { ...(settings.productCommissions as Record<string, { boutiqueNom: string; agentId: string; agentName: string; commissionAmount: number }> ?? {}) };
-        const existing = productCommissions[id] ?? { boutiqueNom: "", agentId: "", agentName: "", commissionAmount: 0 };
-        productCommissions[id] = {
+        const commissions = { ...(settings.productCommissions as Record<string, CommissionRecord> ?? {}) };
+        const existing = commissions[id] ?? { boutiqueNom: "", agentId: "", agentName: "", commissionAmount: 0 };
+        commissions[id] = {
           boutiqueNom: rest.boutiqueNom !== undefined ? String(rest.boutiqueNom) : existing.boutiqueNom,
           agentId: rest.agentId !== undefined ? String(rest.agentId) : existing.agentId,
           agentName: rest.agentName !== undefined ? String(rest.agentName) : existing.agentName,
           commissionAmount: rest.commissionAmount !== undefined ? parseFloat(String(rest.commissionAmount)) || 0 : existing.commissionAmount,
         };
-        settingsPatch.productCommissions = productCommissions;
+        settingsPatch.productCommissions = commissions;
 
         // Maintain boutiques list
-        const boutiqueNom = productCommissions[id].boutiqueNom.trim();
+        const boutiqueNom = commissions[id].boutiqueNom.trim();
         if (boutiqueNom) {
           const boutiques: string[] = Array.isArray(settings.boutiques) ? settings.boutiques : [];
           if (!boutiques.includes(boutiqueNom)) {
