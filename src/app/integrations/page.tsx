@@ -160,7 +160,21 @@ export default function IntegrationsPage() {
 
   /* Ameex actions */
   function saveAmeex() { if (!ameex.apiId || !ameex.apiKey) { showToast("API ID et API Key requis.", false); return; } patchSettings({ ameex }).then(() => { setAmeexSaved(ameex); showToast("Ameex connecté ✓"); }); }
-  const loadAmeexParcels = useCallback(async () => { if (!ameexSaved) return; setLoading(true); const d = await ameexCall("listParcels", ameexSaved); setLoading(false); if (Array.isArray(d)) setAmeexParcels(d); else if (d?.data) setAmeexParcels(d.data); }, [ameexSaved]);
+  const loadAmeexParcels = useCallback(async () => {
+    if (!ameexSaved) return;
+    setLoading(true);
+    const d = await ameexCall("listParcels", ameexSaved);
+    setLoading(false);
+    // Ameex may wrap: {login,api:{data:[...]}} or {data:[...]} or plain array
+    const list: Parcel[] = Array.isArray(d) ? d
+      : Array.isArray(d?.api?.data) ? d.api.data
+      : Array.isArray(d?.api?.parcels) ? d.api.parcels
+      : Array.isArray(d?.data) ? d.data
+      : Array.isArray(d?.parcels) ? d.parcels
+      : [];
+    if (list.length) setAmeexParcels(list);
+    else showToast(`Aucun colis retourné (réponse: ${JSON.stringify(d).slice(0, 120)})`, false);
+  }, [ameexSaved]);
   const loadAmeexCities = useCallback(async () => {
     if (!ameexSaved) { showToast("Configurez Ameex d'abord.", false); return; }
     setLoading(true);
