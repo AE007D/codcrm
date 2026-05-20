@@ -725,14 +725,22 @@ export default function CommandesPage() {
       let ameexByCode = new Map<string, Record<string, unknown>>();
       let ameexByPhone = new Map<string, Record<string, unknown>>();
       try {
-        const listRes = await fetch("/api/ameex", {
-          method: "POST", headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ action: "listParcels", apiId: c.apiId, apiKey: c.apiKey }),
-        }).then(r => r.json());
-        const rawList: Record<string, unknown>[] = Array.isArray(listRes) ? listRes
-          : Array.isArray(listRes?.data) ? listRes.data
-          : Array.isArray(listRes?.api?.data) ? listRes.api.data : [];
-        for (const p of rawList) {
+        // Fetch SIMPLE + STOCK in parallel — Ameex requires type param to return anything
+        const depotId = c.depotId || "34";
+        const [rSimple, rStock] = await Promise.all([
+          fetch("/api/ameex", { method: "POST", headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ action: "listParcels", apiId: c.apiId, apiKey: c.apiKey, type: "SIMPLE" }) }).then(r => r.json()),
+          fetch("/api/ameex", { method: "POST", headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ action: "listParcels", apiId: c.apiId, apiKey: c.apiKey, type: "STOCK", p_hub: depotId }) }).then(r => r.json()),
+        ]);
+        function toArr(d: unknown): Record<string, unknown>[] {
+          if (Array.isArray(d)) return d as Record<string, unknown>[];
+          const dd = d as Record<string, Record<string, unknown>>;
+          if (Array.isArray(dd?.api?.data)) return dd.api.data as Record<string, unknown>[];
+          if (Array.isArray((d as Record<string,unknown>)?.data)) return (d as Record<string,unknown>).data as Record<string, unknown>[];
+          return [];
+        }
+        for (const p of [...toArr(rSimple), ...toArr(rStock)]) {
           const code = String(p.code ?? p.barcode ?? p.id ?? "").trim();
           const phone = String(p.phone ?? p.receiver_phone ?? p.tel ?? "").replace(/\D/g, "").slice(-9);
           if (code) ameexByCode.set(code.toUpperCase(), p);
@@ -930,16 +938,20 @@ export default function CommandesPage() {
         const eagleOk = data?.message?.toLowerCase?.()?.includes("success") || data?.status?.toLowerCase?.()?.includes("success");
         const ok = res.ok && (trackingCode != null || data?.api?.type === "success" || eagleOk);
         if (ok) {
-          setStatus(order.id, "expédié");
-          // Save the carrier tracking code
-          if (trackingCode) {
-            fetch("/api/orders", {
-              method: "PATCH",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ id: order.id, carrierTracking: String(trackingCode), carrierName: shipCarrier }),
-            }).catch(() => {});
-            setOrders(prev => prev.map(o => o.id === order.id ? { ...o, carrierTracking: String(trackingCode), carrierName: shipCarrier } : o));
-          }
+          // Single atomic PATCH: status + tracking + carrierName together
+          const patchBody: Record<string, unknown> = { id: order.id, status: "expédié", carrierName: shipCarrier };
+          if (trackingCode) patchBody.carrierTracking = String(trackingCode);
+          fetch("/api/orders", {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(patchBody),
+          }).catch(() => {});
+          setOrders(prev => prev.map(o => o.id === order.id
+            ? { ...o, status: "expédié", carrierName: shipCarrier, ...(trackingCode ? { carrierTracking: String(trackingCode) } : {}) }
+            : o));
+          setDrawer(prev => prev?.id === order.id
+            ? { ...prev, status: "expédié", carrierName: shipCarrier, ...(trackingCode ? { carrierTracking: String(trackingCode) } : {}) }
+            : prev);
         }
         // Show full response detail for debugging
         const apiMsg = data?.api?.msg ?? data?.message ?? data?.error ?? "";
