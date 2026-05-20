@@ -1077,7 +1077,7 @@ export default function CommandesPage() {
           )}
 
           {/* Ameex status summary + sync button — always shown when there are expédié orders */}
-          {counts["expédié"] > 0 && isAdmin && (() => {
+          {counts["expédié"] > 0 && (() => {
             const expOrders = orders.filter(o => o.status === "expédié");
             const withStatus = expOrders.filter(o => o.carrierStatus);
             const statuses = withStatus.map(o => (o.carrierStatus ?? "").toLowerCase());
