@@ -698,8 +698,8 @@ export default function CommandesPage() {
         const friendlyEagleMsg = (() => {
           if (!apiMsg || ok) return apiMsg;
           const m = apiMsg.toLowerCase();
-          if (m.includes("some parameter") || m.includes("parameter are missing")) {
-            return "Paramètre manquant — vérifiez que tous les champs sont remplis (nom, téléphone, ville, adresse, prix)";
+          if (m.includes("some parameter") || m.includes("parameter are missing") || m.includes("parameter missing")) {
+            return `Eagle erreur: ${apiMsg} | envoyé: ${(data as Record<string,unknown>)._sentKeys ?? "?"}`;
           }
           if (m.includes("permission") || m.includes("403")) {
             return "Accès refusé par Eagle Express — vérifiez vos identifiants API (tk/sk) dans Intégrations";
