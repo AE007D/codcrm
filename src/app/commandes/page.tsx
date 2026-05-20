@@ -139,6 +139,8 @@ export default function CommandesPage() {
   const [syncCityMsg, setSyncCityMsg] = useState<{ ok: boolean; text: string } | null>(null);
   const [cityOverrides, setCityOverrides] = useState<Record<string, string>>({}); // orderId → cityId (Ameex) or city name (Eagle)
   const [eagleAddressOverrides, setEagleAddressOverrides] = useState<Record<string, string>>({}); // orderId → address override for Eagle
+  const [eagleCities, setEagleCities] = useState<{ id: string; name: string }[]>([]); // Eagle Express city list
+  const [eagleCitySearch, setEagleCitySearch] = useState<Record<string, string>>({}); // orderId → search text
   const [ameexShipType, setAmeexShipType] = useState<"SIMPLE"|"STOCK">("SIMPLE");
   const [ameexDepots, setAmeexDepots] = useState<{ id: string; name: string }[]>([]);
   const [ameexDepot, setAmeexDepot] = useState<string>("");
@@ -442,12 +444,30 @@ export default function CommandesPage() {
   async function openShipModal(ids?: string[]) {
     setShipResults([]);
     setCityOverrides({});
+    setEagleCitySearch({});
     setAmeexProductIds({});
     setSyncCityMsg(null);
     if (ids) setSelected(new Set(ids));
     setShipModal(true);
     // Sync Ameex cities from API on every modal open
     syncAmeexCities();
+    // Load Eagle Express cities if not yet loaded
+    if (eagleCities.length === 0) {
+      try {
+        const s = await fetch("/api/settings").then(r => r.json());
+        const creds = s.settings?.eagle ?? {};
+        if (creds.tk) {
+          const raw = await fetch("/api/eagle", {
+            method: "POST", headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ action: "cities", tk: creds.tk, sk: creds.sk }),
+          }).then(r => r.json());
+          const list = Array.isArray(raw) ? raw : Array.isArray(raw?.data) ? raw.data : [];
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          const cities = list.map((c: any) => ({ id: String(c.id ?? c.city_id ?? ""), name: String(c.name ?? c.city_name ?? c.ville ?? "") })).filter((c: { id: string; name: string }) => c.name);
+          if (cities.length) setEagleCities(cities);
+        }
+      } catch { /* silent */ }
+    }
     // Also load Ameex config (type, depot)
     try {
       const settingsData = await fetch("/api/settings").then(r => r.json());
@@ -1568,31 +1588,57 @@ export default function CommandesPage() {
                   </div>
                 );
               })()}
-              {/* Eagle Express — city + address editor per order */}
+              {/* Eagle Express — city dropdown + address editor per order */}
               {shipCarrier === "eagle" && !shipResults.length && (() => {
                 const selectedOrders = orders.filter(o => selected.has(o.id));
                 return (
                   <div className="space-y-2">
-                    <p className="text-xs font-semibold text-slate-500">🏙 Vérifiez ville et adresse avant d&apos;envoyer :</p>
-                    {selectedOrders.map(o => (
-                      <div key={o.id} className="p-2 rounded-xl border border-slate-200 bg-slate-50 space-y-1.5">
-                        <p className="text-xs font-semibold text-slate-700 truncate">{o.customer}</p>
-                        <input
-                          type="text"
-                          placeholder="Ville (ex: Casablanca)"
-                          value={cityOverrides[o.id] ?? o.city ?? ""}
-                          onChange={e => setCityOverrides(prev => ({ ...prev, [o.id]: e.target.value }))}
-                          className="w-full text-xs border border-slate-200 rounded-lg px-2 py-1.5 outline-none focus:border-amber-400 bg-white"
-                        />
-                        <input
-                          type="text"
-                          placeholder="Adresse"
-                          value={eagleAddressOverrides[o.id] ?? o.address ?? ""}
-                          onChange={e => setEagleAddressOverrides(prev => ({ ...prev, [o.id]: e.target.value }))}
-                          className="w-full text-xs border border-slate-200 rounded-lg px-2 py-1.5 outline-none focus:border-amber-400 bg-white"
-                        />
-                      </div>
-                    ))}
+                    <p className="text-xs font-semibold text-slate-500">🏙 Sélectionnez la ville et vérifiez l&apos;adresse :</p>
+                    {selectedOrders.map(o => {
+                      const search = eagleCitySearch[o.id] ?? cityOverrides[o.id] ?? o.city ?? "";
+                      const filtered = eagleCities.length
+                        ? eagleCities.filter(c => c.name.toLowerCase().includes(search.toLowerCase())).slice(0, 6)
+                        : [];
+                      const selectedCity = cityOverrides[o.id] ?? "";
+                      return (
+                        <div key={o.id} className="p-2 rounded-xl border border-slate-200 bg-slate-50 space-y-1.5">
+                          <p className="text-xs font-semibold text-slate-700 truncate">{o.customer}</p>
+                          <div className="relative">
+                            <input
+                              type="text"
+                              placeholder={eagleCities.length ? "Rechercher une ville..." : "Ville (ex: Casablanca)"}
+                              value={eagleCitySearch[o.id] ?? selectedCity ?? o.city ?? ""}
+                              onChange={e => {
+                                setEagleCitySearch(prev => ({ ...prev, [o.id]: e.target.value }));
+                                setCityOverrides(prev => ({ ...prev, [o.id]: e.target.value }));
+                              }}
+                              className={`w-full text-xs border rounded-lg px-2 py-1.5 outline-none focus:border-amber-400 bg-white ${selectedCity ? "border-emerald-400" : "border-amber-300"}`}
+                            />
+                            {filtered.length > 0 && (eagleCitySearch[o.id] ?? "").length > 0 && (
+                              <div className="absolute z-50 left-0 right-0 top-full mt-0.5 bg-white border border-slate-200 rounded-xl shadow-lg max-h-40 overflow-y-auto">
+                                {filtered.map(c => (
+                                  <button key={c.id} type="button"
+                                    className="w-full text-left px-3 py-2 text-xs hover:bg-amber-50 text-slate-700 font-medium"
+                                    onClick={() => {
+                                      setCityOverrides(prev => ({ ...prev, [o.id]: c.name }));
+                                      setEagleCitySearch(prev => ({ ...prev, [o.id]: c.name }));
+                                    }}>
+                                    {c.name}
+                                  </button>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                          <input
+                            type="text"
+                            placeholder="Adresse"
+                            value={eagleAddressOverrides[o.id] ?? o.address ?? ""}
+                            onChange={e => setEagleAddressOverrides(prev => ({ ...prev, [o.id]: e.target.value }))}
+                            className="w-full text-xs border border-slate-200 rounded-lg px-2 py-1.5 outline-none focus:border-amber-400 bg-white"
+                          />
+                        </div>
+                      );
+                    })}
                   </div>
                 );
               })()}
