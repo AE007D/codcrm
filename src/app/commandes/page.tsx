@@ -215,6 +215,10 @@ export default function CommandesPage() {
   const [editForm, setEditForm] = useState<{ customer: string; phone: string; city: string; address: string; product: string; amount: string }>({ customer: "", phone: "", city: "", address: "", product: "", amount: "" });
   const [citySearch, setCitySearch] = useState("");
   const [editCitySearch, setEditCitySearch] = useState("");
+  // Inline tracking editor in drawer
+  const [trackEditOpen, setTrackEditOpen] = useState(false);
+  const [trackEditCode, setTrackEditCode] = useState("");
+  const [trackEditCarrier, setTrackEditCarrier] = useState("eagle");
   const [showCityDrop, setShowCityDrop] = useState(false);
   const [showEditCityDrop, setShowEditCityDrop] = useState(false);
 
@@ -352,6 +356,18 @@ export default function CommandesPage() {
     setOrders(prev => prev.map(o => o.id === id ? { ...o, notes: note } : o));
     setDrawer(prev => prev?.id === id ? { ...prev, notes: note } : prev);
     fetch("/api/orders", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id, notes: note }) }).catch(() => {});
+  }
+
+  function saveTrackingInline(id: string, carrierTracking: string, carrierName: string) {
+    const trimmed = carrierTracking.trim();
+    if (!trimmed) return;
+    const patch = { id, carrierTracking: trimmed, carrierName, status: "expédié" as OrderStatus };
+    setOrders(prev => prev.map(o => o.id === id ? { ...o, ...patch } : o));
+    setDrawer(prev => prev?.id === id ? { ...prev, ...patch } : prev);
+    fetch("/api/orders", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(patch) }).catch(() => {});
+    setTrackEditOpen(false);
+    setTrackEditCode("");
+    showToast(`Suivi ${trimmed} enregistré ✓`);
   }
 
   async function saveEditForm() {
@@ -1780,6 +1796,77 @@ export default function CommandesPage() {
                   <button onClick={() => setStatus(drawer.id, "retourné")} className="flex-1 py-3 rounded-2xl bg-orange-500 hover:bg-orange-600 text-white text-sm font-bold shadow-md shadow-orange-200">↩ Retourné</button>
                 </div>
               )}
+              {/* Carrier tracking — show/edit for admins */}
+              {isAdmin && (() => {
+                const hasTracking = !!drawer.carrierTracking;
+                const carrierLabel = drawer.carrierName === "ameex" ? "Ameex" : drawer.carrierName === "eagle" ? "Eagle Express" : drawer.carrierName ?? "";
+                const cs = drawer.carrierStatus ?? "";
+                const sl = cs.toLowerCase();
+                const bgColor = sl.includes("livr") ? "bg-teal-50 border-teal-200"
+                  : sl.includes("retour") || sl.includes("hors") || sl.includes("zone") ? "bg-orange-50 border-orange-200"
+                  : sl.includes("annul") || sl.includes("cancel") || sl.includes("perdu") ? "bg-red-50 border-red-200"
+                  : sl.includes("expéd") || sl.includes("distribut") || sl.includes("transit") ? "bg-indigo-50 border-indigo-200"
+                  : "bg-slate-50 border-slate-200";
+                const textColor = sl.includes("livr") ? "text-teal-700"
+                  : sl.includes("retour") || sl.includes("hors") ? "text-orange-700"
+                  : sl.includes("annul") || sl.includes("perdu") ? "text-red-700"
+                  : "text-slate-600";
+                return (
+                  <div className={`border rounded-2xl p-4 space-y-2 ${hasTracking ? bgColor : "bg-slate-50 border-slate-200"}`}>
+                    <div className="flex items-center justify-between">
+                      <p className="text-xs font-semibold text-slate-400 uppercase tracking-wide">
+                        Suivi {carrierLabel || "transporteur"}
+                      </p>
+                      <button onClick={() => { setTrackEditOpen(o => !o); setTrackEditCode(drawer.carrierTracking ?? ""); setTrackEditCarrier(drawer.carrierName ?? "eagle"); }}
+                        className="text-xs text-indigo-500 font-semibold hover:underline">
+                        {hasTracking ? "Modifier" : "+ Ajouter code"}
+                      </button>
+                    </div>
+                    {hasTracking && !trackEditOpen && (
+                      <>
+                        <p className="font-mono text-xs font-bold text-slate-700">{drawer.carrierTracking}</p>
+                        {cs ? <p className={`text-xs font-semibold ${textColor}`}>{cs}</p>
+                            : <p className="text-xs text-slate-400">En attente du premier statut transporteur.</p>}
+                      </>
+                    )}
+                    {!hasTracking && !trackEditOpen && (
+                      <p className="text-xs text-slate-400">Aucun code de suivi — cliquez &quot;+ Ajouter code&quot; pour lier manuellement.</p>
+                    )}
+                    {trackEditOpen && (
+                      <div className="space-y-2 pt-1">
+                        <div className="flex gap-2">
+                          <select value={trackEditCarrier} onChange={e => setTrackEditCarrier(e.target.value)}
+                            className="text-xs border border-slate-200 rounded-lg px-2 py-1.5 outline-none focus:border-indigo-400 bg-white shrink-0">
+                            <option value="eagle">Eagle Express</option>
+                            <option value="ameex">Ameex</option>
+                          </select>
+                          <input
+                            type="text"
+                            placeholder="Code suivi (ex: EGL123456)"
+                            value={trackEditCode}
+                            onChange={e => setTrackEditCode(e.target.value)}
+                            onKeyDown={e => e.key === "Enter" && saveTrackingInline(drawer.id, trackEditCode, trackEditCarrier)}
+                            autoFocus
+                            className="flex-1 text-xs border border-slate-200 rounded-lg px-2 py-1.5 outline-none focus:border-indigo-400 bg-white font-mono"
+                          />
+                        </div>
+                        <div className="flex gap-2">
+                          <button onClick={() => saveTrackingInline(drawer.id, trackEditCode, trackEditCarrier)}
+                            disabled={!trackEditCode.trim()}
+                            className="flex-1 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-700 disabled:opacity-40 text-white text-xs font-bold">
+                            Enregistrer
+                          </button>
+                          <button onClick={() => { setTrackEditOpen(false); setTrackEditCode(""); }}
+                            className="px-3 py-1.5 rounded-lg border border-slate-200 text-xs font-semibold text-slate-500 hover:bg-slate-50">
+                            Annuler
+                          </button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                );
+              })()}
+
               {/* Delete — admin only */}
               {isAdmin && (
                 <button onClick={() => deleteOrder(drawer.id)}
