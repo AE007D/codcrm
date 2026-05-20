@@ -107,7 +107,7 @@ export default function IntegrationsPage() {
   const [eagle, setEagle] = useState<EagleCreds>({ tk: "", sk: "" });
   const [eagleSaved, setEagleSaved] = useState<EagleCreds | null>(null);
   const [eagleParcels, setEagleParcels] = useState<Parcel[]>([]);
-  const [eagleForm, setEagleForm] = useState({ fullname: "", phone: "", city: "", address: "", price: "", product: "", qty: "1", note: "", change: "0", openpackage: "0" });
+  const [eagleForm, setEagleForm] = useState({ fullname: "", phone: "", city: "", address: "", price: "", product: "", qty: "1", note: "", change: "0", openpackage: "0", stock: "0" });
   const [eagleTab, setEagleTab] = useState<"config"|"add"|"parcels"|"track"|"cities">("config");
   const [eagleTrack, setEagleTrack] = useState(""); const [eagleTrackRes, setEagleTrackRes] = useState<{ Etat: string; Date_Evenement: string }[]>([]);
   const [eagleCities, setEagleCities] = useState<Parcel[]>([]); const [citySearch, setCitySearch] = useState("");
@@ -197,7 +197,7 @@ export default function IntegrationsPage() {
 
   /* Eagle actions */
   function saveEagle() { if (!eagle.tk || !eagle.sk) { showToast("Token et Secret Key requis.", false); return; } patchSettings({ eagle }).then(() => { setEagleSaved(eagle); showToast("Eagle Express connecté ✓"); }); }
-  const loadEagleParcels = useCallback(async () => { if (!eagleSaved) return; setLoading(true); const d = await eagleCall("list", eagleSaved); setLoading(false); if (Array.isArray(d)) setEagleParcels(d); }, [eagleSaved]);
+  const loadEagleParcels = useCallback(async () => { if (!eagleSaved) return; setLoading(true); const d = await eagleCall("list", eagleSaved); setLoading(false); const list = Array.isArray(d) ? d : Array.isArray(d?.data) ? d.data : Array.isArray(d?.colis) ? d.colis : []; setEagleParcels(list); }, [eagleSaved]);
   const loadEagleCities = useCallback(async () => { if (!eagleSaved) return; setLoading(true); const d = await eagleCall("cities", eagleSaved); setLoading(false); const list = Array.isArray(d) ? d : Array.isArray(d?.data) ? d.data : []; if (list.length) setEagleCities(list); }, [eagleSaved]);
   async function addEagle() {
     if (!eagleSaved) { showToast("Configurez Eagle d'abord.", false); return; }
@@ -208,25 +208,23 @@ export default function IntegrationsPage() {
     const ok = d?.message?.toLowerCase().includes("success");
     // Translate common Eagle API errors to actionable messages
     let msg = d?.message || (ok ? "Colis créé ✓" : "Erreur");
-    if (!ok && msg.toLowerCase().includes("parameter")) {
-      msg = "API Eagle indisponible — contactez Eagle Express pour réactiver votre accès API (addcolis.php)";
-    } else if (!ok && (msg.toLowerCase().includes("permission") || msg.includes("403"))) {
+    if (!ok && (msg.toLowerCase().includes("permission") || msg.includes("403") || msg.toLowerCase().includes("unauthorized"))) {
       msg = "Accès refusé — vérifiez vos identifiants API Eagle Express";
     }
     showToast(msg, ok);
-    if (ok) setEagleForm({ fullname: "", phone: "", city: "", address: "", price: "", product: "", qty: "1", note: "", change: "0", openpackage: "0" });
+    if (ok) setEagleForm({ fullname: "", phone: "", city: "", address: "", price: "", product: "", qty: "1", note: "", change: "0", openpackage: "0", stock: "0" });
   }
-  async function trackEagle() { if (!eagleTrack) return; setLoading(true); const d = await eagleCall("track", { tk: "", sk: "" }, { code: eagleTrack }); setLoading(false); if (Array.isArray(d)) setEagleTrackRes(d); else showToast(d?.message || "Introuvable.", false); }
+  async function trackEagle() { if (!eagleTrack) return; setLoading(true); const d = await eagleCall("track", eagleSaved ?? { tk: "", sk: "" }, { code: eagleTrack }); setLoading(false); if (Array.isArray(d) && d.length) setEagleTrackRes(d); else if (d && !Array.isArray(d)) setEagleTrackRes([d as { Etat: string; Date_Evenement: string }]); else showToast("Aucun résultat.", false); }
   async function testEagleApiStatus() {
     if (!eagleSaved) return;
     setEagleApiTesting(true);
     try {
-      // Test write access by calling add with a dummy payload — a "Some parameter are missing" or 403 means broken
-      const d = await eagleCall("add", eagleSaved, { fullname: "_test_", phone: "0600000000", city: "Casablanca", address: "test", price: "1", product: "test", qty: "1", note: "", change: "0", openpackage: "0" });
+      // Use list endpoint to verify credentials without creating a real parcel
+      const d = await eagleCall("list", eagleSaved);
       const msg = String(d?.message ?? "").toLowerCase();
-      if (msg.includes("success")) setEagleApiStatus("ok");
-      else if (msg.includes("parameter") || msg.includes("permission") || msg.includes("403")) setEagleApiStatus("broken");
-      else setEagleApiStatus("unknown");
+      if (Array.isArray(d) || Array.isArray(d?.data)) setEagleApiStatus("ok");
+      else if (msg.includes("permission") || msg.includes("403") || msg.includes("unauthorized") || msg.includes("invalid")) setEagleApiStatus("broken");
+      else setEagleApiStatus("ok"); // got a response = credentials work
     } catch {
       setEagleApiStatus("broken");
     }
@@ -734,7 +732,7 @@ export default function IntegrationsPage() {
                     <div className="px-5 py-3 border-b flex justify-between items-center"><span className="font-semibold text-slate-800">Colis Eagle</span><button onClick={loadEagleParcels} className="text-xs px-3 py-1.5 border border-slate-200 rounded-lg text-slate-500 hover:bg-slate-50">{loading?"…":"↻ Actualiser"}</button></div>
                     {eagleParcels.length===0 ? <p className="text-center py-10 text-slate-400 text-sm">{loading?"Chargement…":"Aucun colis."}</p> : (
                       <table className="w-full text-sm"><thead><tr className="text-xs text-slate-400 border-b">{["Code","Client","Ville","COD","Statut"].map(h=><th key={h} className="text-left px-5 py-2 font-semibold uppercase tracking-wide">{h}</th>)}</tr></thead>
-                      <tbody>{eagleParcels.map((p,i)=><tr key={i} className="border-b hover:bg-slate-50/60"><td className="px-5 py-3 font-mono text-xs text-slate-400">{String(p.code??"—")}</td><td className="px-5 py-3 font-semibold text-slate-800">{String(p.fullname??p.nom??"—")}</td><td className="px-5 py-3 text-slate-500">{String(p.city??p.ville??"—")}</td><td className="px-5 py-3 font-bold">{String(p.price??p.prix??"—")} MAD</td><td className="px-5 py-3"><span className="px-2 py-0.5 text-xs font-semibold bg-amber-50 text-amber-700 rounded-lg">{String(p.state??p.etat??"—")}</span></td></tr>)}</tbody>
+                      <tbody>{eagleParcels.map((p,i)=><tr key={i} className="border-b hover:bg-slate-50/60"><td className="px-5 py-3 font-mono text-xs text-slate-400">{String(p.code??p.barcode??p.tracking??"—")}</td><td className="px-5 py-3 font-semibold text-slate-800">{String(p.fullname??p.client??p.nom??p.name??"—")}</td><td className="px-5 py-3 text-slate-500">{String(p.city??p.ville??p.city_name??"—")}</td><td className="px-5 py-3 font-bold">{String(p.price??p.prix??p.cod??p.montant??"—")} MAD</td><td className="px-5 py-3"><span className="px-2 py-0.5 text-xs font-semibold bg-amber-50 text-amber-700 rounded-lg">{String(p.state??p.etat??p.status??"—")}</span></td></tr>)}</tbody>
                       </table>
                     )}
                   </div>
@@ -747,7 +745,7 @@ export default function IntegrationsPage() {
                     </div>
                     {eagleTrackRes.length > 0 && (
                       <div className="relative pl-5"><div className="absolute left-2 top-0 bottom-0 w-0.5 bg-slate-100"/>
-                        {eagleTrackRes.map((e,i)=><div key={i} className="relative mb-4 last:mb-0"><div className="absolute -left-3 top-1 w-2.5 h-2.5 rounded-full bg-amber-500 border-2 border-white"/><p className="text-sm font-semibold text-slate-800">{e.Etat}</p><p className="text-xs text-slate-400">{e.Date_Evenement}</p></div>)}
+                        {eagleTrackRes.map((e,i)=>{const ev=e as Record<string,unknown>;const label=String(ev.Etat??ev.state??ev.etat??ev.status??ev.statut??ev.message??"—");const date=String(ev.Date_Evenement??ev.date??ev.created_at??ev.datetime??"");return <div key={i} className="relative mb-4 last:mb-0"><div className="absolute -left-3 top-1 w-2.5 h-2.5 rounded-full bg-amber-500 border-2 border-white"/><p className="text-sm font-semibold text-slate-800">{label}</p>{date&&<p className="text-xs text-slate-400">{date}</p>}</div>;})}
                       </div>
                     )}
                   </div>

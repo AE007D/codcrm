@@ -686,15 +686,16 @@ export default function CommandesPage() {
               tk: creds.tk ?? "",
               sk: creds.sk ?? "",
               fullname: order.customer || "—",
-              phone: order.phone || "",
+              phone: (order.phone || "").replace(/\s+/g, ""),
               city: eagleCity || "Casablanca",
               address: eagleAddress || eagleCity || "—",
-              price: String(order.amount ?? ""),
+              price: String(order.amount ?? "0"),
               product: order.product || "Produit",
               qty: "1",
               note: order.orderNumber || order.id.slice(-8),
               change: "0",
               openpackage: "0",
+              stock: "0",
             }),
           });
         }
