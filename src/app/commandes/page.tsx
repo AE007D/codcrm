@@ -663,6 +663,13 @@ export default function CommandesPage() {
       } catch { /* ignore */ }
     }
 
+    // Guard: Eagle Express requires tk + sk
+    if (shipCarrier === "eagle" && (!creds.tk || !creds.sk)) {
+      setShipResults([{ id: "error", ok: false, msg: "Identifiants Eagle Express manquants — configurez tk et sk dans Intégrations → Eagle Express." }]);
+      setShipping(false);
+      return;
+    }
+
     // Resolve ship type + depot: prefer fresh settings > UI state
     const shipType: string = creds.defaultType ?? ameexShipType ?? "SIMPLE";
     const depotId: string  = creds.depotId     ?? ameexDepot    ?? "";
@@ -741,7 +748,7 @@ export default function CommandesPage() {
               phone: order.phone || "",
               city: eagleCity || "Casablanca",
               address: eagleAddress || eagleCity || "—",
-              price: String(order.amount ?? ""),
+              price: order.amount ? String(order.amount) : "0",
               product: order.product || "Produit",
               qty: "1",
               note: order.orderNumber || order.id.slice(-8),
@@ -775,8 +782,8 @@ export default function CommandesPage() {
         const friendlyEagleMsg = (() => {
           if (!apiMsg || ok) return apiMsg;
           const m = apiMsg.toLowerCase();
-          if (m.includes("some parameter") || m.includes("parameter are missing")) {
-            return "Paramètre manquant — vérifiez que tous les champs sont remplis (nom, téléphone, ville, adresse, prix)";
+          if (m.includes("some parameter") || m.includes("parameter are missing") || m.includes("parameter missing")) {
+            return "Eagle Express : paramètre manquant — vérifiez que nom, téléphone, ville, adresse et prix sont remplis";
           }
           if (m.includes("permission") || m.includes("403")) {
             return "Accès refusé par Eagle Express — vérifiez vos identifiants API (tk/sk) dans Intégrations";
