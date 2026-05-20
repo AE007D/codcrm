@@ -750,7 +750,7 @@ export default function CommandesPage() {
       let updated = 0;
       const patchPromises: Promise<void>[] = [];
       for (const order of orders) {
-        if (!order.carrierTracking || order.carrierName !== "ameex") continue;
+        if (!order.carrierTracking) continue;
         const key = order.carrierTracking.trim().toUpperCase();
         const parcel = byCode.get(key);
         if (!parcel) continue;
@@ -762,11 +762,11 @@ export default function CommandesPage() {
         if (newStatus === order.status && newCarrierStatus === order.carrierStatus) continue;
         updated++;
         setOrders(prev => prev.map(o => o.id === order.id
-          ? { ...o, status: newStatus as OrderStatus, carrierStatus: newCarrierStatus }
+          ? { ...o, status: newStatus as OrderStatus, carrierStatus: newCarrierStatus, carrierName: "ameex" }
           : o));
         patchPromises.push(
           fetch("/api/orders", { method: "PATCH", headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ id: order.id, status: newStatus, carrierStatus: newCarrierStatus }),
+            body: JSON.stringify({ id: order.id, status: newStatus, carrierStatus: newCarrierStatus, carrierName: "ameex" }),
           }).then(() => {}).catch(() => {})
         );
       }
@@ -1031,12 +1031,10 @@ export default function CommandesPage() {
             </div>
           )}
 
-          {/* Ameex status summary + sync button */}
-          {counts["expédié"] > 0 && (() => {
+          {/* Ameex status summary + sync button — always shown when there are expédié orders */}
+          {counts["expédié"] > 0 && isAdmin && (() => {
             const expOrders = orders.filter(o => o.status === "expédié");
-            const ameexOrders = expOrders.filter(o => o.carrierName === "ameex" && o.carrierTracking);
             const withStatus = expOrders.filter(o => o.carrierStatus);
-            if (withStatus.length === 0 && ameexOrders.length === 0) return null;
             const statuses = withStatus.map(o => (o.carrierStatus ?? "").toLowerCase());
             const livré    = statuses.filter(s => s.includes("livr")).length;
             const retourné = statuses.filter(s => s.includes("retour")).length;
@@ -1044,7 +1042,7 @@ export default function CommandesPage() {
             const enCours  = statuses.filter(s => s.includes("voyage") || s.includes("livraison") || s.includes("cours")).length;
             return (
               <div className="bg-white border border-slate-100 rounded-2xl px-4 py-3 mb-3 flex flex-wrap items-center gap-x-5 gap-y-2 shadow-sm">
-                <span className="text-xs font-bold text-slate-400 uppercase tracking-wide shrink-0">Ameex · {withStatus.length}/{expOrders.length}</span>
+                <span className="text-xs font-bold text-slate-400 uppercase tracking-wide shrink-0">Expédié · {expOrders.length}</span>
                 {ramassé  > 0 && <span className="flex items-center gap-1.5 text-sm font-bold text-indigo-700"><span className="w-2 h-2 rounded-full bg-indigo-400" />Ramassé <span className="text-indigo-500 font-black">{ramassé}</span></span>}
                 {enCours  > 0 && <span className="flex items-center gap-1.5 text-sm font-bold text-blue-700"><span className="w-2 h-2 rounded-full bg-blue-400" />En cours <span className="text-blue-500 font-black">{enCours}</span></span>}
                 {livré    > 0 && <span className="flex items-center gap-1.5 text-sm font-bold text-emerald-700"><span className="w-2 h-2 rounded-full bg-emerald-400" />Livré <span className="text-emerald-600 font-black">{livré}</span></span>}
@@ -1052,7 +1050,7 @@ export default function CommandesPage() {
                 <button onClick={syncAmeexStatuses} disabled={syncingStatuses}
                   className="ml-auto flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-lg bg-blue-50 text-blue-600 hover:bg-blue-100 disabled:opacity-50 transition-colors shrink-0">
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} className={`w-3.5 h-3.5 ${syncingStatuses ? "animate-spin" : ""}`}><path d="M23 4v6h-6M1 20v-6h6"/><path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15"/></svg>
-                  {syncingStatuses ? "Sync…" : "Sync Ameex"}
+                  {syncingStatuses ? "Sync…" : "↻ Sync Ameex"}
                 </button>
               </div>
             );
