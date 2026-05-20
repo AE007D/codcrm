@@ -141,6 +141,7 @@ export default function CommandesPage() {
   const [ameexDepot, setAmeexDepot] = useState<string>("");
   const [ameexProductIds, setAmeexProductIds] = useState<Record<string, string>>({}); // orderId → ameex product id
   const [ameexStockProducts, setAmeexStockProducts] = useState<{ id: string; ref: string; name: string }[]>([]); // Ameex warehouse products
+  const [eagleCities, setEagleCities] = useState<{ id: string; name: string }[]>([]);
 
   // Live Ameex statuses synced from carrier (orderId → carrier status string)
   const [ameexLiveStatus, setAmeexLiveStatus] = useState<Record<string, string>>({});
@@ -567,6 +568,29 @@ export default function CommandesPage() {
 
       }
     } catch { /* silent */ }
+
+    // Pre-load Eagle Express cities if not already loaded
+    if (!eagleCities.length) {
+      try {
+        const settingsData = await fetch("/api/settings").then(r => r.json());
+        const ec = settingsData.settings?.eagle ?? {};
+        if (ec.tk) {
+          const raw = await fetch("/api/eagle", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ action: "cities", tk: ec.tk, sk: ec.sk }),
+          }).then(r => r.json());
+          const list = Array.isArray(raw) ? raw : Array.isArray(raw?.data) ? raw.data : [];
+          const cities = list
+            .map((c: Record<string, unknown>) => ({
+              id: String(c.id ?? c.city_id ?? ""),
+              name: String(c.name ?? c.city_name ?? c.ville ?? ""),
+            }))
+            .filter((c: { id: string; name: string }) => c.id && c.name);
+          if (cities.length) setEagleCities(cities);
+        }
+      } catch { /* silent */ }
+    }
   }
 
   // Send selected orders to carrier
@@ -1503,31 +1527,47 @@ export default function CommandesPage() {
                   </div>
                 );
               })()}
-              {/* Eagle Express — city + address editor per order */}
+              {/* Eagle Express — city dropdown + address editor per order */}
               {!shipResults.length && shipCarrier === "eagle" && (() => {
                 const selectedOrders = orders.filter(o => selected.has(o.id));
                 return (
                   <div className="space-y-2">
                     <p className="text-xs font-semibold text-slate-500">🏙 Vérifiez ville et adresse avant d&apos;envoyer :</p>
-                    {selectedOrders.map(o => (
-                      <div key={o.id} className="p-2 rounded-xl border border-slate-200 bg-slate-50 space-y-1.5">
-                        <p className="text-xs font-semibold text-slate-700 truncate">{o.customer}</p>
-                        <input
-                          type="text"
-                          placeholder="Ville (ex: Casablanca)"
-                          value={cityOverrides[o.id] ?? o.city ?? ""}
-                          onChange={e => setCityOverrides(prev => ({ ...prev, [o.id]: e.target.value }))}
-                          className="w-full text-xs border border-slate-200 rounded-lg px-2 py-1.5 outline-none focus:border-amber-400 bg-white"
-                        />
-                        <input
-                          type="text"
-                          placeholder="Adresse"
-                          value={eagleAddressOverrides[o.id] ?? o.address ?? ""}
-                          onChange={e => setEagleAddressOverrides(prev => ({ ...prev, [o.id]: e.target.value }))}
-                          className="w-full text-xs border border-slate-200 rounded-lg px-2 py-1.5 outline-none focus:border-amber-400 bg-white"
-                        />
-                      </div>
-                    ))}
+                    {selectedOrders.map(o => {
+                      const currentCity = cityOverrides[o.id] ?? o.city ?? "";
+                      const isMatched = eagleCities.length > 0 && eagleCities.some(c => c.name.toLowerCase() === currentCity.toLowerCase());
+                      return (
+                        <div key={o.id} className="p-2 rounded-xl border border-slate-200 bg-slate-50 space-y-1.5">
+                          <p className="text-xs font-semibold text-slate-700 truncate">{o.customer}</p>
+                          <div className="relative">
+                            <input
+                              list={`eagle-cities-${o.id}`}
+                              placeholder={eagleCities.length ? "Tapez ou choisissez une ville…" : "Ville (chargement…)"}
+                              value={currentCity}
+                              onChange={e => {
+                                const typed = e.target.value;
+                                const matched = eagleCities.find(c => c.name.toLowerCase() === typed.toLowerCase());
+                                setCityOverrides(prev => ({ ...prev, [o.id]: matched ? matched.name : typed }));
+                              }}
+                              className={`w-full text-xs border rounded-lg px-2 py-1.5 outline-none focus:border-amber-400 bg-white ${isMatched ? "border-green-300" : "border-slate-200"}`}
+                            />
+                            <datalist id={`eagle-cities-${o.id}`}>
+                              {eagleCities.map(c => <option key={c.id} value={c.name} />)}
+                            </datalist>
+                            {isMatched && (
+                              <span className="absolute right-2 top-1/2 -translate-y-1/2 text-green-500 text-xs">✓</span>
+                            )}
+                          </div>
+                          <input
+                            type="text"
+                            placeholder="Adresse"
+                            value={eagleAddressOverrides[o.id] ?? o.address ?? ""}
+                            onChange={e => setEagleAddressOverrides(prev => ({ ...prev, [o.id]: e.target.value }))}
+                            className="w-full text-xs border border-slate-200 rounded-lg px-2 py-1.5 outline-none focus:border-amber-400 bg-white"
+                          />
+                        </div>
+                      );
+                    })}
                   </div>
                 );
               })()}
