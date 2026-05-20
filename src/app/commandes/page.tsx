@@ -733,15 +733,17 @@ export default function CommandesPage() {
             body: JSON.stringify({ action: "trackParcel", apiId: c.apiId, apiKey: c.apiKey, code: order.carrierTracking }),
           }).then(r => r.json());
 
-          // Ameex trackParcel may return status in various fields
-          const nested = d?.api?.data ?? d?.data ?? d ?? {};
+          // Ameex trackParcel may return status in various fields; could also be array of events
+          const raw = d?.api?.data ?? d?.data ?? d ?? {};
+          // If array of events, take the last entry (most recent)
+          const nested: Record<string, unknown> = Array.isArray(raw) ? (raw[raw.length - 1] ?? {}) : raw;
           const statusRaw = String(
             nested?.status ?? nested?.statut ?? nested?.etat ?? nested?.state ??
-            d?.status ?? d?.statut ?? d?.etat ?? ""
+            (d as Record<string,unknown>)?.status ?? (d as Record<string,unknown>)?.statut ?? ""
           ).trim().toUpperCase();
           const statusName = String(
             nested?.status_name ?? nested?.statut_name ?? nested?.label ?? nested?.description ??
-            d?.status_name ?? d?.statut_name ?? statusRaw
+            (d as Record<string,unknown>)?.status_name ?? statusRaw
           ).trim();
 
           if (!statusRaw) continue;
