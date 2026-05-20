@@ -745,7 +745,7 @@ export default function CommandesPage() {
               tk: creds.tk ?? "",
               sk: creds.sk ?? "",
               fullname: order.customer || "—",
-              phone: order.phone || "",
+              phone: (order.phone || "").replace(/\s+/g, ""),
               city: eagleCity || "Casablanca",
               address: eagleAddress || eagleCity || "—",
               price: order.amount ? String(order.amount) : "0",
@@ -783,7 +783,7 @@ export default function CommandesPage() {
           if (!apiMsg || ok) return apiMsg;
           const m = apiMsg.toLowerCase();
           if (m.includes("some parameter") || m.includes("parameter are missing") || m.includes("parameter missing")) {
-            return "Eagle Express : paramètre manquant — vérifiez que nom, téléphone, ville, adresse et prix sont remplis";
+            return `Eagle Express erreur: ${apiMsg} (raw: ${JSON.stringify(data).slice(0, 120)})`;
           }
           if (m.includes("permission") || m.includes("403")) {
             return "Accès refusé par Eagle Express — vérifiez vos identifiants API (tk/sk) dans Intégrations";
@@ -791,7 +791,7 @@ export default function CommandesPage() {
           if (m.includes("account") && m.includes("exist")) {
             return "Compte Eagle Express non reconnu — vérifiez votre token API dans Intégrations";
           }
-          return apiMsg;
+          return `${apiMsg} — ${JSON.stringify(data).slice(0, 100)}`;
         })();
         const msgDetail = ok
           ? `Envoyé ✓ ${trackingCode ?? ""}`
