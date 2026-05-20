@@ -121,6 +121,9 @@ export default function IntegrationsPage() {
   const webhookUrl = typeof window !== "undefined"
     ? `${window.location.origin}/api/webhooks/lightfunnels${currentWorkspaceId ? `?uid=${currentWorkspaceId}` : ""}`
     : "https://yourapp.com/api/webhooks/lightfunnels";
+  const ameexWebhookUrl = typeof window !== "undefined"
+    ? `${window.location.origin}/api/webhooks/ameex`
+    : "https://yourapp.com/api/webhooks/ameex";
 
   /* Shopify state */
   const [shopify, setShopify] = useState({ store: "", apiKey: "" });
@@ -469,6 +472,15 @@ export default function IntegrationsPage() {
                       </div>
                     )}
                     <button onClick={saveAmeex} className="w-full py-2.5 bg-blue-700 hover:bg-blue-800 text-white font-semibold text-sm rounded-xl shadow-md shadow-blue-200 transition-colors">Sauvegarder</button>
+                    {/* Ameex webhook URL — must be configured in Ameex panel for auto status updates */}
+                    <div className="mt-4 pt-4 border-t border-slate-100">
+                      <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">URL Webhook à coller dans Ameex</p>
+                      <div className="flex items-center gap-2 bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5">
+                        <code className="flex-1 text-sm text-blue-700 font-mono break-all">{ameexWebhookUrl}</code>
+                        <CopyBtn text={ameexWebhookUrl} />
+                      </div>
+                      <p className="text-xs text-slate-400 mt-2">Ameex → Mon Compte → Webhooks → Ajouter cette URL pour recevoir les mises à jour de statut automatiquement.</p>
+                    </div>
                   </div>
                 )}
                 {ameexTab === "add" && (

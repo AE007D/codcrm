@@ -710,7 +710,7 @@ export default function CommandesPage() {
       if (!c?.apiId) { showToast("Identifiants Ameex non configurés", false); setSyncingStatuses(false); return; }
 
       const AMEEX_CRM_MAP: Record<string, string> = {
-        DELIVERED: "livré", LIVRÉ: "livré",
+        DELIVERED: "livré", LIVRÉ: "livré", LIVRE: "livré",
         DISTRIBUTION: "expédié", IN_PROGRESS: "expédié", PICKED_UP: "expédié",
         COLLECTED: "expédié", RAMASSE: "expédié",
         RETURNED: "retourné", RETURN: "retourné", RETURN_PROGRESS: "retourné",
@@ -718,60 +718,54 @@ export default function CommandesPage() {
         CANCELLED: "annulé", CANCELED: "annulé", LOST: "annulé", PERDU: "annulé",
       };
 
-      function toList(d: unknown): Record<string, unknown>[] {
-        if (Array.isArray(d)) return d as Record<string, unknown>[];
-        const dd = d as Record<string, unknown>;
-        if (Array.isArray(dd?.data)) return dd.data as Record<string, unknown>[];
-        if (Array.isArray(dd?.parcels)) return dd.parcels as Record<string, unknown>[];
-        return [];
-      }
+      // Track each expédié order individually — listParcels may not return delivered parcels
+      const ordersToSync = orders.filter(o => o.carrierTracking && o.status === "expédié");
+      if (!ordersToSync.length) { showToast("Aucune commande expédiée à synchroniser"); setSyncingStatuses(false); return; }
 
-      const depotId = c.depotId || "34";
-      const [rSimple, rStock] = await Promise.all([
-        fetch("/api/ameex", { method: "POST", headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ action: "listParcels", apiId: c.apiId, apiKey: c.apiKey, type: "SIMPLE" }) }).then(r => r.json()),
-        fetch("/api/ameex", { method: "POST", headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ action: "listParcels", apiId: c.apiId, apiKey: c.apiKey, type: "STOCK", p_hub: depotId }) }).then(r => r.json()),
-      ]);
-
-      const allParcels = [...toList(rSimple), ...toList(rStock)];
-      if (!allParcels.length) { showToast("Aucun colis retourné par Ameex", false); setSyncingStatuses(false); return; }
-
-      // Build lookup: code → {status, statusName}
-      const byCode = new Map<string, { ameexStatus: string; statusName: string }>();
-      for (const p of allParcels) {
-        const code = String(p.code ?? p.barcode ?? "").trim();
-        const ameexStatus = String(p.status ?? p.state ?? p.etat ?? "").trim().toUpperCase();
-        const statusName = String(p.status_name ?? p.state_name ?? p.etat_name ?? p.status ?? "").trim();
-        if (code) byCode.set(code.toUpperCase(), { ameexStatus, statusName });
-      }
-
-      // Match CRM orders with Ameex parcels and update
       let updated = 0;
       const patchPromises: Promise<void>[] = [];
-      for (const order of orders) {
-        if (!order.carrierTracking) continue;
-        const key = order.carrierTracking.trim().toUpperCase();
-        const parcel = byCode.get(key);
-        if (!parcel) continue;
-        const crmStatus = AMEEX_CRM_MAP[parcel.ameexStatus];
-        if (!crmStatus && !parcel.statusName) continue;
-        const newStatus = crmStatus ?? order.status;
-        const newCarrierStatus = parcel.statusName || parcel.ameexStatus;
-        // Only update if something changed
-        if (newStatus === order.status && newCarrierStatus === order.carrierStatus) continue;
-        updated++;
-        setOrders(prev => prev.map(o => o.id === order.id
-          ? { ...o, status: newStatus as OrderStatus, carrierStatus: newCarrierStatus, carrierName: "ameex" }
-          : o));
-        patchPromises.push(
-          fetch("/api/orders", { method: "PATCH", headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ id: order.id, status: newStatus, carrierStatus: newCarrierStatus, carrierName: "ameex" }),
-          }).then(() => {}).catch(() => {})
-        );
+
+      for (const order of ordersToSync) {
+        try {
+          const d = await fetch("/api/ameex", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ action: "trackParcel", apiId: c.apiId, apiKey: c.apiKey, code: order.carrierTracking }),
+          }).then(r => r.json());
+
+          // Ameex trackParcel may return status in various fields
+          const nested = d?.api?.data ?? d?.data ?? d ?? {};
+          const statusRaw = String(
+            nested?.status ?? nested?.statut ?? nested?.etat ?? nested?.state ??
+            d?.status ?? d?.statut ?? d?.etat ?? ""
+          ).trim().toUpperCase();
+          const statusName = String(
+            nested?.status_name ?? nested?.statut_name ?? nested?.label ?? nested?.description ??
+            d?.status_name ?? d?.statut_name ?? statusRaw
+          ).trim();
+
+          if (!statusRaw) continue;
+
+          const crmStatus = AMEEX_CRM_MAP[statusRaw];
+          if (!crmStatus) continue;
+
+          const newCarrierStatus = statusName || statusRaw;
+          if (crmStatus === order.status && newCarrierStatus === order.carrierStatus) continue;
+
+          updated++;
+          setOrders(prev => prev.map(o => o.id === order.id
+            ? { ...o, status: crmStatus as OrderStatus, carrierStatus: newCarrierStatus, carrierName: "ameex" }
+            : o));
+          patchPromises.push(
+            fetch("/api/orders", { method: "PATCH", headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ id: order.id, status: crmStatus, carrierStatus: newCarrierStatus, carrierName: "ameex" }),
+            }).then(() => {}).catch(() => {})
+          );
+        } catch { /* skip this order on error */ }
       }
+
       await Promise.all(patchPromises);
-      showToast(updated > 0 ? `${updated} commande(s) mise(s) à jour depuis Ameex ✓` : "Statuts déjà à jour");
+      showToast(updated > 0 ? `${updated} commande(s) mise(s) à jour ✓` : "Statuts déjà à jour");
     } catch (e) {
       showToast(`Erreur sync: ${String(e).slice(0, 60)}`, false);
     }
@@ -909,7 +903,7 @@ export default function CommandesPage() {
             fetch("/api/orders", {
               method: "PATCH",
               headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ id: order.id, carrierTracking: String(trackingCode) }),
+              body: JSON.stringify({ id: order.id, carrierTracking: String(trackingCode), carrierName: shipCarrier }),
             }).catch(() => {});
             setOrders(prev => prev.map(o => o.id === order.id ? { ...o, carrierTracking: String(trackingCode), carrierName: shipCarrier } : o));
           }
