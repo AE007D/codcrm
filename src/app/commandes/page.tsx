@@ -137,6 +137,7 @@ export default function CommandesPage() {
   const [ameexRealIds, setAmeexRealIds] = useState<Set<string>>(new Set()); // IDs confirmed from real Ameex API
   const [syncingCities, setSyncingCities] = useState(false);
   const [syncCityMsg, setSyncCityMsg] = useState<{ ok: boolean; text: string } | null>(null);
+  const [syncingStatuses, setSyncingStatuses] = useState(false);
   const [cityOverrides, setCityOverrides] = useState<Record<string, string>>({}); // orderId → cityId (Ameex) or city name (Eagle)
   const [eagleAddressOverrides, setEagleAddressOverrides] = useState<Record<string, string>>({}); // orderId → address override for Eagle
   const [eagleCities, setEagleCities] = useState<{ id: string; name: string }[]>([]); // Eagle Express city list
@@ -700,6 +701,83 @@ export default function CommandesPage() {
     setSyncingCities(false);
   }
 
+  // Pull current statuses from Ameex and update all matching CRM orders
+  async function syncAmeexStatuses() {
+    setSyncingStatuses(true);
+    try {
+      const s = await fetch("/api/settings").then(r => r.json()).then(d => d.settings ?? {}).catch(() => ({}));
+      const c = s.ameex;
+      if (!c?.apiId) { showToast("Identifiants Ameex non configurés", false); setSyncingStatuses(false); return; }
+
+      const AMEEX_CRM_MAP: Record<string, string> = {
+        DELIVERED: "livré", LIVRÉ: "livré",
+        DISTRIBUTION: "expédié", IN_PROGRESS: "expédié", PICKED_UP: "expédié",
+        COLLECTED: "expédié", RAMASSE: "expédié",
+        RETURNED: "retourné", RETURN: "retourné", RETURN_PROGRESS: "retourné",
+        HORS_ZONE: "retourné", OUT_OF_ZONE: "retourné",
+        CANCELLED: "annulé", CANCELED: "annulé", LOST: "annulé", PERDU: "annulé",
+      };
+
+      function toList(d: unknown): Record<string, unknown>[] {
+        if (Array.isArray(d)) return d as Record<string, unknown>[];
+        const dd = d as Record<string, unknown>;
+        if (Array.isArray(dd?.data)) return dd.data as Record<string, unknown>[];
+        if (Array.isArray(dd?.parcels)) return dd.parcels as Record<string, unknown>[];
+        return [];
+      }
+
+      const depotId = c.depotId || "34";
+      const [rSimple, rStock] = await Promise.all([
+        fetch("/api/ameex", { method: "POST", headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ action: "listParcels", apiId: c.apiId, apiKey: c.apiKey, type: "SIMPLE" }) }).then(r => r.json()),
+        fetch("/api/ameex", { method: "POST", headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ action: "listParcels", apiId: c.apiId, apiKey: c.apiKey, type: "STOCK", p_hub: depotId }) }).then(r => r.json()),
+      ]);
+
+      const allParcels = [...toList(rSimple), ...toList(rStock)];
+      if (!allParcels.length) { showToast("Aucun colis retourné par Ameex", false); setSyncingStatuses(false); return; }
+
+      // Build lookup: code → {status, statusName}
+      const byCode = new Map<string, { ameexStatus: string; statusName: string }>();
+      for (const p of allParcels) {
+        const code = String(p.code ?? p.barcode ?? "").trim();
+        const ameexStatus = String(p.status ?? p.state ?? p.etat ?? "").trim().toUpperCase();
+        const statusName = String(p.status_name ?? p.state_name ?? p.etat_name ?? p.status ?? "").trim();
+        if (code) byCode.set(code.toUpperCase(), { ameexStatus, statusName });
+      }
+
+      // Match CRM orders with Ameex parcels and update
+      let updated = 0;
+      const patchPromises: Promise<void>[] = [];
+      for (const order of orders) {
+        if (!order.carrierTracking || order.carrierName !== "ameex") continue;
+        const key = order.carrierTracking.trim().toUpperCase();
+        const parcel = byCode.get(key);
+        if (!parcel) continue;
+        const crmStatus = AMEEX_CRM_MAP[parcel.ameexStatus];
+        if (!crmStatus && !parcel.statusName) continue;
+        const newStatus = crmStatus ?? order.status;
+        const newCarrierStatus = parcel.statusName || parcel.ameexStatus;
+        // Only update if something changed
+        if (newStatus === order.status && newCarrierStatus === order.carrierStatus) continue;
+        updated++;
+        setOrders(prev => prev.map(o => o.id === order.id
+          ? { ...o, status: newStatus as OrderStatus, carrierStatus: newCarrierStatus }
+          : o));
+        patchPromises.push(
+          fetch("/api/orders", { method: "PATCH", headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ id: order.id, status: newStatus, carrierStatus: newCarrierStatus }),
+          }).then(() => {}).catch(() => {})
+        );
+      }
+      await Promise.all(patchPromises);
+      showToast(updated > 0 ? `${updated} commande(s) mise(s) à jour depuis Ameex ✓` : "Statuts déjà à jour");
+    } catch (e) {
+      showToast(`Erreur sync: ${String(e).slice(0, 60)}`, false);
+    }
+    setSyncingStatuses(false);
+  }
+
   // Send selected orders to carrier
   async function sendToCarrier(overrideIds?: Set<string>) {
     setShipping(true);
@@ -953,11 +1031,12 @@ export default function CommandesPage() {
             </div>
           )}
 
-          {/* Ameex status summary — from webhook data stored in DB */}
+          {/* Ameex status summary + sync button */}
           {counts["expédié"] > 0 && (() => {
             const expOrders = orders.filter(o => o.status === "expédié");
+            const ameexOrders = expOrders.filter(o => o.carrierName === "ameex" && o.carrierTracking);
             const withStatus = expOrders.filter(o => o.carrierStatus);
-            if (withStatus.length === 0) return null;
+            if (withStatus.length === 0 && ameexOrders.length === 0) return null;
             const statuses = withStatus.map(o => (o.carrierStatus ?? "").toLowerCase());
             const livré    = statuses.filter(s => s.includes("livr")).length;
             const retourné = statuses.filter(s => s.includes("retour")).length;
@@ -970,6 +1049,11 @@ export default function CommandesPage() {
                 {enCours  > 0 && <span className="flex items-center gap-1.5 text-sm font-bold text-blue-700"><span className="w-2 h-2 rounded-full bg-blue-400" />En cours <span className="text-blue-500 font-black">{enCours}</span></span>}
                 {livré    > 0 && <span className="flex items-center gap-1.5 text-sm font-bold text-emerald-700"><span className="w-2 h-2 rounded-full bg-emerald-400" />Livré <span className="text-emerald-600 font-black">{livré}</span></span>}
                 {retourné > 0 && <span className="flex items-center gap-1.5 text-sm font-bold text-red-600"><span className="w-2 h-2 rounded-full bg-red-400" />Retourné <span className="text-red-500 font-black">{retourné}</span></span>}
+                <button onClick={syncAmeexStatuses} disabled={syncingStatuses}
+                  className="ml-auto flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-lg bg-blue-50 text-blue-600 hover:bg-blue-100 disabled:opacity-50 transition-colors shrink-0">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} className={`w-3.5 h-3.5 ${syncingStatuses ? "animate-spin" : ""}`}><path d="M23 4v6h-6M1 20v-6h6"/><path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15"/></svg>
+                  {syncingStatuses ? "Sync…" : "Sync Ameex"}
+                </button>
               </div>
             );
           })()}
