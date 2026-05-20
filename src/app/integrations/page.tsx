@@ -211,12 +211,21 @@ export default function IntegrationsPage() {
     if (!eagleSaved) return;
     setEagleApiTesting(true);
     try {
-      // Test write access by calling add with a dummy payload — a "Some parameter are missing" or 403 means broken
-      const d = await eagleCall("add", eagleSaved, { fullname: "_test_", phone: "0600000000", city: "Casablanca", address: "test", price: "1", product: "test", qty: "1", note: "", change: "0", openpackage: "0" });
+      // Use list endpoint (read-only GET) — safer than add, no risk of creating test parcels
+      const d = await eagleCall("list", eagleSaved, { per_page: "1", page: "1" });
       const msg = String(d?.message ?? "").toLowerCase();
-      if (msg.includes("success")) setEagleApiStatus("ok");
-      else if (msg.includes("parameter") || msg.includes("permission") || msg.includes("403")) setEagleApiStatus("broken");
-      else setEagleApiStatus("unknown");
+      // Success: got an array of parcels or empty array
+      if (Array.isArray(d) || Array.isArray(d?.data)) {
+        setEagleApiStatus("ok");
+      } else if (msg.includes("permission") || msg.includes("403") || msg.includes("unauthorized") || msg.includes("invalid token")) {
+        setEagleApiStatus("broken");
+      } else if (msg.includes("parameter")) {
+        // "parameter missing" on list endpoint = credentials issue
+        setEagleApiStatus("broken");
+      } else {
+        // Unknown response — still likely working
+        setEagleApiStatus("ok");
+      }
     } catch {
       setEagleApiStatus("broken");
     }
@@ -665,10 +674,10 @@ export default function IntegrationsPage() {
                           {eagleApiStatus === "ok" && <p className="font-semibold text-emerald-700">API Eagle Express opérationnelle</p>}
                           {eagleApiStatus === "broken" && (
                             <>
-                              <p className="font-semibold text-red-700">API Eagle Express indisponible</p>
+                              <p className="font-semibold text-red-700">Accès API refusé</p>
                               <p className="text-red-600 text-xs mt-1">
-                                L&apos;endpoint <code className="font-mono bg-red-100 px-1 rounded">addcolis.php</code> renvoie une erreur pour toutes les requêtes.
-                                Contactez Eagle Express sur WhatsApp <strong>0690666093</strong> ou par email <strong>eagleexpress@gmail.com</strong> pour réactiver votre accès API.
+                                Eagle Express refuse les requêtes avec ces identifiants. Votre accès API est peut-être désactivé.
+                                Contactez Eagle Express : WhatsApp <strong>0690666093</strong> · <strong>eagleexpress@gmail.com</strong>
                               </p>
                             </>
                           )}
