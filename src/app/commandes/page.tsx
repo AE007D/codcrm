@@ -1018,6 +1018,13 @@ export default function CommandesPage() {
             <p className="text-sm text-slate-400 hidden sm:block">{orders.length} commandes · {needsCall > 0 ? <span className="text-blue-600 font-semibold">{needsCall} appel(s) à faire</span> : "aucun appel en attente"}</p>
           </div>
           <div className="flex items-center gap-2">
+            {counts["expédié"] > 0 && isAdmin && (
+              <button onClick={syncAmeexStatuses} disabled={syncingStatuses}
+                className="flex items-center gap-1.5 text-sm font-semibold px-3 py-2.5 rounded-xl border border-blue-200 bg-blue-50 text-blue-700 hover:bg-blue-100 disabled:opacity-50 transition-colors whitespace-nowrap">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} className={`w-4 h-4 ${syncingStatuses ? "animate-spin" : ""}`}><path d="M23 4v6h-6M1 20v-6h6"/><path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15"/></svg>
+                <span className="hidden sm:inline">{syncingStatuses ? "Sync…" : "Sync Ameex"}</span>
+              </button>
+            )}
             {confirmedCount > 0 && (
               <button onClick={() => { openShipModal(orders.filter(o => o.status === "confirmé").map(o => o.id)); }}
                 className="bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold px-3 lg:px-4 py-2.5 rounded-xl shadow-md shadow-indigo-200 transition-colors whitespace-nowrap flex items-center gap-2">
@@ -1076,15 +1083,15 @@ export default function CommandesPage() {
             </div>
           )}
 
-          {/* Ameex status summary + sync button — admin only */}
-          {counts["expédié"] > 0 && isAdmin && (() => {
+          {/* Expédié carrier status summary bar */}
+          {counts["expédié"] > 0 && (() => {
             const expOrders = orders.filter(o => o.status === "expédié");
-            const withStatus = expOrders.filter(o => o.carrierStatus);
-            const statuses = withStatus.map(o => (o.carrierStatus ?? "").toLowerCase());
+            const statuses = expOrders.map(o => (o.carrierStatus ?? "").toLowerCase());
             const livré    = statuses.filter(s => s.includes("livr")).length;
             const retourné = statuses.filter(s => s.includes("retour")).length;
             const ramassé  = statuses.filter(s => s.includes("ramassé") || s.includes("picked") || s.includes("collecté")).length;
             const enCours  = statuses.filter(s => s.includes("voyage") || s.includes("livraison") || s.includes("cours")).length;
+            if (!livré && !retourné && !ramassé && !enCours) return null;
             return (
               <div className="bg-white border border-slate-100 rounded-2xl px-4 py-3 mb-3 flex flex-wrap items-center gap-x-5 gap-y-2 shadow-sm">
                 <span className="text-xs font-bold text-slate-400 uppercase tracking-wide shrink-0">Expédié · {expOrders.length}</span>
@@ -1092,11 +1099,6 @@ export default function CommandesPage() {
                 {enCours  > 0 && <span className="flex items-center gap-1.5 text-sm font-bold text-blue-700"><span className="w-2 h-2 rounded-full bg-blue-400" />En cours <span className="text-blue-500 font-black">{enCours}</span></span>}
                 {livré    > 0 && <span className="flex items-center gap-1.5 text-sm font-bold text-emerald-700"><span className="w-2 h-2 rounded-full bg-emerald-400" />Livré <span className="text-emerald-600 font-black">{livré}</span></span>}
                 {retourné > 0 && <span className="flex items-center gap-1.5 text-sm font-bold text-red-600"><span className="w-2 h-2 rounded-full bg-red-400" />Retourné <span className="text-red-500 font-black">{retourné}</span></span>}
-                <button onClick={syncAmeexStatuses} disabled={syncingStatuses}
-                  className="ml-auto flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-lg bg-blue-50 text-blue-600 hover:bg-blue-100 disabled:opacity-50 transition-colors shrink-0">
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} className={`w-3.5 h-3.5 ${syncingStatuses ? "animate-spin" : ""}`}><path d="M23 4v6h-6M1 20v-6h6"/><path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15"/></svg>
-                  {syncingStatuses ? "Sync…" : "↻ Sync Ameex"}
-                </button>
               </div>
             );
           })()}
