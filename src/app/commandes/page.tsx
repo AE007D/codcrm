@@ -150,13 +150,13 @@ export default function CommandesPage() {
   const [carrierStatus, setCarrierStatus] = useState<{ loading: boolean; text: string | null; ok: boolean }>({ loading: false, text: null, ok: true });
 
 
-  // Current user role
-  const [userRole, setUserRole] = useState<"admin" | "agent" | "viewer">("agent");
+  // Current user role — null while loading, so isAdmin is never wrong before fetch completes
+  const [userRole, setUserRole] = useState<"admin" | "agent" | "viewer" | null>(null);
   const isAdmin = userRole === "admin";
   useEffect(() => {
     fetch("/api/auth/me").then(r => r.ok ? r.json() : null).then(d => {
-      if (d?.role) setUserRole(d.role);
-    }).catch(() => {});
+      setUserRole(d?.role ?? "agent");
+    }).catch(() => { setUserRole("agent"); });
   }, []);
 
   // Edit mode for drawer
@@ -1076,8 +1076,8 @@ export default function CommandesPage() {
             </div>
           )}
 
-          {/* Ameex status summary + sync button — always shown when there are expédié orders */}
-          {counts["expédié"] > 0 && (() => {
+          {/* Ameex status summary + sync button — admin only */}
+          {counts["expédié"] > 0 && isAdmin && (() => {
             const expOrders = orders.filter(o => o.status === "expédié");
             const withStatus = expOrders.filter(o => o.carrierStatus);
             const statuses = withStatus.map(o => (o.carrierStatus ?? "").toLowerCase());
