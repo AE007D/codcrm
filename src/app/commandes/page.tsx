@@ -1018,7 +1018,7 @@ export default function CommandesPage() {
             <p className="text-sm text-slate-400 hidden sm:block">{orders.length} commandes · {needsCall > 0 ? <span className="text-blue-600 font-semibold">{needsCall} appel(s) à faire</span> : "aucun appel en attente"}</p>
           </div>
           <div className="flex items-center gap-2">
-            {counts["expédié"] > 0 && isAdmin && (
+            {counts["expédié"] > 0 && (
               <button onClick={syncAmeexStatuses} disabled={syncingStatuses}
                 className="flex items-center gap-1.5 text-sm font-semibold px-3 py-2.5 rounded-xl border border-blue-200 bg-blue-50 text-blue-700 hover:bg-blue-100 disabled:opacity-50 transition-colors whitespace-nowrap">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} className={`w-4 h-4 ${syncingStatuses ? "animate-spin" : ""}`}><path d="M23 4v6h-6M1 20v-6h6"/><path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15"/></svg>
