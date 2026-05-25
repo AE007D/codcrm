@@ -138,6 +138,7 @@ export default function CommandesPage() {
   const [syncingCities, setSyncingCities] = useState(false);
   const [syncCityMsg, setSyncCityMsg] = useState<{ ok: boolean; text: string } | null>(null);
   const [syncingStatuses, setSyncingStatuses] = useState(false);
+  const [syncingEagle, setSyncingEagle] = useState(false);
   const [cityOverrides, setCityOverrides] = useState<Record<string, string>>({}); // orderId → cityId (Ameex) or city name (Eagle)
   const [eagleAddressOverrides, setEagleAddressOverrides] = useState<Record<string, string>>({}); // orderId → address override for Eagle
   const [eagleCities, setEagleCities] = useState<{ id: string; name: string }[]>([]); // Eagle Express city list
@@ -813,6 +814,71 @@ export default function CommandesPage() {
     setSyncingStatuses(false);
   }
 
+  // Pull current statuses from Eagle Express and update matching CRM orders
+  async function syncEagleStatuses() {
+    setSyncingEagle(true);
+    try {
+      const s = await fetch("/api/settings").then(r => r.json()).then(d => d.settings ?? {}).catch(() => ({}));
+      const creds = s.eagle;
+      if (!creds?.tk || !creds?.sk) { showToast("Identifiants Eagle Express non configurés", false); setSyncingEagle(false); return; }
+
+      // Eagle track.php returns French status strings — map to CRM statuses
+      // Match is done lowercase + keyword check to handle accent variations
+      function eagleToCrm(etat: string): OrderStatus | null {
+        const e = etat.toLowerCase().trim();
+        if (e.includes("livr") && (e.includes("effect") || e === "livré" || e === "livre" || e.includes("livraison effect"))) return "livré";
+        if (e === "livré" || e === "livre" || e.startsWith("livré")) return "livré";
+        if (e.includes("retour") || e.includes("hors zone") || e.includes("hors_zone")) return "retourné";
+        if (e.includes("annul")) return "annulé";
+        return null; // no CRM status change — just update carrierStatus
+      }
+
+      const expOrders = orders.filter(o => o.status === "expédié" && (o.carrierName === "eagle" || (!o.carrierName && o.carrierTracking)));
+      if (!expOrders.length) { showToast("Aucune commande Eagle expédiée à synchroniser"); setSyncingEagle(false); return; }
+
+      let updated = 0;
+      const patchPromises: Promise<void>[] = [];
+
+      for (const order of expOrders) {
+        if (!order.carrierTracking) continue;
+        try {
+          const d = await fetch("/api/eagle", {
+            method: "POST", headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ action: "track", tk: creds.tk, sk: creds.sk, code: order.carrierTracking }),
+          }).then(r => r.json()).catch(() => null);
+
+          if (!d || !Array.isArray(d) || !d.length) continue;
+
+          // Eagle returns statuses newest-first; d[0].Etat is the latest
+          const latestEtat = String(d[0]?.Etat ?? "").trim();
+          if (!latestEtat) continue;
+
+          const crmStatus = eagleToCrm(latestEtat);
+          const newCarrierStatus = latestEtat;
+
+          const targetStatus = (crmStatus ?? order.status) as OrderStatus;
+          if (targetStatus === order.status && newCarrierStatus === order.carrierStatus) continue;
+
+          updated++;
+          setOrders(prev => prev.map(o => o.id === order.id
+            ? { ...o, status: targetStatus, carrierStatus: newCarrierStatus, carrierName: "eagle" }
+            : o));
+          patchPromises.push(
+            fetch("/api/orders", { method: "PATCH", headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ id: order.id, status: targetStatus, carrierStatus: newCarrierStatus, carrierName: "eagle" }),
+            }).then(() => {}).catch(() => {})
+          );
+        } catch { /* skip this order */ }
+      }
+
+      await Promise.all(patchPromises);
+      showToast(updated > 0 ? `${updated} commande(s) Eagle mise(s) à jour ✓` : "Statuts Eagle déjà à jour");
+    } catch (e) {
+      showToast(`Erreur sync Eagle: ${String(e).slice(0, 60)}`, false);
+    }
+    setSyncingEagle(false);
+  }
+
   // Send selected orders to carrier
   async function sendToCarrier(overrideIds?: Set<string>) {
     setShipping(true);
@@ -996,6 +1062,8 @@ export default function CommandesPage() {
   const counts = PIPELINE.reduce((acc, s) => { acc[s] = orders.filter(o => o.status === s).length; return acc; }, {} as Record<OrderStatus, number>);
   const needsCall = counts["nouveau"];
   const confirmedCount = counts["confirmé"];
+  const eagleExpédiéCount = orders.filter(o => o.status === "expédié" && (o.carrierName === "eagle" || (!o.carrierName && o.carrierTracking))).length;
+  const ameexExpédiéCount = orders.filter(o => o.status === "expédié" && o.carrierName === "ameex").length;
 
   // Repeat customer detection: count orders per phone number
   const phoneCounts = orders.reduce((acc, o) => {
@@ -1018,11 +1086,18 @@ export default function CommandesPage() {
             <p className="text-sm text-slate-400 hidden sm:block">{orders.length} commandes · {needsCall > 0 ? <span className="text-blue-600 font-semibold">{needsCall} appel(s) à faire</span> : "aucun appel en attente"}</p>
           </div>
           <div className="flex items-center gap-2">
-            {counts["expédié"] > 0 && (
+            {eagleExpédiéCount > 0 && (
+              <button onClick={syncEagleStatuses} disabled={syncingEagle}
+                className="flex items-center gap-1.5 text-sm font-semibold px-3 py-2.5 rounded-xl border border-amber-200 bg-amber-50 text-amber-700 hover:bg-amber-100 disabled:opacity-50 transition-colors whitespace-nowrap">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} className={`w-4 h-4 ${syncingEagle ? "animate-spin" : ""}`}><path d="M23 4v6h-6M1 20v-6h6"/><path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15"/></svg>
+                <span className="hidden sm:inline">{syncingEagle ? "Sync…" : `Sync Eagle (${eagleExpédiéCount})`}</span>
+              </button>
+            )}
+            {ameexExpédiéCount > 0 && (
               <button onClick={syncAmeexStatuses} disabled={syncingStatuses}
                 className="flex items-center gap-1.5 text-sm font-semibold px-3 py-2.5 rounded-xl border border-blue-200 bg-blue-50 text-blue-700 hover:bg-blue-100 disabled:opacity-50 transition-colors whitespace-nowrap">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} className={`w-4 h-4 ${syncingStatuses ? "animate-spin" : ""}`}><path d="M23 4v6h-6M1 20v-6h6"/><path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15"/></svg>
-                <span className="hidden sm:inline">{syncingStatuses ? "Sync…" : "Sync Ameex"}</span>
+                <span className="hidden sm:inline">{syncingStatuses ? "Sync…" : `Sync Ameex (${ameexExpédiéCount})`}</span>
               </button>
             )}
             {confirmedCount > 0 && (
