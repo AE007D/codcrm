@@ -130,7 +130,7 @@ export default function CommandesPage() {
 
   // Shipping modal
   const [shipModal, setShipModal] = useState(false);
-  const [shipCarrier, setShipCarrier] = useState<ShipCarrier>("ameex");
+  const [shipCarrier, setShipCarrier] = useState<ShipCarrier>("eagle");
   const [shipping, setShipping] = useState(false);
   const [shipResults, setShipResults] = useState<{ id: string; ok: boolean; msg: string }[]>([]);
   const [ameexCities, setAmeexCities] = useState<{ id: string; name: string }[]>([]);
@@ -1683,60 +1683,13 @@ export default function CommandesPage() {
             </div>
 
             <div className="p-6 space-y-5">
-              <div>
-                <p className="text-sm text-slate-500 mb-3">{selected.size} commande(s) sélectionnée(s) seront envoyées et passées en <strong>Expédié</strong>.</p>
-                <div className="grid grid-cols-2 gap-3">
-                  {([["ameex", "Ameex", "🟠"], ["eagle", "Eagle Express", "🦅"]] as [ShipCarrier, string, string][]).map(([key, label, icon]) => (
-                    <button key={key} onClick={() => setShipCarrier(key)}
-                      className={`flex flex-col items-center gap-2 py-4 rounded-2xl border-2 transition-all ${shipCarrier === key ? "border-indigo-500 bg-indigo-50" : "border-slate-200 hover:border-slate-300"}`}>
-                      <span className="text-2xl">{icon}</span>
-                      <span className={`text-sm font-bold ${shipCarrier === key ? "text-indigo-700" : "text-slate-700"}`}>{label}</span>
-                    </button>
-                  ))}
+              <div className="flex items-center gap-3 px-4 py-3 bg-amber-50 border border-amber-200 rounded-2xl">
+                <span className="text-2xl">🦅</span>
+                <div>
+                  <p className="text-sm font-bold text-amber-800">Eagle Express</p>
+                  <p className="text-xs text-amber-600">{selected.size} commande(s) → Expédié</p>
                 </div>
               </div>
-
-              {/* Ameex — type envoi : Ramassage vs Stock */}
-              {shipCarrier === "ameex" && !shipResults.length && (
-                <div>
-                  <p className="text-xs font-semibold text-slate-500 mb-2">📦 Type d&apos;envoi :</p>
-                  <div className="grid grid-cols-2 gap-2">
-                    {([["SIMPLE","🚚 Ramassage","Le transporteur vient récupérer"],["STOCK","🏭 Stock / Hub","Depuis votre dépôt Ameex"]] as const).map(([val, label, desc]) => (
-                      <button key={val} onClick={() => { setAmeexShipType(val); fetch("/api/settings",{method:"PATCH",headers:{"Content-Type":"application/json"},body:JSON.stringify({ameexShipPref:{type:val,depot:ameexDepot}})}); }}
-                        className={`flex flex-col items-start gap-0.5 px-3 py-2.5 rounded-xl border-2 text-left transition-all ${ameexShipType === val ? "border-blue-500 bg-blue-50" : "border-slate-200 hover:border-slate-300"}`}>
-                        <span className={`text-xs font-bold ${ameexShipType === val ? "text-blue-700" : "text-slate-700"}`}>{label}</span>
-                        <span className="text-[10px] text-slate-400 leading-tight">{desc}</span>
-                      </button>
-                    ))}
-                  </div>
-                  {ameexShipType === "STOCK" && (
-                    <div className="mt-2 space-y-2">
-                      {/* Hub selector */}
-                      {ameexDepots.length > 0 ? (
-                        <select
-                          value={ameexDepot}
-                          onChange={e => { setAmeexDepot(e.target.value); fetch("/api/settings",{method:"PATCH",headers:{"Content-Type":"application/json"},body:JSON.stringify({ameexShipPref:{type:ameexShipType,depot:e.target.value}})}); }}
-                          className="w-full text-xs border border-slate-200 rounded-xl px-3 py-2 outline-none focus:border-blue-400 bg-white font-medium"
-                        >
-                          {ameexDepots.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
-                        </select>
-                      ) : (
-                        <div className="flex gap-2">
-                          <input
-                            type="text"
-                            placeholder="ID du dépôt (ex: 34 = Casablanca Hub Principal)"
-                            value={ameexDepot}
-                            onChange={e => setAmeexDepot(e.target.value)}
-                            className="flex-1 text-xs border border-slate-200 rounded-xl px-3 py-2 outline-none focus:border-blue-400"
-                          />
-                          <span className="text-xs text-slate-400 self-center shrink-0">🏭 Hub</span>
-                        </div>
-                      )}
-                      {/* Product SKU auto-matched silently from catalog — no UI shown */}
-                    </div>
-                  )}
-                </div>
-              )}
 
               {/* Results */}
               {shipResults.length > 0 && (
@@ -1756,74 +1709,6 @@ export default function CommandesPage() {
                 </div>
               )}
 
-              {/* Ameex — city selector: only for orders with unresolved city */}
-              {shipCarrier === "ameex" && (() => {
-                const failedIds = new Set(shipResults.filter(r => !r.ok).map(r => r.id));
-                const pool = shipResults.length > 0
-                  ? orders.filter(o => failedIds.has(o.id))
-                  : orders.filter(o => selected.has(o.id));
-                if (pool.length === 0) return null;
-                const hasRealIds = ameexRealIds.size > 0;
-
-                // Only show orders that need manual city selection
-                const needsCity = pool.filter(o => {
-                  const autoId = resolveAmeexCityId(o.city ?? "", ameexCities) ?? "";
-                  const currentVal = cityOverrides[o.id] ?? autoId;
-                  return !currentVal || (hasRealIds && !ameexRealIds.has(currentVal));
-                });
-                const okCount = pool.length - needsCity.length;
-
-                return (
-                  <div className="space-y-2">
-                    {syncCityMsg && (
-                      <p className={`text-[11px] px-3 py-2 rounded-lg border ${syncCityMsg.ok ? "bg-emerald-50 border-emerald-200 text-emerald-700" : "bg-red-50 border-red-200 text-red-700"}`}>
-                        {syncCityMsg.text}
-                      </p>
-                    )}
-                    {!hasRealIds && (
-                      <div className="flex items-center justify-between gap-2 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
-                        <p className="text-[11px] text-amber-700">
-                          {syncingCities ? "⏳ Chargement des villes Ameex…" : "⚠ Villes non synchronisées — IDs invalides"}
-                        </p>
-                        <button onClick={syncAmeexCities} disabled={syncingCities}
-                          className="shrink-0 text-[11px] font-bold px-2 py-1 bg-amber-600 hover:bg-amber-700 disabled:opacity-60 text-white rounded-lg transition-colors">
-                          {syncingCities ? "…" : "↻ Sync"}
-                        </button>
-                      </div>
-                    )}
-                    {okCount > 0 && needsCity.length === 0 && (
-                      <p className="text-xs text-emerald-600 font-semibold">✓ Toutes les villes sont configurées ({okCount})</p>
-                    )}
-                    {okCount > 0 && needsCity.length > 0 && (
-                      <p className="text-xs text-slate-400">{okCount} ville(s) OK — {needsCity.length} à corriger :</p>
-                    )}
-                    {needsCity.length > 0 && shipResults.length > 0 && (
-                      <p className="text-xs font-semibold text-red-600">🔴 Corrigez la ville et réessayez :</p>
-                    )}
-                    {needsCity.map(o => {
-                      const autoId = resolveAmeexCityId(o.city ?? "", ameexCities) ?? "";
-                      const currentVal = cityOverrides[o.id] ?? autoId;
-                      return (
-                        <div key={o.id} className={`flex items-center gap-2 p-2 rounded-xl border ${!currentVal ? "border-red-300 bg-red-50" : "border-amber-300 bg-amber-50"}`}>
-                          <span className="text-xs font-semibold text-slate-700 w-20 truncate shrink-0">{o.customer}</span>
-                          <select
-                            value={currentVal}
-                            onChange={e => setCityOverrides(prev => ({ ...prev, [o.id]: e.target.value }))}
-                            className={`flex-1 text-xs border rounded-lg px-2 py-1.5 outline-none focus:border-blue-400 bg-white ${!currentVal ? "border-red-300" : "border-amber-300"}`}
-                          >
-                            <option value="">— Choisissez une ville —</option>
-                            {ameexCities.map(c => (
-                              <option key={c.id} value={c.id}>
-                                {c.name}{ameexRealIds.has(c.id) ? " ✓" : ""}
-                              </option>
-                            ))}
-                          </select>
-                        </div>
-                      );
-                    })}
-                  </div>
-                );
-              })()}
               {/* Eagle Express — city dropdown + address editor per order */}
               {shipCarrier === "eagle" && !shipResults.length && (() => {
                 const selectedOrders = orders.filter(o => selected.has(o.id));
@@ -1842,39 +1727,34 @@ export default function CommandesPage() {
                       return (
                         <div key={o.id} className="p-2 rounded-xl border border-slate-200 bg-slate-50 space-y-1.5">
                           <p className="text-xs font-semibold text-slate-700 truncate">{o.customer}</p>
-                          <div className="relative">
+                          <div className="flex items-center gap-1.5">
                             <input
                               type="text"
                               placeholder="Tapez pour chercher une ville…"
-                              // while typing show search text; once picked (search cleared) show chosen city
                               value={search || confirmedCity}
                               onChange={e => {
                                 const v = e.target.value;
                                 setEagleCitySearch(prev => ({ ...prev, [o.id]: v }));
-                                // only update override when free-typing (not from list pick)
                                 setCityOverrides(prev => ({ ...prev, [o.id]: v }));
                               }}
-                              className={`w-full text-xs border rounded-lg px-2 py-1.5 pr-6 outline-none focus:border-amber-400 bg-white ${isPicked ? "border-emerald-400" : "border-amber-300"}`}
+                              className={`flex-1 text-xs border rounded-lg px-2 py-1.5 outline-none focus:border-amber-400 bg-white ${isPicked && !search ? "border-emerald-400" : "border-amber-300"}`}
                             />
-                            {isPicked && !search && (
-                              <span className="absolute right-2 top-1/2 -translate-y-1/2 text-emerald-500 text-xs">✓</span>
-                            )}
-                            {filtered.length > 0 && (
-                              <div className="absolute z-50 left-0 right-0 top-full mt-0.5 bg-white border border-slate-200 rounded-xl shadow-lg max-h-44 overflow-y-auto">
-                                {filtered.map(c => (
-                                  <button key={c.id || c.name} type="button"
-                                    className="w-full text-left px-3 py-2 text-xs hover:bg-amber-50 text-slate-700 font-medium"
-                                    onClick={() => {
-                                      setCityOverrides(prev => ({ ...prev, [o.id]: c.name }));
-                                      // clear search so dropdown closes and input shows the picked city
-                                      setEagleCitySearch(prev => ({ ...prev, [o.id]: "" }));
-                                    }}>
-                                    {c.name}
-                                  </button>
-                                ))}
-                              </div>
-                            )}
+                            {isPicked && !search && <span className="text-emerald-500 text-xs font-bold shrink-0">✓</span>}
                           </div>
+                          {filtered.length > 0 && (
+                            <div className="bg-white border border-slate-200 rounded-xl shadow-sm max-h-36 overflow-y-auto">
+                              {filtered.map(c => (
+                                <button key={c.id || c.name} type="button"
+                                  className="w-full text-left px-3 py-2 text-xs hover:bg-amber-50 text-slate-700 font-medium border-b border-slate-100 last:border-0"
+                                  onClick={() => {
+                                    setCityOverrides(prev => ({ ...prev, [o.id]: c.name }));
+                                    setEagleCitySearch(prev => ({ ...prev, [o.id]: "" }));
+                                  }}>
+                                  {c.name}
+                                </button>
+                              ))}
+                            </div>
+                          )}
                           <input
                             type="text"
                             placeholder="Adresse"

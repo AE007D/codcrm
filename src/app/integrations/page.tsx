@@ -215,7 +215,25 @@ export default function IntegrationsPage() {
   /* Eagle actions */
   function saveEagle() { if (!eagle.tk || !eagle.sk) { showToast("Token et Secret Key requis.", false); return; } patchSettings({ eagle }).then(() => { setEagleSaved(eagle); showToast("Eagle Express connecté ✓"); }); }
   const loadEagleParcels = useCallback(async () => { if (!eagleSaved) return; setLoading(true); const d = await eagleCall("list", eagleSaved); setLoading(false); const list = Array.isArray(d) ? d : Array.isArray(d?.data) ? d.data : Array.isArray(d?.colis) ? d.colis : []; setEagleParcels(list); }, [eagleSaved]);
-  const loadEagleCities = useCallback(async () => { if (!eagleSaved) return; setLoading(true); const d = await eagleCall("cities", eagleSaved); setLoading(false); const list = Array.isArray(d) ? d : Array.isArray(d?.data) ? d.data : []; if (list.length) setEagleCities(list); }, [eagleSaved]);
+  const loadEagleCities = useCallback(async () => {
+    if (!eagleSaved) return;
+    setLoading(true);
+    const d = await eagleCall("cities", eagleSaved);
+    setLoading(false);
+    const list: unknown[] = Array.isArray(d) ? d
+      : Array.isArray(d?.data) ? d.data
+      : Array.isArray(d?.cities) ? d.cities
+      : Array.isArray(d?.result) ? d.result
+      : [];
+    if (list.length) {
+      setEagleCities(list as Parcel[]);
+      // Debug: detect if field names don't match our guesses
+      const first = list[0] as Record<string, unknown>;
+      const nameVal = first?.name ?? first?.ville ?? first?.Ville ?? first?.city ?? first?.City ??
+        first?.city_name ?? first?.designation ?? first?.libelle ?? first?.nom ?? "";
+      if (!nameVal) showToast(`Champs reçus: ${Object.keys(first).join(", ")}`, false);
+    }
+  }, [eagleSaved, showToast]);
   async function addEagle() {
     if (!eagleSaved) { showToast("Configurez Eagle d'abord.", false); return; }
     if (!eagleForm.fullname || !eagleForm.phone || !eagleForm.city || !eagleForm.address || !eagleForm.price) { showToast("Champs obligatoires manquants.", false); return; }
@@ -767,10 +785,21 @@ export default function IntegrationsPage() {
                     </div>
                     {eagleCities.length === 0 ? <p className="text-center py-10 text-slate-400 text-sm">{loading?"Chargement…":"Aucune ville."}</p> : (
                       <table className="w-full text-sm"><thead><tr className="text-xs text-slate-400 border-b"><th className="text-left px-5 py-2 font-semibold uppercase tracking-wide">Ville</th><th className="text-left px-5 py-2 font-semibold uppercase tracking-wide">Tarif</th></tr></thead>
-                      <tbody>{eagleCities.filter(c=>{const n=String(c.name??c.ville??c.city??c.city_name??c.label??"");return !citySearch||n.toLowerCase().includes(citySearch.toLowerCase());}).map((c,i)=>{const cityName=String(c.name??c.ville??c.city??c.city_name??c.label??"—");const fee=String(c.tarif??c.fee??c.price??c.delivery_fee??c.livraison??c.cost??"—");return <tr key={i} className="border-b hover:bg-slate-50/60"><td className="px-5 py-2.5 font-medium text-slate-800">{cityName}</td><td className="px-5 py-2.5"><span className="bg-amber-50 text-amber-700 text-xs font-bold px-2.5 py-1 rounded-lg">{fee==="—"?fee:`${fee} MAD`}</span></td></tr>;})}
-                        {eagleCities.length > 0 && String(eagleCities[0].name??eagleCities[0].ville??eagleCities[0].city??eagleCities[0].city_name??eagleCities[0].label??"") === "—" && (
-                          <tr><td colSpan={2} className="px-5 py-2 text-xs text-slate-400 font-mono">Champs reçus: {Object.keys(eagleCities[0]).join(", ")}</td></tr>
-                        )}</tbody>
+                      <tbody>{eagleCities.filter(c=>{
+                          const r=c as Record<string,unknown>;
+                          const n=String(r.name??r.ville??r.Ville??r.city??r.City??r.city_name??r.designation??r.libelle??r.nom??"");
+                          return !citySearch||n.toLowerCase().includes(citySearch.toLowerCase());
+                        }).map((c,i)=>{
+                          const r=c as Record<string,unknown>;
+                          const cityName=String(r.name??r.ville??r.Ville??r.city??r.City??r.city_name??r.designation??r.libelle??r.nom??"")||"—";
+                          const fee=String(r.tarif??r.Tarif??r.fee??r.Fee??r.price??r.prix??r.delivery_fee??r.livraison??r.frais??r.cost??"")||"—";
+                          return <tr key={i} className="border-b hover:bg-slate-50/60"><td className="px-5 py-2.5 font-medium text-slate-800">{cityName}</td><td className="px-5 py-2.5"><span className="bg-amber-50 text-amber-700 text-xs font-bold px-2.5 py-1 rounded-lg">{fee==="—"?fee:`${fee} MAD`}</span></td></tr>;
+                        })}
+                        {eagleCities.length > 0 && (() => {
+                          const r=eagleCities[0] as Record<string,unknown>;
+                          const nameVal=String(r.name??r.ville??r.Ville??r.city??r.City??r.city_name??r.designation??r.libelle??r.nom??"")||"";
+                          return !nameVal ? <tr><td colSpan={2} className="px-5 py-2 text-xs text-red-500 font-mono bg-red-50">⚠ Champs reçus: {Object.keys(r).join(", ")}</td></tr> : null;
+                        })()}</tbody>
                       </table>
                     )}
                   </div>
