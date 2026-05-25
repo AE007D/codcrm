@@ -26,7 +26,7 @@ export async function POST(request: NextRequest) {
     // Eagle Express API uses GET with all params in the query string for every endpoint
     const qs = new URLSearchParams();
     for (const [k, v] of Object.entries(params)) {
-      if (v !== undefined && v !== null && v !== "") qs.set(k, String(v));
+      if (v !== undefined && v !== null) qs.set(k, String(v));
     }
     const sentKeys = [...qs.keys()];
     const url = `${BASE}${path}?${qs.toString()}`;
