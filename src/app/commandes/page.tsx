@@ -556,7 +556,7 @@ export default function CommandesPage() {
               note: order.orderNumber || order.id.slice(-8),
               change: "0",
               openpackage: "0",
-              stock: "0",
+              stock: "1",
             }),
           });
         }
