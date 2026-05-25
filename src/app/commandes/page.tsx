@@ -1301,6 +1301,12 @@ export default function CommandesPage() {
                       return (
                         <div key={o.id} className="p-2 rounded-xl border border-slate-200 bg-slate-50 space-y-1.5">
                           <p className="text-xs font-semibold text-slate-700 truncate">{o.customer}</p>
+                          {o.city && (
+                            <p className="text-[10px] text-slate-400 flex items-center gap-1">
+                              <span className="font-medium text-slate-500">Client a écrit :</span>
+                              <span className="font-semibold text-slate-600 bg-yellow-50 border border-yellow-200 rounded px-1">{o.city}</span>
+                            </p>
+                          )}
                           <select
                             value={currentCity}
                             onChange={e => setCityOverrides(prev => ({ ...prev, [o.id]: e.target.value }))}
