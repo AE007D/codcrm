@@ -188,7 +188,7 @@ export default function FinancesPage() {
   });
   const campaignAdSpend = campaignsInPeriod.reduce((s, c) => s + c.spend, 0);
   const adsCost = campaignAdSpend > 0 ? campaignAdSpend : costs.dailyAdsBudget * days;
-  const confirmCost = confirmed.length * costs.confirmationCostPerOrder;
+  const confirmCost = shipped.length * costs.confirmationCostPerOrder;
   const shippingCost = shipped.length * costs.shippingCostPerOrder; // only on shipped orders
   const returnCost = returned.length * costs.returnShippingCost;
 
@@ -302,7 +302,7 @@ export default function FinancesPage() {
                     {[
                       { label: "Achats produits", value: productCost, sub: `${confirmed.length} cmds confirmées`, color: "bg-orange-500" },
                       { label: "Budget publicité", value: adsCost, sub: campaignAdSpend > 0 ? `${campaignsInPeriod.length} campagne(s) — Ads Manager` : `${costs.dailyAdsBudget} MAD × ${days} jours`, color: "bg-blue-500" },
-                      { label: "Centre confirmation", value: confirmCost, sub: `${confirmed.length} confirmées × ${costs.confirmationCostPerOrder} MAD`, color: "bg-violet-500" },
+                      { label: "Centre confirmation", value: confirmCost, sub: `${shipped.length} expédiées × ${costs.confirmationCostPerOrder} MAD`, color: "bg-violet-500" },
                       { label: "🦅 Livraison Eagle Express", value: shippingCost, sub: `${shipped.length} colis expédiés × ${costs.shippingCostPerOrder} MAD`, color: "bg-amber-500" },
                       { label: "Frais retour", value: returnCost, sub: `${returned.length} × ${costs.returnShippingCost} MAD`, color: "bg-red-400" },
                     ].map(item => {
