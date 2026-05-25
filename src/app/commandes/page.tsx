@@ -1709,52 +1709,27 @@ export default function CommandesPage() {
                 </div>
               )}
 
-              {/* Eagle Express — city dropdown + address editor per order */}
+              {/* Eagle Express — city select + address per order */}
               {shipCarrier === "eagle" && !shipResults.length && (() => {
                 const selectedOrders = orders.filter(o => selected.has(o.id));
                 return (
                   <div className="space-y-2">
-                    <p className="text-xs font-semibold text-slate-500">🏙 Sélectionnez la ville et vérifiez l&apos;adresse :</p>
+                    <p className="text-xs font-semibold text-slate-500">🏙 Ville et adresse :</p>
                     {selectedOrders.map(o => {
-                      // search is only active while the user is typing — cleared after city pick
-                      const search = eagleCitySearch[o.id] ?? "";
-                      const confirmedCity = cityOverrides[o.id] || o.city || "";
-                      // dropdown only shows while actively searching
-                      const filtered = eagleCities.length && search.length > 0
-                        ? eagleCities.filter(c => c.name.toLowerCase().includes(search.toLowerCase())).slice(0, 8)
-                        : [];
-                      const isPicked = !!cityOverrides[o.id]; // user explicitly chose from list
+                      const currentCity = cityOverrides[o.id] ?? o.city ?? "";
                       return (
                         <div key={o.id} className="p-2 rounded-xl border border-slate-200 bg-slate-50 space-y-1.5">
                           <p className="text-xs font-semibold text-slate-700 truncate">{o.customer}</p>
-                          <div className="flex items-center gap-1.5">
-                            <input
-                              type="text"
-                              placeholder="Tapez pour chercher une ville…"
-                              value={search || confirmedCity}
-                              onChange={e => {
-                                const v = e.target.value;
-                                setEagleCitySearch(prev => ({ ...prev, [o.id]: v }));
-                                setCityOverrides(prev => ({ ...prev, [o.id]: v }));
-                              }}
-                              className={`flex-1 text-xs border rounded-lg px-2 py-1.5 outline-none focus:border-amber-400 bg-white ${isPicked && !search ? "border-emerald-400" : "border-amber-300"}`}
-                            />
-                            {isPicked && !search && <span className="text-emerald-500 text-xs font-bold shrink-0">✓</span>}
-                          </div>
-                          {filtered.length > 0 && (
-                            <div className="bg-white border border-slate-200 rounded-xl shadow-sm max-h-36 overflow-y-auto">
-                              {filtered.map(c => (
-                                <button key={c.id || c.name} type="button"
-                                  className="w-full text-left px-3 py-2 text-xs hover:bg-amber-50 text-slate-700 font-medium border-b border-slate-100 last:border-0"
-                                  onClick={() => {
-                                    setCityOverrides(prev => ({ ...prev, [o.id]: c.name }));
-                                    setEagleCitySearch(prev => ({ ...prev, [o.id]: "" }));
-                                  }}>
-                                  {c.name}
-                                </button>
-                              ))}
-                            </div>
-                          )}
+                          <select
+                            value={currentCity}
+                            onChange={e => setCityOverrides(prev => ({ ...prev, [o.id]: e.target.value }))}
+                            className={`w-full text-xs border rounded-lg px-2 py-1.5 outline-none focus:border-amber-400 bg-white ${currentCity ? "border-emerald-400 text-slate-800" : "border-red-300 text-slate-400"}`}
+                          >
+                            <option value="">— Choisissez une ville —</option>
+                            {eagleCities.map(c => (
+                              <option key={c.id || c.name} value={c.name}>{c.name}</option>
+                            ))}
+                          </select>
                           <input
                             type="text"
                             placeholder="Adresse"
