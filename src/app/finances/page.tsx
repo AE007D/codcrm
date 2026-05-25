@@ -41,7 +41,7 @@ type Campaign = {
 const DEFAULT_COSTS: CostSettings = {
   dailyAdsBudget: 0,
   confirmationCostPerOrder: 0,
-  shippingCostPerOrder: 0,
+  shippingCostPerOrder: 38, // Eagle Express flat rate
   returnShippingCost: 0,
 };
 
@@ -150,9 +150,20 @@ export default function FinancesPage() {
     const s = String(o.status ?? "").toLowerCase();
     return s === "livré" || s === "livre" || s === "delivered";
   });
+  // confirmed = orders that went through confirmation (exclude nouveau/injoignable/fausse)
   const confirmed = filtered.filter(o => {
     const s = String(o.status ?? "").toLowerCase();
-    return s === "confirmé" || s === "confirme" || s === "confirmed" || s === "nouveau" || s === "livré" || s === "livre";
+    return s === "confirmé" || s === "confirme" || s === "confirmed"
+      || s === "expédié" || s === "expedie"
+      || s === "livré" || s === "livre"
+      || s === "retourné" || s === "retourne";
+  });
+  // shipped = physically sent via carrier (confirmation + shipping fee applies)
+  const shipped = filtered.filter(o => {
+    const s = String(o.status ?? "").toLowerCase();
+    return s === "expédié" || s === "expedie"
+      || s === "livré" || s === "livre"
+      || s === "retourné" || s === "retourne";
   });
   const returned = filtered.filter(o => {
     const s = String(o.status ?? "").toLowerCase();
@@ -178,7 +189,7 @@ export default function FinancesPage() {
   const campaignAdSpend = campaignsInPeriod.reduce((s, c) => s + c.spend, 0);
   const adsCost = campaignAdSpend > 0 ? campaignAdSpend : costs.dailyAdsBudget * days;
   const confirmCost = confirmed.length * costs.confirmationCostPerOrder;
-  const shippingCost = confirmed.length * costs.shippingCostPerOrder;
+  const shippingCost = shipped.length * costs.shippingCostPerOrder; // only on shipped orders
   const returnCost = returned.length * costs.returnShippingCost;
 
   const totalCost = productCost + adsCost + confirmCost + shippingCost + returnCost;
@@ -267,7 +278,7 @@ export default function FinancesPage() {
               <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 lg:gap-4 mb-5">
                 {[
                   { label: "Chiffre d'affaires", value: `${fmt(revenue)} MAD`, sub: `${delivered.length} cmds livrées`, color: "text-emerald-600", bg: "bg-emerald-50", icon: "📦" },
-                  { label: "Total investi", value: `${fmt(totalCost)} MAD`, sub: `produits + pub + conf.`, color: "text-red-500", bg: "bg-red-50", icon: "💸" },
+                  { label: "Total investi", value: `${fmt(totalCost)} MAD`, sub: `produits + pub + conf. + livraison`, color: "text-red-500", bg: "bg-red-50", icon: "💸" },
                   { label: "Bénéfice net", value: `${netProfit >= 0 ? "+" : ""}${fmt(netProfit)} MAD`, sub: `ROI ${roi >= 0 ? "+" : ""}${roi.toFixed(0)}%`, color: netProfit >= 0 ? "text-blue-600" : "text-red-600", bg: netProfit >= 0 ? "bg-blue-50" : "bg-red-50", icon: netProfit >= 0 ? "🏆" : "⚠️" },
                   { label: "Bénéfice / jour", value: `${profitPerDay >= 0 ? "+" : ""}${fmt(profitPerDay)} MAD`, sub: `${profitPerWeek >= 0 ? "+" : ""}${fmt(profitPerWeek)} MAD / semaine`, color: profitPerDay >= 0 ? "text-violet-600" : "text-red-500", bg: profitPerDay >= 0 ? "bg-violet-50" : "bg-red-50", icon: "📅" },
                 ].map(k => (
@@ -291,8 +302,8 @@ export default function FinancesPage() {
                     {[
                       { label: "Achats produits", value: productCost, sub: `${confirmed.length} cmds confirmées`, color: "bg-orange-500" },
                       { label: "Budget publicité", value: adsCost, sub: campaignAdSpend > 0 ? `${campaignsInPeriod.length} campagne(s) — Ads Manager` : `${costs.dailyAdsBudget} MAD × ${days} jours`, color: "bg-blue-500" },
-                      { label: "Centre confirmation", value: confirmCost, sub: `${confirmed.length} × ${costs.confirmationCostPerOrder} MAD`, color: "bg-violet-500" },
-                      { label: "Frais livraison", value: shippingCost, sub: `${confirmed.length} × ${costs.shippingCostPerOrder} MAD`, color: "bg-amber-500" },
+                      { label: "Centre confirmation", value: confirmCost, sub: `${confirmed.length} confirmées × ${costs.confirmationCostPerOrder} MAD`, color: "bg-violet-500" },
+                      { label: "🦅 Livraison Eagle Express", value: shippingCost, sub: `${shipped.length} colis expédiés × ${costs.shippingCostPerOrder} MAD`, color: "bg-amber-500" },
                       { label: "Frais retour", value: returnCost, sub: `${returned.length} × ${costs.returnShippingCost} MAD`, color: "bg-red-400" },
                     ].map(item => {
                       const pct = totalCost > 0 ? (item.value / totalCost) * 100 : 0;
@@ -325,7 +336,8 @@ export default function FinancesPage() {
                   <div className="space-y-3 mb-5">
                     {[
                       { label: "Total commandes", value: filtered.length, color: "text-slate-800" },
-                      { label: "Confirmées / en cours", value: confirmed.length, color: "text-blue-600" },
+                      { label: "Confirmées (centre conf.)", value: confirmed.length, color: "text-blue-600" },
+                      { label: "Expédiées (Eagle)", value: shipped.length, color: "text-amber-600" },
                       { label: "Livrées ✅", value: delivered.length, color: "text-emerald-600" },
                       { label: "Retournées ❌", value: returned.length, color: "text-red-500" },
                     ].map(r => (
