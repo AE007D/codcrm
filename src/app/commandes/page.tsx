@@ -1253,9 +1253,13 @@ export default function CommandesPage() {
             <div className="p-6 space-y-5">
               <div className="flex items-center gap-3 px-4 py-3 bg-amber-50 border border-amber-200 rounded-2xl">
                 <span className="text-2xl">🦅</span>
-                <div>
+                <div className="flex-1">
                   <p className="text-sm font-bold text-amber-800">Eagle Express</p>
-                  <p className="text-xs text-amber-600">{selected.size} commande(s) → Expédié</p>
+                  <p className="text-xs text-amber-600">{selected.size} colis → Expédié</p>
+                </div>
+                <div className="text-right">
+                  <p className="text-xs text-amber-500 font-medium">38 MAD / colis</p>
+                  <p className="text-sm font-black text-amber-800">{selected.size * 38} MAD</p>
                 </div>
               </div>
 

@@ -478,10 +478,11 @@ export default function IntegrationsPage() {
                   <div className="bg-white rounded-2xl border border-slate-100">
                     <div className="px-5 py-3 border-b flex items-center gap-3">
                       <span className="font-semibold text-slate-800">Villes & Tarifs</span>
+                      <span className="text-xs bg-amber-50 text-amber-700 font-bold px-2.5 py-1 rounded-lg border border-amber-200">Tarif fixe : 38 MAD</span>
                       <input type="text" placeholder="Rechercher…" value={citySearch} onChange={e=>setCitySearch(e.target.value)} className="ml-auto w-48 text-sm border border-slate-200 rounded-xl px-3 py-1.5 outline-none focus:border-amber-400" />
                     </div>
                     {eagleCities.length === 0 ? <p className="text-center py-10 text-slate-400 text-sm">{loading?"Chargement…":"Aucune ville."}</p> : (
-                      <table className="w-full text-sm"><thead><tr className="text-xs text-slate-400 border-b"><th className="text-left px-5 py-2 font-semibold uppercase tracking-wide">Ville</th><th className="text-left px-5 py-2 font-semibold uppercase tracking-wide">Tarif</th></tr></thead>
+                      <table className="w-full text-sm"><thead><tr className="text-xs text-slate-400 border-b"><th className="text-left px-5 py-2 font-semibold uppercase tracking-wide">Ville</th><th className="text-left px-5 py-2 font-semibold uppercase tracking-wide">Tarif livraison</th></tr></thead>
                       <tbody>{eagleCities.filter(c=>{
                           const r=c as Record<string,unknown>;
                           const n=String(r.name??r.ville??r.Ville??r.city??r.City??r.city_name??r.designation??r.libelle??r.nom??"");
@@ -489,8 +490,9 @@ export default function IntegrationsPage() {
                         }).map((c,i)=>{
                           const r=c as Record<string,unknown>;
                           const cityName=String(r.name??r.ville??r.Ville??r.city??r.City??r.city_name??r.designation??r.libelle??r.nom??"")||"—";
-                          const fee=String(r.tarif??r.Tarif??r.fee??r.Fee??r.price??r.prix??r.delivery_fee??r.livraison??r.frais??r.cost??"")||"—";
-                          return <tr key={i} className="border-b hover:bg-slate-50/60"><td className="px-5 py-2.5 font-medium text-slate-800">{cityName}</td><td className="px-5 py-2.5"><span className="bg-amber-50 text-amber-700 text-xs font-bold px-2.5 py-1 rounded-lg">{fee==="—"?fee:`${fee} MAD`}</span></td></tr>;
+                          const rawFee=String(r.tarif??r.Tarif??r.fee??r.Fee??r.price??r.prix??r.delivery_fee??r.livraison??r.frais??r.cost??"")||"";
+                          const fee = rawFee || "38";
+                          return <tr key={i} className="border-b hover:bg-slate-50/60"><td className="px-5 py-2.5 font-medium text-slate-800">{cityName}</td><td className="px-5 py-2.5"><span className="bg-amber-50 text-amber-700 text-xs font-bold px-2.5 py-1 rounded-lg">{fee} MAD</span></td></tr>;
                         })}
                         {eagleCities.length > 0 && (() => {
                           const r=eagleCities[0] as Record<string,unknown>;
