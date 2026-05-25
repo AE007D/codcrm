@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { resolveCity, resolveAmeexCityId, AMEEX_CITIES_FALLBACK } from "@/lib/moroccanCities";
+import { AMEEX_CITIES_FALLBACK } from "@/lib/moroccanCities";
 import { cachedFetch, invalidateCache } from "@/lib/clientCache";
 import Sidebar from "@/components/Sidebar";
 
@@ -81,7 +81,7 @@ function SourceBadge({ source }: { source: Order["source"] }) {
   );
 }
 
-type ShipCarrier = "ameex" | "eagle";
+type ShipCarrier = "eagle";
 
 type CatalogProduct = {
   id: string;
@@ -130,24 +130,14 @@ export default function CommandesPage() {
 
   // Shipping modal
   const [shipModal, setShipModal] = useState(false);
-  const [shipCarrier, setShipCarrier] = useState<ShipCarrier>("eagle");
+  const shipCarrier: ShipCarrier = "eagle";
   const [shipping, setShipping] = useState(false);
   const [shipResults, setShipResults] = useState<{ id: string; ok: boolean; msg: string }[]>([]);
-  const [ameexCities, setAmeexCities] = useState<{ id: string; name: string }[]>([]);
-  const [ameexRealIds, setAmeexRealIds] = useState<Set<string>>(new Set()); // IDs confirmed from real Ameex API
-  const [syncingCities, setSyncingCities] = useState(false);
-  const [syncCityMsg, setSyncCityMsg] = useState<{ ok: boolean; text: string } | null>(null);
-  const [syncingStatuses, setSyncingStatuses] = useState(false);
   const [syncingEagle, setSyncingEagle] = useState(false);
-  const [cityOverrides, setCityOverrides] = useState<Record<string, string>>({}); // orderId → cityId (Ameex) or city name (Eagle)
+  const [cityOverrides, setCityOverrides] = useState<Record<string, string>>({}); // orderId → city name (Eagle)
   const [eagleAddressOverrides, setEagleAddressOverrides] = useState<Record<string, string>>({}); // orderId → address override for Eagle
   const [eagleCities, setEagleCities] = useState<{ id: string; name: string }[]>(AMEEX_CITIES_FALLBACK); // seeded with Moroccan cities; replaced by Eagle API data on load
   const [eagleCitySearch, setEagleCitySearch] = useState<Record<string, string>>({}); // orderId → search text
-  const [ameexShipType, setAmeexShipType] = useState<"SIMPLE"|"STOCK">("SIMPLE");
-  const [ameexDepots, setAmeexDepots] = useState<{ id: string; name: string }[]>([]);
-  const [ameexDepot, setAmeexDepot] = useState<string>("");
-  const [ameexProductIds, setAmeexProductIds] = useState<Record<string, string>>({}); // orderId → ameex product id
-  const [ameexStockProducts, setAmeexStockProducts] = useState<{ id: string; ref: string; name: string }[]>([]); // Ameex warehouse products
   const [carrierStatus, setCarrierStatus] = useState<{ loading: boolean; text: string | null; ok: boolean }>({ loading: false, text: null, ok: true });
 
 
@@ -220,72 +210,7 @@ export default function CommandesPage() {
     return () => window.removeEventListener("new-orders", handler);
   }, [fetchOrders]);
 
-  function normalizeKey(s: string) {
-    return s.toLowerCase().trim().normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/\s+/g, " ");
-  }
-  function mergeCities(base: {id:string;name:string}[], extra: {id:string;name:string}[]) {
-    const map = new Map(base.map(c => [normalizeKey(c.name), c]));
-    // extra (API) overrides fallback on name collision
-    for (const c of extra) map.set(normalizeKey(c.name), c);
-    // Also deduplicate by city ID (in case same ID appears with different spellings)
-    const byId = new Map<string, {id:string;name:string}>();
-    for (const c of map.values()) {
-      if (!byId.has(c.id)) byId.set(c.id, c);
-    }
-    return Array.from(byId.values()).sort((a, b) => a.name.localeCompare(b.name, "fr"));
-  }
 
-  // ── Load Ameex cities once on mount ──────────────────────────────────────
-  useEffect(() => {
-
-    // 1. Start with hardcoded fallback
-    let cities = [...AMEEX_CITIES_FALLBACK];
-
-    // 2. Merge localStorage cache on top (real API IDs override fallback IDs)
-    try {
-      const cached = localStorage.getItem("codcrm_ameex_cities");
-      if (cached) {
-        const parsed: {id:string;name:string}[] = JSON.parse(cached);
-        if (parsed?.length) {
-          cities = mergeCities(cities, parsed);
-          setAmeexRealIds(new Set(parsed.map(c => c.id)));
-        }
-      }
-    } catch { /* ignore */ }
-    setAmeexCities(cities);
-
-    // 3. Load preferences + refresh from API
-    fetch("/api/settings").then(r => r.json()).then(async d => {
-      const ameexCfg = d.settings?.ameex ?? {};
-      const pref = d.settings?.ameexShipPref ?? {};
-      const savedType = ameexCfg.defaultType ?? pref.type;
-      const savedDepot = ameexCfg.depotId ?? pref.depot;
-      if (savedType) setAmeexShipType(savedType);
-      if (savedDepot) setAmeexDepot(savedDepot);
-
-      const creds = d.settings?.ameex ?? {};
-      if (!creds.apiId) return;
-      const cd = await fetch("/api/ameex", {
-        method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: "cities", apiId: creds.apiId, apiKey: creds.apiKey }),
-      }).then(r => r.json());
-      const raw: unknown[] = Array.isArray(cd) ? cd
-        : cd?.api?.cities && typeof cd.api.cities === "object" && !Array.isArray(cd.api.cities)
-          ? Object.values(cd.api.cities as Record<string, unknown>)
-        : Array.isArray(cd?.api?.data) ? cd.api.data
-        : Array.isArray(cd?.data) ? cd.data
-        : Array.isArray(cd?.cities) ? cd.cities
-        : Array.isArray(cd?.result) ? cd.result
-        : [];
-      const list: {id:string;name:string}[] = raw.map((c) => { const r = c as Record<string,unknown>; return { id: String(r.id ?? r.city_id ?? ""), name: String(r.name ?? r.city_name ?? r.ville ?? "") }; }).filter((c) => c.id && c.name);
-      if (list.length) {
-        const merged = mergeCities(AMEEX_CITIES_FALLBACK, list);
-        setAmeexCities(merged);
-        setAmeexRealIds(new Set(list.map(c => c.id)));
-        try { localStorage.setItem("codcrm_ameex_cities", JSON.stringify(list)); } catch { /* ignore */ }
-      }
-    }).catch(() => {});
-  }, []);
 
   function setStatus(id: string, status: OrderStatus) {
     // Block confirmation if city is missing
@@ -463,12 +388,8 @@ export default function CommandesPage() {
     setShipResults([]);
     setCityOverrides({});
     setEagleCitySearch({});
-    setAmeexProductIds({});
-    setSyncCityMsg(null);
     if (ids) setSelected(new Set(ids));
     setShipModal(true);
-    // Sync Ameex cities from API on every modal open
-    syncAmeexCities();
     // Load Eagle Express cities if not yet loaded
     // Always try to load Eagle cities from API (overwrites fallback with Eagle's exact names)
     try {
@@ -493,102 +414,6 @@ export default function CommandesPage() {
         if (cities.length) setEagleCities(cities);
       }
     } catch { /* keep fallback */ }
-    // Also load Ameex config (type, depot)
-    try {
-      const settingsData = await fetch("/api/settings").then(r => r.json());
-      const creds = settingsData.settings?.ameex ?? {};
-      if (creds.defaultType) setAmeexShipType(creds.defaultType);
-      if (creds.depotId) setAmeexDepot(creds.depotId);
-      if (creds.apiId) {
-
-        // Load stock depots via /Stock/Depots (GET) — gives us hub IDs for this account
-        let resolvedDepotId = creds.depotId ?? ameexDepot ?? "";
-        try {
-          const sd = await fetch("/api/ameex", {
-            method: "POST", headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ action: "stocks", apiId: creds.apiId, apiKey: creds.apiKey }),
-          }).then(r => r.json());
-          // Also try /Delivery/Depots if stocks empty
-          const rawSD: unknown[] = Array.isArray(sd) ? sd
-            : Array.isArray(sd?.api?.data) ? sd.api.data
-            : Array.isArray(sd?.data) ? sd.data
-            : Array.isArray(sd?.result) ? sd.result
-            : [];
-          const depotList = rawSD.map((h: unknown) => {
-            const hub = h as Record<string,unknown>;
-            return {
-              id: String(hub.id ?? hub.depot_id ?? hub.ID ?? hub.HUB_ID ?? ""),
-              name: String(hub.name ?? hub.depot_name ?? hub.Name ?? hub.HUB_NAME ?? hub.label ?? ""),
-            };
-          }).filter(h => h.id && h.name);
-          if (depotList.length) {
-            setAmeexDepots(depotList);
-            if (!resolvedDepotId) {
-              resolvedDepotId = depotList[0].id;
-              setAmeexDepot(depotList[0].id);
-            }
-          }
-        } catch { /* silent */ }
-
-        // If /Stock/Depots returned nothing, try /Delivery/Depots
-        if (!ameexDepots.length) {
-          try {
-            const dd = await fetch("/api/ameex", {
-              method: "POST", headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ action: "depots", apiId: creds.apiId, apiKey: creds.apiKey }),
-            }).then(r => r.json());
-            const rawDD: unknown[] = Array.isArray(dd) ? dd
-              : Array.isArray(dd?.api?.data) ? dd.api.data
-              : Array.isArray(dd?.data) ? dd.data
-              : [];
-            const depList = rawDD.map((h: unknown) => {
-              const hub = h as Record<string,unknown>;
-              return {
-                id: String(hub.id ?? hub.depot_id ?? hub.ID ?? ""),
-                name: String(hub.name ?? hub.depot_name ?? hub.Name ?? hub.label ?? ""),
-              };
-            }).filter(h => h.id && h.name);
-            if (depList.length) {
-              setAmeexDepots(depList);
-              if (!resolvedDepotId) { resolvedDepotId = depList[0].id; setAmeexDepot(depList[0].id); }
-            }
-          } catch { /* silent */ }
-        }
-
-        // Load stock products — pass depot ID so Ameex can filter by hub
-        const hubForProducts = resolvedDepotId || "34";
-        try {
-          const sp = await fetch("/api/ameex", {
-            method: "POST", headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              action: "stockProducts",
-              apiId: creds.apiId,
-              apiKey: creds.apiKey,
-              depot: hubForProducts,
-              hub: hubForProducts,
-              p_hub: hubForProducts,
-            }),
-          }).then(r => r.json());
-          // Response shape: {api:{data:[{id,ref,name,...}]}} or [{id,ref,...}]
-          const rawSP: unknown[] = Array.isArray(sp) ? sp
-            : Array.isArray(sp?.api?.data) ? sp.api.data
-            : Array.isArray(sp?.data) ? sp.data
-            : Array.isArray(sp?.result) ? sp.result
-            : [];
-          const spList = rawSP.map((p: unknown) => {
-            const pr = p as Record<string,unknown>;
-            return {
-              id:   String(pr.id   ?? pr.product_id ?? pr.ID ?? ""),
-              ref:  String(pr.ref  ?? pr.Ref ?? pr.sku ?? pr.SKU ?? pr.reference ?? pr.REF ?? ""),
-              name: String(pr.name ?? pr.Name ?? pr.label ?? pr.product_name ?? pr.NAME ?? ""),
-            };
-          }).filter(p => p.id);
-          if (spList.length) setAmeexStockProducts(spList);
-        } catch { /* silent */ }
-
-      }
-    } catch { /* silent */ }
-
   }
 
   async function checkCarrierStatus(order: Order) {
@@ -597,206 +422,18 @@ export default function CommandesPage() {
     try {
       const settingsData = await fetch("/api/settings").then(r => r.json());
       const s = settingsData.settings ?? {};
-      const carrier = order.carrierName ?? (s.ameex?.apiId ? "ameex" : "eagle");
       let statusText = "";
-      if (carrier === "ameex" || !order.carrierName) {
-        const creds = s.ameex ?? {};
-        const d = await fetch("/api/ameex", {
-          method: "POST", headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ action: "trackParcel", apiId: creds.apiId, apiKey: creds.apiKey, barcode: order.carrierTracking, code: order.carrierTracking }),
-        }).then(r => r.json());
-        const nested = d?.api?.data ?? d?.data ?? null;
-        const st = nested?.status ?? nested?.statut ?? nested?.state ?? nested?.etat ?? d?.api?.type ?? d?.status ?? "";
-        const msg = nested?.message ?? nested?.msg ?? nested?.description ?? d?.message ?? "";
-        statusText = [st, msg].filter(Boolean).join(" — ");
-
-        if (!statusText) {
-          // Re-fetch fresh from DB — webhook may have updated it since last load
-          const fresh = await fetch("/api/orders").then(r => r.json()).catch(() => ({}));
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          const freshOrder = (fresh.orders ?? []).find((o: any) => o.id === order.id);
-          const freshStatus = freshOrder?.carrier_status ?? freshOrder?.carrierStatus ?? null;
-          if (freshStatus) {
-            statusText = freshStatus;
-            setOrders(prev => prev.map(o => o.id === order.id ? { ...o, carrierStatus: freshStatus } : o));
-          } else {
-            statusText = "En attente d'une mise à jour Ameex — le statut s'affichera automatiquement dès qu'Ameex enverra une notification.";
-          }
-        }
-      } else {
-        const creds = s.eagle ?? {};
-        const d = await fetch("/api/eagle", {
-          method: "POST", headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ action: "track", tk: creds.tk, sk: creds.sk, code: order.carrierTracking }),
-        }).then(r => r.json());
-        const entry = Array.isArray(d) ? d[0] : d;
-        statusText = entry?.status ?? entry?.statut ?? entry?.message ?? JSON.stringify(d).slice(0, 100);
-      }
+      const creds = s.eagle ?? {};
+      const d = await fetch("/api/eagle", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "track", tk: creds.tk, sk: creds.sk, code: order.carrierTracking }),
+      }).then(r => r.json());
+      const entry = Array.isArray(d) ? d[0] : d;
+      statusText = entry?.status ?? entry?.statut ?? entry?.message ?? JSON.stringify(d).slice(0, 100);
       setCarrierStatus({ loading: false, text: statusText || "Aucun statut retourné", ok: true });
     } catch (e) {
       setCarrierStatus({ loading: false, text: `Erreur: ${String(e).slice(0, 60)}`, ok: false });
     }
-  }
-
-  // Sync real Ameex city IDs from API — called on modal open and via sync button
-  async function syncAmeexCities() {
-    setSyncingCities(true);
-    setSyncCityMsg(null);
-    try {
-      const settingsData = await fetch("/api/settings").then(r => r.json());
-      const creds = settingsData.settings?.ameex ?? {};
-      if (!creds.apiId) {
-        setSyncCityMsg({ ok: false, text: "Identifiants Ameex non configurés — allez dans Intégrations → Ameex" });
-        setSyncingCities(false);
-        return;
-      }
-      const cd = await fetch("/api/ameex", {
-        method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: "cities", apiId: creds.apiId, apiKey: creds.apiKey }),
-      }).then(r => r.json());
-      // Ameex returns: {"login":"success","api":{"cities":{"1":{id,name,...},"2":{...}}}}
-      // cd.api.cities is an OBJECT keyed by city ID, not an array
-      const rawC: unknown[] = Array.isArray(cd) ? cd
-        : cd?.api?.cities && typeof cd.api.cities === "object" && !Array.isArray(cd.api.cities)
-          ? Object.values(cd.api.cities as Record<string, unknown>)
-        : Array.isArray(cd?.api?.cities) ? cd.api.cities
-        : Array.isArray(cd?.api?.data) ? cd.api.data
-        : cd?.data?.cities && typeof cd.data.cities === "object" && !Array.isArray(cd.data.cities)
-          ? Object.values(cd.data.cities as Record<string, unknown>)
-        : Array.isArray(cd?.data?.cities) ? cd.data.cities
-        : Array.isArray(cd?.data) ? cd.data
-        : Array.isArray(cd?.cities) ? cd.cities
-        : Array.isArray(cd?.result) ? cd.result
-        : [];
-      const cityList = (rawC as Record<string,unknown>[]).map(c => ({
-        id: String(c.id ?? c.city_id ?? c.ID ?? c.CITY_ID ?? ""),
-        name: String(c.name ?? c.city_name ?? c.ville ?? c.Name ?? c.CITY_NAME ?? c.VILLE ?? ""),
-      })).filter(c => c.id && c.name);
-      if (cityList.length) {
-        const merged = mergeCities(AMEEX_CITIES_FALLBACK, cityList);
-        setAmeexCities(merged);
-        setAmeexRealIds(new Set(cityList.map(c => c.id)));
-        try { localStorage.setItem("codcrm_ameex_cities", JSON.stringify(cityList)); } catch { /* */ }
-        setSyncCityMsg({ ok: true, text: `✓ ${cityList.length} villes chargées depuis Ameex` });
-      } else {
-        setSyncCityMsg({ ok: false, text: `Ameex a répondu mais sans villes (réponse: ${JSON.stringify(cd).slice(0, 120)})` });
-      }
-    } catch (e) {
-      setSyncCityMsg({ ok: false, text: `Erreur réseau: ${String(e).slice(0, 80)}` });
-    }
-    setSyncingCities(false);
-  }
-
-  // Pull current statuses from Ameex and update all matching CRM orders
-  async function syncAmeexStatuses() {
-    setSyncingStatuses(true);
-    try {
-      const s = await fetch("/api/settings").then(r => r.json()).then(d => d.settings ?? {}).catch(() => ({}));
-      const c = s.ameex;
-      if (!c?.apiId) { showToast("Identifiants Ameex non configurés", false); setSyncingStatuses(false); return; }
-
-      const AMEEX_CRM_MAP: Record<string, string> = {
-        DELIVERED: "livré", LIVRÉ: "livré", LIVRE: "livré",
-        DISTRIBUTION: "expédié", IN_PROGRESS: "expédié", PICKED_UP: "expédié",
-        COLLECTED: "expédié", RAMASSE: "expédié",
-        RETURNED: "retourné", RETURN: "retourné", RETURN_PROGRESS: "retourné",
-        HORS_ZONE: "retourné", OUT_OF_ZONE: "retourné",
-        CANCELLED: "annulé", CANCELED: "annulé", LOST: "annulé", PERDU: "annulé",
-      };
-
-      const expOrders = orders.filter(o => o.status === "expédié");
-      if (!expOrders.length) { showToast("Aucune commande expédiée à synchroniser"); setSyncingStatuses(false); return; }
-
-      // Step 1: fetch full parcel list from Ameex (to find tracking codes for orders that don't have one)
-      let ameexByCode = new Map<string, Record<string, unknown>>();
-      let ameexByPhone = new Map<string, Record<string, unknown>>();
-      try {
-        // Fetch SIMPLE + STOCK in parallel — Ameex requires type param to return anything
-        const depotId = c.depotId || "34";
-        const [rSimple, rStock] = await Promise.all([
-          fetch("/api/ameex", { method: "POST", headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ action: "listParcels", apiId: c.apiId, apiKey: c.apiKey, type: "SIMPLE" }) }).then(r => r.json()),
-          fetch("/api/ameex", { method: "POST", headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ action: "listParcels", apiId: c.apiId, apiKey: c.apiKey, type: "STOCK", p_hub: depotId }) }).then(r => r.json()),
-        ]);
-        function toArr(d: unknown): Record<string, unknown>[] {
-          if (Array.isArray(d)) return d as Record<string, unknown>[];
-          const dd = d as Record<string, Record<string, unknown>>;
-          if (Array.isArray(dd?.api?.data)) return dd.api.data as Record<string, unknown>[];
-          if (Array.isArray((d as Record<string,unknown>)?.data)) return (d as Record<string,unknown>).data as Record<string, unknown>[];
-          return [];
-        }
-        for (const p of [...toArr(rSimple), ...toArr(rStock)]) {
-          const code = String(p.code ?? p.barcode ?? p.id ?? "").trim();
-          const phone = String(p.phone ?? p.receiver_phone ?? p.tel ?? "").replace(/\D/g, "").slice(-9);
-          if (code) ameexByCode.set(code.toUpperCase(), p);
-          if (phone) ameexByPhone.set(phone, p);
-        }
-      } catch { /* listParcels failed — continue with trackParcel fallback */ }
-
-      let updated = 0;
-      const patchPromises: Promise<void>[] = [];
-
-      for (const order of expOrders) {
-        try {
-          let parcel: Record<string, unknown> | null = null;
-
-          // If we have a tracking code, try trackParcel first
-          if (order.carrierTracking) {
-            const key = order.carrierTracking.trim().toUpperCase();
-            parcel = ameexByCode.get(key) ?? null;
-
-            if (!parcel) {
-              // trackParcel per-order for the specific code
-              const d = await fetch("/api/ameex", {
-                method: "POST", headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ action: "trackParcel", apiId: c.apiId, apiKey: c.apiKey, code: order.carrierTracking }),
-              }).then(r => r.json()).catch(() => ({}));
-              const raw = d?.api?.data ?? d?.data ?? d ?? {};
-              parcel = (Array.isArray(raw) ? raw[raw.length - 1] : raw) as Record<string, unknown>;
-            }
-          } else {
-            // No tracking code — try to match by phone number from Ameex list
-            const phone = (order.phone ?? "").replace(/\D/g, "").slice(-9);
-            if (phone) parcel = ameexByPhone.get(phone) ?? null;
-          }
-
-          if (!parcel) continue;
-
-          const statusRaw = String(
-            parcel?.status ?? parcel?.statut ?? parcel?.etat ?? parcel?.state ?? ""
-          ).trim().toUpperCase();
-          const statusName = String(
-            parcel?.status_name ?? parcel?.statut_name ?? parcel?.label ?? statusRaw
-          ).trim();
-          const trackingCode = String(parcel?.code ?? parcel?.barcode ?? parcel?.id ?? "").trim();
-
-          const crmStatus = AMEEX_CRM_MAP[statusRaw];
-          const newCarrierStatus = statusName || statusRaw;
-          const newTracking = !order.carrierTracking && trackingCode ? trackingCode : order.carrierTracking;
-
-          if (!crmStatus && !newTracking) continue;
-          const targetStatus = (crmStatus ?? order.status) as OrderStatus;
-          if (targetStatus === order.status && newCarrierStatus === order.carrierStatus && newTracking === order.carrierTracking) continue;
-
-          updated++;
-          setOrders(prev => prev.map(o => o.id === order.id
-            ? { ...o, status: targetStatus, carrierStatus: newCarrierStatus, carrierName: "ameex", ...(newTracking ? { carrierTracking: newTracking } : {}) }
-            : o));
-          patchPromises.push(
-            fetch("/api/orders", { method: "PATCH", headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ id: order.id, status: targetStatus, carrierStatus: newCarrierStatus, carrierName: "ameex", ...(newTracking ? { carrierTracking: newTracking } : {}) }),
-            }).then(() => {}).catch(() => {})
-          );
-        } catch { /* skip this order on error */ }
-      }
-
-      await Promise.all(patchPromises);
-      showToast(updated > 0 ? `${updated} commande(s) mise(s) à jour ✓` : "Statuts déjà à jour");
-    } catch (e) {
-      showToast(`Erreur sync: ${String(e).slice(0, 60)}`, false);
-    }
-    setSyncingStatuses(false);
   }
 
   // Pull current statuses from Eagle Express and update matching CRM orders
@@ -876,10 +513,10 @@ export default function CommandesPage() {
     try {
       const settingsData = await fetch("/api/settings").then(r => r.json());
       const s = settingsData.settings ?? {};
-      creds = shipCarrier === "ameex" ? (s.ameex ?? {}) : (s.eagle ?? {});
+      creds = s.eagle ?? {};
     } catch { /* no creds */ }
     // Fallback: Eagle creds may have been saved in standalone /eagle page (localStorage)
-    if (shipCarrier === "eagle" && !creds.tk) {
+    if (!creds.tk) {
       try {
         const stored = localStorage.getItem("eagle_creds");
         if (stored) { const parsed = JSON.parse(stored); if (parsed?.tk) creds = parsed; }
@@ -887,77 +524,18 @@ export default function CommandesPage() {
     }
 
     // Guard: Eagle Express requires tk + sk
-    if (shipCarrier === "eagle" && (!creds.tk || !creds.sk)) {
+    if (!creds.tk || !creds.sk) {
       setShipResults([{ id: "error", ok: false, msg: "Identifiants Eagle Express manquants — configurez tk et sk dans Intégrations → Eagle Express." }]);
       setShipping(false);
       return;
     }
-
-    // Resolve ship type + depot: prefer fresh settings > UI state
-    const shipType: string = creds.defaultType ?? ameexShipType ?? "SIMPLE";
-    const depotId: string  = creds.depotId     ?? ameexDepot    ?? "";
 
     const results: { id: string; ok: boolean; msg: string }[] = [];
 
     for (const order of selectedOrders) {
       try {
         let res: Response;
-        if (shipCarrier === "ameex") {
-          // City: override from ship modal > smart multi-strategy resolver > raw value
-          const cityRaw   = (order.city ?? "").trim();
-          const overrideVal = cityOverrides[order.id] ?? "";
-          const autoId = resolveAmeexCityId(cityRaw, ameexCities);
-          const resolvedId = overrideVal || autoId || "";
-          const cityId = resolvedId || cityRaw;
-          if (!cityId) {
-            results.push({ id: order.id, ok: false, msg: "Veuillez choisir une ville dans la liste" });
-            continue;
-          }
-          res = await fetch("/api/ameex", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              action: "addParcel",
-              apiId: creds.apiId ?? "",
-              apiKey: creds.apiKey ?? "",
-              // Correct Ameex field names (confirmed by API test)
-              receiver: order.customer,
-              phone: order.phone,
-              city: cityId,
-              address: order.address || order.city,
-              cod: order.amount,
-              product: order.product,
-              order_num: order.orderNumber || order.id.slice(-8),
-              comment: "",
-              type: shipType,
-              ...(shipType === "STOCK" ? (() => {
-                const hub = depotId || "34";
-                // Resolve product Réf: manual input > auto-match from CRM catalog SKU
-                const manualVal = ameexProductIds[order.id]?.trim() ?? "";
-                const autoSku = (() => {
-                  const m = catalog.find(p =>
-                    p.name.toLowerCase() === (order.product ?? "").toLowerCase() ||
-                    (order.product ?? "").toLowerCase().includes(p.name.toLowerCase()) ||
-                    p.name.toLowerCase().includes((order.product ?? "").toLowerCase())
-                  );
-                  return m?.sku ?? "";
-                })();
-                const resolvedRef = manualVal || autoSku;
-                // Ameex expects "goods" field in format "REF:QTY" (confirmed from Ameex JS source)
-                // e.g. "23336-0-39854-1055-ND:1"
-                const goodsValue = resolvedRef ? resolvedRef + ":1" : "";
-                return {
-                  p_hub: hub,
-                  ...(goodsValue ? { goods: goodsValue } : {}),
-                };
-              })() : {}),
-              open: "NO",
-              try: "NO",
-              fragile: "0",
-              replace: "false",
-            }),
-          });
-        } else {
+        {
           const eagleCity = cityOverrides[order.id] || order.city || "";
           const eagleAddress = eagleAddressOverrides[order.id] || order.address || eagleCity;
           res = await fetch("/api/eagle", {
@@ -982,15 +560,13 @@ export default function CommandesPage() {
           });
         }
         const data = await res.json();
-        // Ameex wraps response: {login:"success", api:{type:"success", msg:"...", data:{id:..., code:"..."}}}
-        const nested = data?.api?.data ?? data?.data ?? null;
-        const trackingCode = nested?.code ?? nested?.id ?? data.code ?? data.CODE ?? data.tracking ?? data.barcode ?? data.id ?? data.parcel_id ?? null;
+        const trackingCode = data.code ?? data.CODE ?? data.tracking ?? data.barcode ?? data.id ?? data.parcel_id ?? null;
         // Eagle returns {message:"success"} or similar on success
         const eagleOk = data?.message?.toLowerCase?.()?.includes("success") || data?.status?.toLowerCase?.()?.includes("success");
-        const ok = res.ok && (trackingCode != null || data?.api?.type === "success" || eagleOk);
+        const ok = res.ok && (trackingCode != null || eagleOk);
         if (ok) {
           // Single atomic PATCH: status + tracking + carrierName together
-          const patchBody: Record<string, unknown> = { id: order.id, status: "expédié", carrierName: shipCarrier };
+          const patchBody: Record<string, unknown> = { id: order.id, status: "expédié", carrierName: "eagle" };
           if (trackingCode) patchBody.carrierTracking = String(trackingCode);
           fetch("/api/orders", {
             method: "PATCH",
@@ -998,10 +574,10 @@ export default function CommandesPage() {
             body: JSON.stringify(patchBody),
           }).catch(() => {});
           setOrders(prev => prev.map(o => o.id === order.id
-            ? { ...o, status: "expédié", carrierName: shipCarrier, ...(trackingCode ? { carrierTracking: String(trackingCode) } : {}) }
+            ? { ...o, status: "expédié", carrierName: "eagle", ...(trackingCode ? { carrierTracking: String(trackingCode) } : {}) }
             : o));
           setDrawer(prev => prev?.id === order.id
-            ? { ...prev, status: "expédié", carrierName: shipCarrier, ...(trackingCode ? { carrierTracking: String(trackingCode) } : {}) }
+            ? { ...prev, status: "expédié", carrierName: "eagle", ...(trackingCode ? { carrierTracking: String(trackingCode) } : {}) }
             : prev);
         }
         // Show full response detail for debugging
@@ -1048,7 +624,6 @@ export default function CommandesPage() {
   const needsCall = counts["nouveau"];
   const confirmedCount = counts["confirmé"];
   const eagleExpédiéCount = orders.filter(o => o.status === "expédié" && (o.carrierName === "eagle" || (!o.carrierName && o.carrierTracking))).length;
-  const ameexExpédiéCount = orders.filter(o => o.status === "expédié" && o.carrierName === "ameex").length;
 
   // Repeat customer detection: count orders per phone number
   const phoneCounts = orders.reduce((acc, o) => {
@@ -1076,13 +651,6 @@ export default function CommandesPage() {
                 className="flex items-center gap-1.5 text-sm font-semibold px-3 py-2.5 rounded-xl border border-amber-200 bg-amber-50 text-amber-700 hover:bg-amber-100 disabled:opacity-50 transition-colors whitespace-nowrap">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} className={`w-4 h-4 ${syncingEagle ? "animate-spin" : ""}`}><path d="M23 4v6h-6M1 20v-6h6"/><path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15"/></svg>
                 <span className="hidden sm:inline">{syncingEagle ? "Sync…" : `Sync Eagle (${eagleExpédiéCount})`}</span>
-              </button>
-            )}
-            {ameexExpédiéCount > 0 && (
-              <button onClick={syncAmeexStatuses} disabled={syncingStatuses}
-                className="flex items-center gap-1.5 text-sm font-semibold px-3 py-2.5 rounded-xl border border-blue-200 bg-blue-50 text-blue-700 hover:bg-blue-100 disabled:opacity-50 transition-colors whitespace-nowrap">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} className={`w-4 h-4 ${syncingStatuses ? "animate-spin" : ""}`}><path d="M23 4v6h-6M1 20v-6h6"/><path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15"/></svg>
-                <span className="hidden sm:inline">{syncingStatuses ? "Sync…" : `Sync Ameex (${ameexExpédiéCount})`}</span>
               </button>
             )}
             {confirmedCount > 0 && (
@@ -1554,7 +1122,7 @@ export default function CommandesPage() {
                     className="w-full text-sm border border-slate-200 rounded-xl px-4 py-2.5 outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-50" />
                 </div>
               ))}
-              {/* City — searchable Ameex dropdown */}
+              {/* City — searchable dropdown */}
               <div className="relative">
                 <label className="text-xs font-semibold text-slate-600 mb-1 block">Ville</label>
                 <input type="text" placeholder="Rechercher ville…"
@@ -1563,9 +1131,9 @@ export default function CommandesPage() {
                   onFocus={() => setShowCityDrop(true)}
                   onBlur={() => setTimeout(() => setShowCityDrop(false), 150)}
                   className="w-full text-sm border border-slate-200 rounded-xl px-4 py-2.5 outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-50" />
-                {showCityDrop && ameexCities.filter(c => c.name.toLowerCase().includes(citySearch.toLowerCase())).length > 0 && (
+                {showCityDrop && eagleCities.filter(c => c.name.toLowerCase().includes(citySearch.toLowerCase())).length > 0 && (
                   <div className="absolute z-50 top-full mt-1 left-0 right-0 bg-white border border-slate-200 rounded-xl shadow-lg overflow-hidden max-h-44 overflow-y-auto">
-                    {ameexCities.filter(c => !citySearch || c.name.toLowerCase().includes(citySearch.toLowerCase())).map(c => (
+                    {eagleCities.filter(c => !citySearch || c.name.toLowerCase().includes(citySearch.toLowerCase())).map(c => (
                       <button key={c.id} type="button" onMouseDown={() => { setForm(f => ({ ...f, city: c.name })); setCitySearch(c.name); setShowCityDrop(false); }}
                         className="w-full text-left px-3 py-2 text-sm hover:bg-blue-50 transition-colors flex items-center justify-between">
                         <span>{c.name}</span><span className="text-xs text-slate-400">#{c.id}</span>
@@ -1744,7 +1312,7 @@ export default function CommandesPage() {
                 );
               })()}
               <p className="text-xs text-slate-400">
-                Les identifiants API de {shipCarrier === "ameex" ? "Ameex" : "Eagle Express"} doivent être configurés dans la page Intégrations.
+                Les identifiants API de Eagle Express doivent être configurés dans la page Intégrations.
               </p>
             </div>
 
@@ -1754,33 +1322,12 @@ export default function CommandesPage() {
                 Fermer
               </button>
               {(() => {
-                const hasRealIds = ameexRealIds.size > 0;
                 const failedIds = new Set(shipResults.filter(r => !r.ok).map(r => r.id));
-                const ordersToSend = shipResults.length > 0
-                  ? orders.filter(o => failedIds.has(o.id))
-                  : orders.filter(o => selected.has(o.id));
-                const hasUnresolved = shipCarrier === "ameex" && ordersToSend.some(o => {
-                  const override = cityOverrides[o.id];
-                  if (hasRealIds) {
-                    // Strict: must be a confirmed real Ameex ID
-                    if (override && ameexRealIds.has(override)) return false;
-                    const autoId = resolveAmeexCityId(o.city ?? "", ameexCities) ?? "";
-                    if (autoId && ameexRealIds.has(autoId)) return false;
-                    return true;
-                  } else {
-                    // No sync yet — require at least an explicit selection
-                    if (override) return false;
-                    const autoId = resolveAmeexCityId(o.city ?? "", ameexCities) ?? "";
-                    if (autoId) return false;
-                    return true;
-                  }
-                });
                 if (shipResults.length > 0 && failedIds.size === 0) return null;
                 return (
                   <button
                     onClick={() => shipResults.length > 0 ? sendToCarrier(failedIds) : sendToCarrier()}
-                    disabled={shipping || (shipResults.length === 0 && selected.size === 0) || hasUnresolved}
-                    title={hasUnresolved ? "Sélectionnez la ville pour chaque commande" : ""}
+                    disabled={shipping || (shipResults.length === 0 && selected.size === 0)}
                     className="flex-1 py-3 rounded-xl bg-indigo-600 hover:bg-indigo-700 disabled:opacity-60 disabled:cursor-not-allowed text-white text-sm font-bold shadow-md shadow-indigo-200 transition-colors">
                     {shipping ? "Envoi en cours…" : shipResults.length > 0 ? `Réessayer ${failedIds.size} échoué(s) →` : `Envoyer ${selected.size} colis →`}
                   </button>
@@ -1832,7 +1379,7 @@ export default function CommandesPage() {
                         className="w-full text-sm border border-slate-200 rounded-xl px-3 py-2 outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-50 bg-white" />
                     </div>
                   ))}
-                  {/* City — searchable Ameex dropdown */}
+                  {/* City — searchable dropdown */}
                   <div className="relative">
                     <label className="text-xs font-semibold text-slate-500 mb-1 block">Ville</label>
                     <input type="text" placeholder="Rechercher ville…"
@@ -1841,9 +1388,9 @@ export default function CommandesPage() {
                       onFocus={() => { setEditCitySearch(editForm.city); setShowEditCityDrop(true); }}
                       onBlur={() => setTimeout(() => setShowEditCityDrop(false), 150)}
                       className="w-full text-sm border border-slate-200 rounded-xl px-3 py-2 outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-50 bg-white" />
-                    {showEditCityDrop && ameexCities.filter(c => !editCitySearch || c.name.toLowerCase().includes(editCitySearch.toLowerCase())).length > 0 && (
+                    {showEditCityDrop && eagleCities.filter(c => !editCitySearch || c.name.toLowerCase().includes(editCitySearch.toLowerCase())).length > 0 && (
                       <div className="absolute z-50 top-full mt-1 left-0 right-0 bg-white border border-slate-200 rounded-xl shadow-lg overflow-hidden max-h-40 overflow-y-auto">
-                        {ameexCities.filter(c => !editCitySearch || c.name.toLowerCase().includes(editCitySearch.toLowerCase())).map(c => (
+                        {eagleCities.filter(c => !editCitySearch || c.name.toLowerCase().includes(editCitySearch.toLowerCase())).map(c => (
                           <button key={c.id} type="button" onMouseDown={() => { setEditForm(f => ({ ...f, city: c.name })); setEditCitySearch(c.name); setShowEditCityDrop(false); }}
                             className="w-full text-left px-3 py-2 text-sm hover:bg-blue-50 transition-colors flex items-center justify-between">
                             <span>{c.name}</span><span className="text-xs text-slate-400">#{c.id}</span>
@@ -1992,7 +1539,7 @@ export default function CommandesPage() {
                       <div className={`border rounded-2xl p-4 space-y-2 ${bgColor}`}>
                         <div className="flex items-center justify-between gap-2">
                           <div>
-                            <p className="text-xs font-semibold text-slate-400 uppercase tracking-wide">Suivi Ameex</p>
+                            <p className="text-xs font-semibold text-slate-400 uppercase tracking-wide">Suivi transporteur</p>
                             <p className="font-mono text-xs font-bold text-slate-500 mt-0.5">{drawer.carrierTracking}</p>
                           </div>
                           {cs && (
@@ -2004,7 +1551,7 @@ export default function CommandesPage() {
                         {cs ? (
                           <p className={`text-xs font-semibold ${textColor}`}>{cs}</p>
                         ) : (
-                          <p className="text-xs text-slate-400">Pas encore reçu — le statut s'affichera automatiquement au prochain changement Ameex.</p>
+                          <p className="text-xs text-slate-400">Pas encore reçu — le statut s'affichera automatiquement au prochain changement de statut.</p>
                         )}
                       </div>
                     );
@@ -2020,7 +1567,7 @@ export default function CommandesPage() {
               {/* Carrier tracking — show/edit for admins */}
               {isAdmin && (() => {
                 const hasTracking = !!drawer.carrierTracking;
-                const carrierLabel = drawer.carrierName === "ameex" ? "Ameex" : drawer.carrierName === "eagle" ? "Eagle Express" : drawer.carrierName ?? "";
+                const carrierLabel = drawer.carrierName === "eagle" ? "Eagle Express" : drawer.carrierName ?? "";
                 const cs = drawer.carrierStatus ?? "";
                 const sl = cs.toLowerCase();
                 const bgColor = sl.includes("livr") ? "bg-teal-50 border-teal-200"
@@ -2059,7 +1606,6 @@ export default function CommandesPage() {
                           <select value={trackEditCarrier} onChange={e => setTrackEditCarrier(e.target.value)}
                             className="text-xs border border-slate-200 rounded-lg px-2 py-1.5 outline-none focus:border-indigo-400 bg-white shrink-0">
                             <option value="eagle">Eagle Express</option>
-                            <option value="ameex">Ameex</option>
                           </select>
                           <input
                             type="text"
