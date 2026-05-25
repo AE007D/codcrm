@@ -1266,6 +1266,12 @@ export default function CommandesPage() {
                 </div>
               </div>
 
+              {/* Depuis stock badge */}
+              <div className="flex items-center gap-2 px-3 py-2 bg-emerald-50 border border-emerald-200 rounded-xl">
+                <span className="text-emerald-600 text-base">✅</span>
+                <span className="text-xs font-semibold text-emerald-700">Depuis stock activé</span>
+              </div>
+
               {/* Results */}
               {shipResults.length > 0 && (
                 <div className="space-y-2 max-h-56 overflow-y-auto">
