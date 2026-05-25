@@ -141,7 +141,7 @@ export default function CommandesPage() {
   const [syncingEagle, setSyncingEagle] = useState(false);
   const [cityOverrides, setCityOverrides] = useState<Record<string, string>>({}); // orderId → cityId (Ameex) or city name (Eagle)
   const [eagleAddressOverrides, setEagleAddressOverrides] = useState<Record<string, string>>({}); // orderId → address override for Eagle
-  const [eagleCities, setEagleCities] = useState<{ id: string; name: string }[]>([]); // Eagle Express city list
+  const [eagleCities, setEagleCities] = useState<{ id: string; name: string }[]>(AMEEX_CITIES_FALLBACK); // seeded with Moroccan cities; replaced by Eagle API data on load
   const [eagleCitySearch, setEagleCitySearch] = useState<Record<string, string>>({}); // orderId → search text
   const [ameexShipType, setAmeexShipType] = useState<"SIMPLE"|"STOCK">("SIMPLE");
   const [ameexDepots, setAmeexDepots] = useState<{ id: string; name: string }[]>([]);
@@ -470,22 +470,29 @@ export default function CommandesPage() {
     // Sync Ameex cities from API on every modal open
     syncAmeexCities();
     // Load Eagle Express cities if not yet loaded
-    if (eagleCities.length === 0) {
-      try {
-        const s = await fetch("/api/settings").then(r => r.json());
-        const creds = s.settings?.eagle ?? {};
-        if (creds.tk) {
-          const raw = await fetch("/api/eagle", {
-            method: "POST", headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ action: "cities", tk: creds.tk, sk: creds.sk }),
-          }).then(r => r.json());
-          const list = Array.isArray(raw) ? raw : Array.isArray(raw?.data) ? raw.data : [];
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          const cities = list.map((c: any) => ({ id: String(c.id ?? c.city_id ?? c.ID ?? ""), name: String(c.name ?? c.city_name ?? c.ville ?? c.City ?? "") })).filter((c: { id: string; name: string }) => c.name);
-          if (cities.length) setEagleCities(cities);
-        }
-      } catch { /* silent */ }
-    }
+    // Always try to load Eagle cities from API (overwrites fallback with Eagle's exact names)
+    try {
+      const s = await fetch("/api/settings").then(r => r.json());
+      const creds = s.settings?.eagle ?? {};
+      if (creds.tk) {
+        const raw = await fetch("/api/eagle", {
+          method: "POST", headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ action: "cities", tk: creds.tk, sk: creds.sk }),
+        }).then(r => r.json());
+        // Eagle cities.php may return: array, {data:[...]}, {cities:[...]}, {result:[...]}
+        const list: unknown[] = Array.isArray(raw) ? raw
+          : Array.isArray(raw?.data) ? raw.data
+          : Array.isArray(raw?.cities) ? raw.cities
+          : Array.isArray(raw?.result) ? raw.result
+          : [];
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const cities = list.map((c: any) => ({
+          id: String(c.id ?? c.city_id ?? c.ID ?? ""),
+          name: String(c.name ?? c.city_name ?? c.ville ?? c.City ?? c.city ?? ""),
+        })).filter((c: { id: string; name: string }) => c.name);
+        if (cities.length) setEagleCities(cities);
+      }
+    } catch { /* keep fallback */ }
     // Also load Ameex config (type, depot)
     try {
       const settingsData = await fetch("/api/settings").then(r => r.json());
@@ -582,28 +589,6 @@ export default function CommandesPage() {
       }
     } catch { /* silent */ }
 
-    // Pre-load Eagle Express cities if not already loaded
-    if (!eagleCities.length) {
-      try {
-        const settingsData = await fetch("/api/settings").then(r => r.json());
-        const ec = settingsData.settings?.eagle ?? {};
-        if (ec.tk) {
-          const raw = await fetch("/api/eagle", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ action: "cities", tk: ec.tk, sk: ec.sk }),
-          }).then(r => r.json());
-          const list = Array.isArray(raw) ? raw : Array.isArray(raw?.data) ? raw.data : [];
-          const cities = list
-            .map((c: Record<string, unknown>) => ({
-              id: String(c.id ?? c.city_id ?? c.ID ?? ""),
-              name: String(c.name ?? c.city_name ?? c.ville ?? c.City ?? ""),
-            }))
-            .filter((c: { id: string; name: string }) => c.name);
-          if (cities.length) setEagleCities(cities);
-        }
-      } catch { /* silent */ }
-    }
   }
 
   async function checkCarrierStatus(order: Order) {
