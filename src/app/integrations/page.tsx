@@ -15,10 +15,6 @@ async function patchSettings(patch: Record<string, unknown>) {
 }
 
 /* ── helpers ── */
-async function ameexCall(action: string, c: Creds, extra: Record<string, unknown> = {}) {
-  const r = await fetch("/api/ameex", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action, apiId: c.apiId, apiKey: c.apiKey, ...extra }) });
-  return r.json();
-}
 async function eagleCall(action: string, c: EagleCreds, extra: Record<string, unknown> = {}) {
   const r = await fetch("/api/eagle", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action, tk: c.tk, sk: c.sk, ...extra }) });
   return r.json();
@@ -76,7 +72,6 @@ function LogoAvatar({ logo, fallback, color, size = "sm" }: { logo?: string; fal
 const INTEGRATIONS = [
   { id: "lightfunnels",   label: "Lightfunnels",    category: "source",   color: "bg-orange-500",  desc: "Webhook order/created v2",    logo: "https://lightfunnels.com/favicon.ico" },
   { id: "shopify",        label: "Shopify",          category: "source",   color: "bg-emerald-600", desc: "Webhook orders/create",        logo: "https://www.shopify.com/favicon.ico" },
-  { id: "ameex",          label: "Ameex",            category: "shipping", color: "bg-blue-700",    desc: "API · ameex.ma",               logo: "https://ameex.ma/favicon.ico" },
   { id: "eagle",          label: "Eagle Express",    category: "shipping", color: "bg-amber-500",   desc: "API · eagleexpress.ma",        logo: "https://eagleexpress.ma/favicon.ico" },
   { id: "facebook-ads",   label: "Facebook Ads",     category: "ads",      color: "bg-blue-600",    desc: "Graph API · Meta Business",    logo: "https://www.facebook.com/favicon.ico" },
   { id: "tiktok-ads",     label: "TikTok Ads",       category: "ads",      color: "bg-slate-900",   desc: "Marketing API · TikTok",       logo: "https://www.tiktok.com/favicon.ico" },
@@ -90,17 +85,6 @@ export default function IntegrationsPage() {
   const [toast, setToast] = useState<{ msg: string; ok: boolean } | null>(null);
 
   function showToast(msg: string, ok = true) { setToast({ msg, ok }); setTimeout(() => setToast(null), 3000); }
-
-  /* Ameex state */
-  type AmeexCreds = Creds & { defaultType?: string; depotId?: string };
-  const [ameex, setAmeex] = useState<AmeexCreds>({ apiId: "", apiKey: "", defaultType: "SIMPLE", depotId: "" });
-  const [ameexSaved, setAmeexSaved] = useState<AmeexCreds | null>(null);
-  const [ameexParcels, setAmeexParcels] = useState<Parcel[]>([]);
-  const [ameexForm, setAmeexForm] = useState({ receiver: "", phone: "", city: "", address: "", cod: "", product: "", order_num: "", comment: "", type: "SIMPLE", open: "NO", try: "NO", fragile: "0", replace: "false" });
-  const [ameexTab, setAmeexTab] = useState<"config"|"add"|"parcels"|"track"|"cities"|"stock">("config");
-  const [ameexTrack, setAmeexTrack] = useState(""); const [ameexTrackRes, setAmeexTrackRes] = useState<Parcel | null>(null);
-  const [ameexCities, setAmeexCities] = useState<Parcel[]>([]); const [ameexCitySearch, setAmeexCitySearch] = useState(""); const [ameexCitiesRaw, setAmeexCitiesRaw] = useState<string>("");
-  const [ameexStockDebug, setAmeexStockDebug] = useState<{ depots: string; products: string; trackCode: string; trackResult: string }>({ depots: "", products: "", trackCode: "", trackResult: "" });
 
   /* Eagle state */
   const [eagle, setEagle] = useState<EagleCreds>({ tk: "", sk: "" });
@@ -121,10 +105,6 @@ export default function IntegrationsPage() {
   const webhookUrl = typeof window !== "undefined"
     ? `${window.location.origin}/api/webhooks/lightfunnels${currentWorkspaceId ? `?uid=${currentWorkspaceId}` : ""}`
     : "https://yourapp.com/api/webhooks/lightfunnels";
-  const ameexWebhookUrl = typeof window !== "undefined"
-    ? `${window.location.origin}/api/webhooks/ameex`
-    : "https://yourapp.com/api/webhooks/ameex";
-
   /* Shopify state */
   const [shopify, setShopify] = useState({ store: "", apiKey: "" });
   const [shopifySaved, setShopifySaved] = useState<{ store: string; apiKey: string } | null>(null);
@@ -141,7 +121,6 @@ export default function IntegrationsPage() {
   useEffect(() => {
     fetch("/api/settings").then(r => r.json()).then(d => {
       const s = d.settings ?? {};
-      if (s.ameex)            { setAmeexSaved(s.ameex);         setAmeex(s.ameex); }
       if (s.eagle)            { setEagleSaved(s.eagle);          setEagle(s.eagle); }
       if (s.shopify)          { setShopifySaved(s.shopify);      setShopify(s.shopify); }
       if (s.facebook)         { setFbAdsSaved(s.facebook);       setFbAds(s.facebook); }
@@ -157,60 +136,6 @@ export default function IntegrationsPage() {
   useEffect(() => { fetchLF(); const t = setInterval(fetchLF, 5000); return () => clearInterval(t); }, [fetchLF]);
 
   const [loading, setLoading] = useState(false);
-
-  /* Ameex actions */
-  function saveAmeex() { if (!ameex.apiId || !ameex.apiKey) { showToast("API ID et API Key requis.", false); return; } patchSettings({ ameex }).then(() => { setAmeexSaved(ameex); showToast("Ameex connecté ✓"); }); }
-  const loadAmeexParcels = useCallback(async () => {
-    if (!ameexSaved) return;
-    setLoading(true);
-    // Try both SIMPLE and STOCK types — Ameex requires type parameter
-    const [dSimple, dStock] = await Promise.all([
-      ameexCall("listParcels", ameexSaved, { type: "SIMPLE" }),
-      ameexCall("listParcels", ameexSaved, { type: "STOCK" }),
-    ]);
-    setLoading(false);
-    function toList(d: unknown): Parcel[] {
-      if (Array.isArray(d)) return d as Parcel[];
-      const dd = d as Record<string, Record<string, unknown>>;
-      if (Array.isArray(dd?.api?.data)) return dd.api.data as Parcel[];
-      if (Array.isArray(dd?.api?.parcels)) return dd.api.parcels as Parcel[];
-      if (Array.isArray((d as Record<string,unknown>)?.data)) return (d as Record<string,unknown>).data as Parcel[];
-      if (Array.isArray((d as Record<string,unknown>)?.parcels)) return (d as Record<string,unknown>).parcels as Parcel[];
-      return [];
-    }
-    const list = [...toList(dSimple), ...toList(dStock)];
-    if (list.length) {
-      setAmeexParcels(list);
-    } else {
-      showToast(`Aucun colis — SIMPLE: ${JSON.stringify(dSimple).slice(0,80)} | STOCK: ${JSON.stringify(dStock).slice(0,80)}`, false);
-    }
-  }, [ameexSaved]);
-  const loadAmeexCities = useCallback(async () => {
-    if (!ameexSaved) { showToast("Configurez Ameex d'abord.", false); return; }
-    setLoading(true);
-    const d = await ameexCall("cities", ameexSaved);
-    setLoading(false);
-    setAmeexCitiesRaw(JSON.stringify(d, null, 2));
-    // Ameex returns cities as an object keyed by ID: {"api":{"cities":{"1":{...},"2":{...}}}}
-    const raw: unknown[] = Array.isArray(d) ? d
-      : d?.api?.cities && typeof d.api.cities === "object" && !Array.isArray(d.api.cities)
-        ? Object.values(d.api.cities as Record<string, unknown>)
-      : Array.isArray(d?.api?.cities) ? d.api.cities
-      : Array.isArray(d?.api?.data) ? d.api.data
-      : Array.isArray(d?.data) ? d.data
-      : Array.isArray(d?.cities) ? d.cities
-      : Array.isArray(d?.result) ? d.result
-      : [];
-    const parsedCities = raw.map((c) => { const r = c as Record<string,unknown>; return { id: String(r.id ?? r.city_id ?? ""), name: String(r.name ?? r.city_name ?? r.ville ?? "") }; }).filter(c => c.id && c.name);
-    if (parsedCities.length) {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      setAmeexCities(parsedCities as any);
-      // Also cache in localStorage for commandes page
-      try { localStorage.setItem("codcrm_ameex_cities", JSON.stringify(parsedCities)); } catch { /* */ }
-    }
-  }, [ameexSaved]);
-  async function addAmeex() { if (!ameexSaved) { showToast("Configurez Ameex d'abord.", false); return; } if (!ameexForm.receiver || !ameexForm.phone || !ameexForm.city || !ameexForm.address || !ameexForm.cod) { showToast("Champs obligatoires manquants.", false); return; } setLoading(true); const d = await ameexCall("addParcel", ameexSaved, { ...ameexForm }); setLoading(false); const nested = d?.api?.data ?? d?.data ?? null; const trackCode = nested?.code ?? nested?.id ?? d?.code ?? d?.id ?? d?.tracking ?? d?.barcode; const ok = trackCode != null || d?.api?.type === "success" || d?.status === "success"; const errMsg = d?.api?.msg ?? d?.message ?? JSON.stringify(d); const label = ok ? `Colis créé ✓ — ${trackCode ?? d?.api?.msg ?? "OK"}` : `Erreur: ${errMsg}`; showToast(label, ok); if (ok) setAmeexForm({ receiver: "", phone: "", city: "", address: "", cod: "", product: "", order_num: "", comment: "", type: "SIMPLE", open: "NO", try: "NO", fragile: "0", replace: "false" }); }
-  async function trackAmeex() { if (!ameexSaved || !ameexTrack) return; setLoading(true); const d = await ameexCall("trackParcel", ameexSaved, { code: ameexTrack }); setLoading(false); if (d && !d.error) setAmeexTrackRes(d); else showToast(d?.message || "Introuvable.", false); }
 
   /* Eagle actions */
   function saveEagle() { if (!eagle.tk || !eagle.sk) { showToast("Token et Secret Key requis.", false); return; } patchSettings({ eagle }).then(() => { setEagleSaved(eagle); showToast("Eagle Express connecté ✓"); }); }
@@ -284,13 +209,9 @@ export default function IntegrationsPage() {
   /* TikTok Ads save */
   function saveTiktokAds() { if (!tiktokAds.accessToken || !tiktokAds.advertiserId) { showToast("Access Token et Advertiser ID requis.", false); return; } patchSettings({ tiktok: tiktokAds }).then(() => { setTiktokAdsSaved(tiktokAds); showToast("TikTok Ads connecté ✓"); }); }
 
-  useEffect(() => {
-    if (active === "ameex" && ameexTab === "parcels") loadAmeexParcels();
-    if (active === "ameex" && ameexTab === "cities" && ameexCities.length === 0) loadAmeexCities();
-  }, [active, ameexTab, loadAmeexParcels, loadAmeexCities, ameexCities.length]);
   useEffect(() => { if (active === "eagle" && eagleTab === "parcels") loadEagleParcels(); if (active === "eagle" && eagleTab === "cities" && eagleCities.length === 0) loadEagleCities(); }, [active, eagleTab, loadEagleParcels, loadEagleCities, eagleCities.length]);
 
-  const connected: Record<string, boolean> = { lightfunnels: lfEvents > 0, shopify: !!shopifySaved?.store, ameex: !!ameexSaved?.apiId, eagle: !!eagleSaved?.tk, "facebook-ads": !!fbAdsSaved?.accessToken, "tiktok-ads": !!tiktokAdsSaved?.accessToken };
+  const connected: Record<string, boolean> = { lightfunnels: lfEvents > 0, shopify: !!shopifySaved?.store, eagle: !!eagleSaved?.tk, "facebook-ads": !!fbAdsSaved?.accessToken, "tiktok-ads": !!tiktokAdsSaved?.accessToken };
   const sources  = INTEGRATIONS.filter(i => i.category === "source");
   const shippers = INTEGRATIONS.filter(i => i.category === "shipping");
   const adsInteg = INTEGRATIONS.filter(i => i.category === "ads");
@@ -465,230 +386,6 @@ export default function IntegrationsPage() {
                     </div>
                   ))}
                 </div>
-              </div>
-            )}
-
-            {/* ── AMEEX ── */}
-            {active === "ameex" && (
-              <div className="max-w-2xl space-y-4">
-                <div className="flex items-center gap-3 mb-2">
-                  <LogoAvatar logo="https://ameex.ma/favicon.ico" fallback="A" color="bg-blue-700" size="lg" />
-                  <div><h2 className="font-bold text-slate-900 text-lg">Ameex</h2><p className="text-xs text-slate-400">api.ameex.app · C-Api-Id / C-Api-Key</p></div>
-                  <Badge connected={connected.ameex} />
-                </div>
-                <div className="flex gap-2 flex-wrap">
-                  {(["config","add","parcels","track","cities","stock"] as const).map(t => (
-                    <button key={t} onClick={() => setAmeexTab(t)} className={`text-sm font-semibold px-4 py-2 rounded-xl transition-colors ${ameexTab === t ? "bg-blue-700 text-white shadow-md shadow-blue-200" : "bg-white text-slate-500 border border-slate-200 hover:bg-slate-50"}`}>
-                      {t === "config" ? "⚙️ Config" : t === "add" ? "➕ Ajouter" : t === "parcels" ? `📦 Colis${ameexParcels.length ? ` (${ameexParcels.length})` : ""}` : t === "track" ? "🔍 Track" : t === "cities" ? "🏙️ Villes" : "🏭 Stock Debug"}
-                    </button>
-                  ))}
-                </div>
-                {ameexTab === "config" && (
-                  <div className="bg-white rounded-2xl border border-slate-100 p-6 space-y-3">
-                    {[{key:"apiId",label:"API ID (C-Api-Id)",ph:"Votre API ID"},{key:"apiKey",label:"API Key (C-Api-Key)",ph:"Votre API Key",pw:true}].map(f => (
-                      <div key={f.key}><label className="text-xs font-semibold text-slate-600 mb-1 block">{f.label}</label>
-                        <input type={f.pw ? "password" : "text"} placeholder={f.ph} value={ameex[f.key as keyof Creds]} onChange={e => setAmeex(c => ({ ...c, [f.key]: e.target.value }))} className="w-full text-sm border border-slate-200 rounded-xl px-4 py-2.5 outline-none focus:border-blue-400 font-mono" />
-                      </div>
-                    ))}
-                    {/* Ship type preference */}
-                    <div>
-                      <label className="text-xs font-semibold text-slate-600 mb-2 block">Mode d&apos;envoi par défaut</label>
-                      <div className="grid grid-cols-2 gap-2">
-                        {([["SIMPLE","🚚 Ramassage"],["STOCK","🏭 Stock / Hub"]] as const).map(([val, lbl]) => (
-                          <button key={val} type="button" onClick={() => setAmeex(c => ({ ...c, defaultType: val }))}
-                            className={`py-2.5 rounded-xl border-2 text-sm font-semibold transition-all ${(ameex.defaultType ?? "SIMPLE") === val ? "border-blue-600 bg-blue-50 text-blue-700" : "border-slate-200 text-slate-500 hover:border-slate-300"}`}>
-                            {lbl}
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-                    {/* Depot ID — only shown for STOCK */}
-                    {(ameex.defaultType ?? "SIMPLE") === "STOCK" && (
-                      <div>
-                        <label className="text-xs font-semibold text-slate-600 mb-1 block">ID du dépôt / Hub Ameex</label>
-                        <input type="text" placeholder="Ex: 1 (Casablanca Hub Principal)"
-                          value={ameex.depotId ?? ""}
-                          onChange={e => setAmeex(c => ({ ...c, depotId: e.target.value }))}
-                          className="w-full text-sm border border-slate-200 rounded-xl px-4 py-2.5 outline-none focus:border-blue-400 font-mono" />
-                        <p className="text-xs text-slate-400 mt-1">Trouvez l&apos;ID dans Ameex → Villes ou contactez le support Ameex.</p>
-                      </div>
-                    )}
-                    <button onClick={saveAmeex} className="w-full py-2.5 bg-blue-700 hover:bg-blue-800 text-white font-semibold text-sm rounded-xl shadow-md shadow-blue-200 transition-colors">Sauvegarder</button>
-                    {/* Ameex webhook URL — must be configured in Ameex panel for auto status updates */}
-                    <div className="mt-4 pt-4 border-t border-slate-100">
-                      <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">URL Webhook à coller dans Ameex</p>
-                      <div className="flex items-center gap-2 bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5">
-                        <code className="flex-1 text-sm text-blue-700 font-mono break-all">{ameexWebhookUrl}</code>
-                        <CopyBtn text={ameexWebhookUrl} />
-                      </div>
-                      <p className="text-xs text-slate-400 mt-2">Ameex → Mon Compte → Webhooks → Ajouter cette URL pour recevoir les mises à jour de statut automatiquement.</p>
-                    </div>
-                  </div>
-                )}
-                {ameexTab === "add" && (
-                  <div className="bg-white rounded-2xl border border-slate-100 p-6">
-                    <div className="grid grid-cols-2 gap-3">
-                      {[{k:"receiver",l:"Destinataire *",ph:"Nom complet",full:true},{k:"phone",l:"Téléphone *",ph:"0612345678"},{k:"city",l:"ID Ville *",ph:"Ex: 1"},{k:"address",l:"Adresse *",ph:"Rue, ville",full:true},{k:"cod",l:"COD (MAD) *",ph:"350"},{k:"product",l:"Produit",ph:"Ex: Montre"},{k:"order_num",l:"N° commande",ph:"Optionnel"},{k:"comment",l:"Commentaire",ph:"Optionnel"}].map(({k,l,ph,full}) => (
-                        <div key={k} className={full ? "col-span-2" : ""}>
-                          <label className="text-xs font-semibold text-slate-600 mb-1 block">{l}</label>
-                          <input type="text" placeholder={ph} value={ameexForm[k as keyof typeof ameexForm]} onChange={e => setAmeexForm(f => ({...f,[k]:e.target.value}))} className="w-full text-sm border border-slate-200 rounded-xl px-4 py-2.5 outline-none focus:border-blue-400" />
-                        </div>
-                      ))}
-                      {[{k:"type",l:"Type",o:["SIMPLE","STOCK"]},{k:"open",l:"Ouverture",o:["NO","YES"]},{k:"try",l:"Essayage",o:["NO","YES"]},{k:"fragile",l:"Fragile",o:["0","1"]}].map(({k,l,o}) => (
-                        <div key={k}><label className="text-xs font-semibold text-slate-600 mb-1 block">{l}</label>
-                          <select value={ameexForm[k as keyof typeof ameexForm]} onChange={e => setAmeexForm(f => ({...f,[k]:e.target.value}))} className="w-full text-sm border border-slate-200 rounded-xl px-4 py-2.5 outline-none focus:border-blue-400">{o.map(x => <option key={x}>{x}</option>)}</select>
-                        </div>
-                      ))}
-                    </div>
-                    <button onClick={addAmeex} disabled={loading} className="mt-4 w-full py-2.5 bg-blue-700 hover:bg-blue-800 disabled:opacity-50 text-white font-semibold text-sm rounded-xl transition-colors">{loading ? "Ajout…" : "Créer le colis"}</button>
-                  </div>
-                )}
-                {ameexTab === "parcels" && (
-                  <div className="bg-white rounded-2xl border border-slate-100">
-                    <div className="px-5 py-3 border-b border-slate-100 flex justify-between items-center"><span className="font-semibold text-slate-800">Colis Ameex</span><button onClick={loadAmeexParcels} className="text-xs px-3 py-1.5 border border-slate-200 rounded-lg text-slate-500 hover:bg-slate-50">{loading?"…":"↻ Actualiser"}</button></div>
-                    {ameexParcels.length === 0 ? <p className="text-center py-10 text-slate-400 text-sm">{loading?"Chargement…":"Aucun colis."}</p> : (
-                      <table className="w-full text-sm"><thead><tr className="text-xs text-slate-400 border-b">{["Code","Destinataire","Produit","COD","Statut"].map(h=><th key={h} className="text-left px-5 py-2 font-semibold uppercase tracking-wide">{h}</th>)}</tr></thead>
-                      <tbody>{ameexParcels.map((p,i)=><tr key={i} className="border-b border-slate-50 hover:bg-slate-50/60"><td className="px-5 py-3 font-mono text-xs text-slate-400">{String(p.code??p.barcode??p.id??"—")}</td><td className="px-5 py-3 font-semibold text-slate-800">{String(p.receiver??p.name??"—")}</td><td className="px-5 py-3 text-slate-500 truncate max-w-[120px]">{String(p.product??"—")}</td><td className="px-5 py-3 font-bold">{String(p.cod??p.price??"—")} MAD</td><td className="px-5 py-3"><span className="px-2 py-0.5 text-xs font-semibold bg-blue-50 text-blue-700 rounded-lg">{String(p.status??p.state??"—")}</span></td></tr>)}</tbody>
-                      </table>
-                    )}
-                  </div>
-                )}
-                {ameexTab === "track" && (
-                  <div className="bg-white rounded-2xl border border-slate-100 p-5 space-y-4">
-                    <div className="flex gap-2">
-                      <input type="text" placeholder="Code de suivi Ameex" value={ameexTrack} onChange={e=>setAmeexTrack(e.target.value)} onKeyDown={e=>e.key==="Enter"&&trackAmeex()} className="flex-1 text-sm border border-slate-200 rounded-xl px-4 py-2.5 outline-none focus:border-blue-400 font-mono" />
-                      <button onClick={trackAmeex} className="px-4 py-2.5 bg-blue-700 text-white text-sm font-semibold rounded-xl">{loading?"…":"Suivre"}</button>
-                    </div>
-                    {ameexTrackRes && <div className="space-y-1">{Object.entries(ameexTrackRes).map(([k,v])=><div key={k} className="flex justify-between text-sm border-b border-slate-50 pb-1"><span className="text-slate-400">{k}</span><span className="font-semibold text-slate-800">{String(v)}</span></div>)}</div>}
-                  </div>
-                )}
-                {ameexTab === "cities" && (
-                  <div className="space-y-3">
-                    <div className="bg-white rounded-2xl border border-slate-100">
-                      <div className="px-5 py-3 border-b flex items-center gap-3 flex-wrap">
-                        <span className="font-semibold text-slate-800">Villes Ameex</span>
-                        <input type="text" placeholder="Rechercher…" value={ameexCitySearch} onChange={e=>setAmeexCitySearch(e.target.value)} className="w-44 text-sm border border-slate-200 rounded-xl px-3 py-1.5 outline-none focus:border-blue-400" />
-                        <button onClick={loadAmeexCities} className="ml-auto text-xs px-3 py-1.5 border border-slate-200 rounded-lg text-slate-500 hover:bg-slate-50">{loading?"…":"↻ Actualiser"}</button>
-                      </div>
-                      {ameexCities.length === 0 ? (
-                        <div className="py-10 text-center text-slate-400 text-sm space-y-3">
-                          <p>{loading ? "Chargement…" : "Aucune ville retournée par l'API."}</p>
-                          {!loading && ameexCitiesRaw && (
-                            <details className="text-left mx-5">
-                              <summary className="cursor-pointer text-xs text-blue-600 font-semibold">Voir réponse brute de l&apos;API</summary>
-                              <pre className="mt-2 text-xs bg-slate-50 border border-slate-200 rounded-xl p-4 overflow-auto max-h-60 text-slate-700">{ameexCitiesRaw}</pre>
-                            </details>
-                          )}
-                        </div>
-                      ) : (
-                        <>
-                          <table className="w-full text-sm">
-                            <thead><tr className="text-xs text-slate-400 border-b"><th className="text-left px-5 py-2 font-semibold uppercase tracking-wide">ID</th><th className="text-left px-5 py-2 font-semibold uppercase tracking-wide">Ville</th><th className="text-left px-5 py-2 font-semibold uppercase tracking-wide">Région</th><th className="text-right px-5 py-2 font-semibold uppercase tracking-wide">Copier</th></tr></thead>
-                            <tbody>
-                              {ameexCities
-                                .filter(c => {
-                                  const q = ameexCitySearch.toLowerCase();
-                                  return !q || String(c.name??c.city_name??c.ville??"").toLowerCase().includes(q) || String(c.id??c.city_id??"").includes(q);
-                                })
-                                .map((c,i) => (
-                                  <tr key={i} className="border-b border-slate-50 hover:bg-slate-50/60">
-                                    <td className="px-5 py-2.5 font-mono text-xs font-bold text-blue-700">{String(c.id??c.city_id??"—")}</td>
-                                    <td className="px-5 py-2.5 font-medium text-slate-800">{String(c.name??c.city_name??c.ville??"—")}</td>
-                                    <td className="px-5 py-2.5 text-xs text-slate-400">{String(c.region??c.zone??c.area??"")}</td>
-                                    <td className="px-5 py-2.5 text-right"><button onClick={()=>{navigator.clipboard.writeText(String(c.id??c.city_id??""));}} className="text-xs px-2 py-1 bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100 font-semibold">ID</button></td>
-                                  </tr>
-                                ))
-                              }
-                            </tbody>
-                          </table>
-                          {ameexCitiesRaw && (
-                            <details className="px-5 pb-3 pt-1">
-                              <summary className="cursor-pointer text-xs text-slate-400 hover:text-blue-600">Voir réponse brute</summary>
-                              <pre className="mt-2 text-xs bg-slate-50 border border-slate-200 rounded-xl p-4 overflow-auto max-h-48 text-slate-600">{ameexCitiesRaw}</pre>
-                            </details>
-                          )}
-                        </>
-                      )}
-                    </div>
-                  </div>
-                )}
-                {ameexTab === "stock" && (
-                  <div className="bg-white rounded-2xl border border-slate-100 p-5 space-y-4">
-                    <p className="text-sm font-semibold text-slate-700">🔍 Diagnostic Stock Ameex — données brutes de vos colis STOCK existants</p>
-
-                    {/* Step 1: listParcels — see raw data of existing STOCK parcels with hub badge */}
-                    <button
-                      onClick={async () => {
-                        if (!ameexSaved) return;
-                        // Try every possible hub/depot param variant to find what works
-                        const hub = ameexSaved.depotId || "34";
-                        const r = await ameexCall("listParcels", ameexSaved, {
-                          type: "STOCK", p_hub: hub, hub, depot: hub, limit: 5, per_page: 5, page: 1,
-                        });
-                        setAmeexStockDebug(d => ({ ...d, depots: JSON.stringify(r, null, 2) }));
-                      }}
-                      className="w-full px-4 py-3 bg-blue-700 text-white text-sm font-semibold rounded-xl"
-                    >
-                      📦 Charger les 5 derniers colis STOCK (listParcels) — voir les champs réels
-                    </button>
-                    {ameexStockDebug.depots && (
-                      <div>
-                        <p className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">Réponse listParcels :</p>
-                        <pre className="text-xs bg-slate-50 border border-slate-200 rounded-xl p-4 overflow-auto max-h-80 text-slate-700 whitespace-pre-wrap">{ameexStockDebug.depots}</pre>
-                      </div>
-                    )}
-
-                    {/* Step 2: stockProducts with no extra params */}
-                    <button
-                      onClick={async () => {
-                        if (!ameexSaved) return;
-                        // Try without any extra params first, then with hub
-                        const r = await ameexCall("stockProducts", ameexSaved);
-                        setAmeexStockDebug(d => ({ ...d, products: JSON.stringify(r, null, 2) }));
-                      }}
-                      className="w-full px-4 py-3 bg-purple-600 text-white text-sm font-semibold rounded-xl"
-                    >
-                      📋 Charger produits stock (/Stock/Products — sans paramètre hub)
-                    </button>
-                    {ameexStockDebug.products && (
-                      <div>
-                        <p className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">Réponse stockProducts :</p>
-                        <pre className="text-xs bg-slate-50 border border-slate-200 rounded-xl p-4 overflow-auto max-h-80 text-slate-700 whitespace-pre-wrap">{ameexStockDebug.products}</pre>
-                      </div>
-                    )}
-
-                    {/* Step 3: trackParcel with different field variants */}
-                    <div className="border-t pt-3 space-y-2">
-                      <p className="text-xs font-bold text-slate-500 uppercase tracking-wider">Tracker un colis STOCK (essayer plusieurs noms de champ) :</p>
-                      <div className="flex gap-2">
-                        <input
-                          type="text"
-                          placeholder="ex: CSA0526B23336LV6307977"
-                          value={ameexStockDebug.trackCode}
-                          onChange={e => setAmeexStockDebug(d => ({ ...d, trackCode: e.target.value }))}
-                          className="flex-1 text-sm border border-slate-200 rounded-xl px-3 py-2 outline-none focus:border-blue-400 font-mono"
-                        />
-                        <button
-                          onClick={async () => {
-                            if (!ameexSaved || !ameexStockDebug.trackCode) return;
-                            const c = ameexStockDebug.trackCode.trim();
-                            // Try all known field name variants for tracking code
-                            const r = await ameexCall("trackParcel", ameexSaved, {
-                              code: c, barcode: c, tracking: c, parcel_code: c, num: c, p_code: c,
-                            });
-                            setAmeexStockDebug(d => ({ ...d, trackResult: JSON.stringify(r, null, 2) }));
-                          }}
-                          className="px-4 py-2 bg-slate-700 text-white text-sm font-semibold rounded-xl"
-                        >
-                          Tracker
-                        </button>
-                      </div>
-                      {ameexStockDebug.trackResult && (
-                        <pre className="text-xs bg-slate-50 border border-slate-200 rounded-xl p-4 overflow-auto max-h-64 text-slate-700 whitespace-pre-wrap">{ameexStockDebug.trackResult}</pre>
-                      )}
-                    </div>
-                  </div>
-                )}
               </div>
             )}
 
