@@ -481,7 +481,7 @@ export default function CommandesPage() {
           }).then(r => r.json());
           const list = Array.isArray(raw) ? raw : Array.isArray(raw?.data) ? raw.data : [];
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          const cities = list.map((c: any) => ({ id: String(c.id ?? c.city_id ?? ""), name: String(c.name ?? c.city_name ?? c.ville ?? "") })).filter((c: { id: string; name: string }) => c.name);
+          const cities = list.map((c: any) => ({ id: String(c.id ?? c.city_id ?? c.ID ?? ""), name: String(c.name ?? c.city_name ?? c.ville ?? c.City ?? "") })).filter((c: { id: string; name: string }) => c.name);
           if (cities.length) setEagleCities(cities);
         }
       } catch { /* silent */ }
@@ -596,10 +596,10 @@ export default function CommandesPage() {
           const list = Array.isArray(raw) ? raw : Array.isArray(raw?.data) ? raw.data : [];
           const cities = list
             .map((c: Record<string, unknown>) => ({
-              id: String(c.id ?? c.city_id ?? ""),
-              name: String(c.name ?? c.city_name ?? c.ville ?? ""),
+              id: String(c.id ?? c.city_id ?? c.ID ?? ""),
+              name: String(c.name ?? c.city_name ?? c.ville ?? c.City ?? ""),
             }))
-            .filter((c: { id: string; name: string }) => c.id && c.name);
+            .filter((c: { id: string; name: string }) => c.name);
           if (cities.length) setEagleCities(cities);
         }
       } catch { /* silent */ }
@@ -1846,33 +1846,43 @@ export default function CommandesPage() {
                   <div className="space-y-2">
                     <p className="text-xs font-semibold text-slate-500">🏙 Sélectionnez la ville et vérifiez l&apos;adresse :</p>
                     {selectedOrders.map(o => {
-                      const search = eagleCitySearch[o.id] ?? cityOverrides[o.id] ?? o.city ?? "";
-                      const filtered = eagleCities.length
-                        ? eagleCities.filter(c => c.name.toLowerCase().includes(search.toLowerCase())).slice(0, 6)
+                      // search is only active while the user is typing — cleared after city pick
+                      const search = eagleCitySearch[o.id] ?? "";
+                      const confirmedCity = cityOverrides[o.id] || o.city || "";
+                      // dropdown only shows while actively searching
+                      const filtered = eagleCities.length && search.length > 0
+                        ? eagleCities.filter(c => c.name.toLowerCase().includes(search.toLowerCase())).slice(0, 8)
                         : [];
-                      const selectedCity = cityOverrides[o.id] ?? "";
+                      const isPicked = !!cityOverrides[o.id]; // user explicitly chose from list
                       return (
                         <div key={o.id} className="p-2 rounded-xl border border-slate-200 bg-slate-50 space-y-1.5">
                           <p className="text-xs font-semibold text-slate-700 truncate">{o.customer}</p>
                           <div className="relative">
                             <input
                               type="text"
-                              placeholder={eagleCities.length ? "Rechercher une ville..." : "Ville (ex: Casablanca)"}
-                              value={eagleCitySearch[o.id] ?? selectedCity ?? o.city ?? ""}
+                              placeholder="Tapez pour chercher une ville…"
+                              // while typing show search text; once picked (search cleared) show chosen city
+                              value={search || confirmedCity}
                               onChange={e => {
-                                setEagleCitySearch(prev => ({ ...prev, [o.id]: e.target.value }));
-                                setCityOverrides(prev => ({ ...prev, [o.id]: e.target.value }));
+                                const v = e.target.value;
+                                setEagleCitySearch(prev => ({ ...prev, [o.id]: v }));
+                                // only update override when free-typing (not from list pick)
+                                setCityOverrides(prev => ({ ...prev, [o.id]: v }));
                               }}
-                              className={`w-full text-xs border rounded-lg px-2 py-1.5 outline-none focus:border-amber-400 bg-white ${selectedCity ? "border-emerald-400" : "border-amber-300"}`}
+                              className={`w-full text-xs border rounded-lg px-2 py-1.5 pr-6 outline-none focus:border-amber-400 bg-white ${isPicked ? "border-emerald-400" : "border-amber-300"}`}
                             />
-                            {filtered.length > 0 && (eagleCitySearch[o.id] ?? "").length > 0 && (
-                              <div className="absolute z-50 left-0 right-0 top-full mt-0.5 bg-white border border-slate-200 rounded-xl shadow-lg max-h-40 overflow-y-auto">
+                            {isPicked && !search && (
+                              <span className="absolute right-2 top-1/2 -translate-y-1/2 text-emerald-500 text-xs">✓</span>
+                            )}
+                            {filtered.length > 0 && (
+                              <div className="absolute z-50 left-0 right-0 top-full mt-0.5 bg-white border border-slate-200 rounded-xl shadow-lg max-h-44 overflow-y-auto">
                                 {filtered.map(c => (
-                                  <button key={c.id} type="button"
+                                  <button key={c.id || c.name} type="button"
                                     className="w-full text-left px-3 py-2 text-xs hover:bg-amber-50 text-slate-700 font-medium"
                                     onClick={() => {
                                       setCityOverrides(prev => ({ ...prev, [o.id]: c.name }));
-                                      setEagleCitySearch(prev => ({ ...prev, [o.id]: c.name }));
+                                      // clear search so dropdown closes and input shows the picked city
+                                      setEagleCitySearch(prev => ({ ...prev, [o.id]: "" }));
                                     }}>
                                     {c.name}
                                   </button>
