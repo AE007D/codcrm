@@ -39,8 +39,9 @@ export async function POST(request: NextRequest) {
     try { parsed = JSON.parse(text); } catch { parsed = { message: text, raw: true }; }
 
     const p = parsed as Record<string, unknown>;
-    if (p?.message && String(p.message).toLowerCase().includes("missing")) {
-      return NextResponse.json({ ...p, _sentKeys: sentKeys });
+    console.log(`Eagle ${action} ← HTTP ${fetchRes.status} — body: ${text.slice(0, 300)}`);
+    if (p?.message && (String(p.message).toLowerCase().includes("missing") || String(p.message).toLowerCase().includes("empty"))) {
+      return NextResponse.json({ ...p, _sentKeys: sentKeys, _rawBody: text.slice(0, 500) });
     }
 
     return NextResponse.json(parsed);

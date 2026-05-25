@@ -545,12 +545,13 @@ export default function CommandesPage() {
               action: "add",
               tk: creds.tk ?? "",
               sk: creds.sk ?? "",
-              fullname: order.customer || "—",
-              phone: (order.phone || "").replace(/\s+/g, ""),
+              code: order.orderNumber || order.id.slice(-8),
+              fullname: order.customer || "Client",
+              phone: (order.phone || "0600000000").replace(/\s+/g, ""),
               city: eagleCity || "Casablanca",
-              address: eagleAddress || eagleCity || "—",
+              address: eagleAddress || eagleCity || "Casablanca",
               price: String(order.amount ?? "0"),
-              product: order.product || "Produit",
+              product: (order.product || "Produit").slice(0, 100),
               qty: "1",
               note: order.orderNumber || order.id.slice(-8),
               change: "0",
@@ -586,9 +587,11 @@ export default function CommandesPage() {
         const friendlyEagleMsg = (() => {
           if (!apiMsg || ok) return apiMsg;
           const m = apiMsg.toLowerCase();
-          if (m.includes("some parameter") || m.includes("parameter are missing") || m.includes("parameter missing")) {
-            return `Eagle erreur: ${apiMsg} | envoyé: ${(data as Record<string,unknown>)._sentKeys ?? "?"}`;
-
+          if (m.includes("some parameter") || m.includes("parameter are missing") || m.includes("parameter missing") || m.includes("parameter") && m.includes("empty")) {
+            const d2 = data as Record<string,unknown>;
+            const keys = d2._sentKeys ?? "?";
+            const raw = d2._rawBody ? ` | réponse: ${String(d2._rawBody).slice(0,200)}` : "";
+            return `Eagle: ${apiMsg} | clés envoyées: ${keys}${raw}`;
           }
           if (m.includes("permission") || m.includes("403")) {
             return "Accès refusé par Eagle Express — vérifiez vos identifiants API (tk/sk) dans Intégrations";
