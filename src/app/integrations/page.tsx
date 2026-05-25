@@ -96,6 +96,7 @@ export default function IntegrationsPage() {
   const [eagleCities, setEagleCities] = useState<Parcel[]>([]); const [citySearch, setCitySearch] = useState("");
   const [eagleApiStatus, setEagleApiStatus] = useState<"unknown"|"ok"|"broken">("unknown");
   const [eagleApiTesting, setEagleApiTesting] = useState(false);
+  const [eagleApiRaw, setEagleApiRaw] = useState<string>("");
 
   /* LF state */
   const [lfOrders, setLfOrders] = useState<LFOrder[]>([]);
@@ -178,15 +179,32 @@ export default function IntegrationsPage() {
   async function testEagleApiStatus() {
     if (!eagleSaved) return;
     setEagleApiTesting(true);
+    setEagleApiRaw("");
     try {
-      // Use list endpoint (read-only GET) — safer than add, no risk of creating test parcels
-      const d = await eagleCall("list", eagleSaved, { per_page: "1", page: "1" });
+      // Probe addcolis with a full realistic test order (won't be saved — Eagle rejects incomplete/test orders)
+      const d = await eagleCall("add", eagleSaved, {
+        code: "TEST-0000",
+        fullname: "Test Client",
+        phone: "0600000000",
+        city: "Casablanca",
+        address: "Casablanca",
+        price: "1",
+        product: "Test",
+        qty: "1",
+        note: "TEST-0000",
+        change: "0",
+        openpackage: "0",
+        stock: "1",
+      });
+      const raw = JSON.stringify(d);
+      setEagleApiRaw(raw);
       const msg = String(d?.message ?? "").toLowerCase();
-      if (Array.isArray(d) || Array.isArray(d?.data)) {
+      if (msg.includes("success") || msg.includes("added")) {
         setEagleApiStatus("ok");
-      } else if (msg.includes("permission") || msg.includes("403") || msg.includes("unauthorized") || msg.includes("invalid token")) {
+      } else if (msg.includes("account") && (msg.includes("exist") || msg.includes("disabled"))) {
         setEagleApiStatus("broken");
-      } else if (msg.includes("parameter")) {
+      } else if (msg.includes("missing") || msg.includes("empty")) {
+        // Parameters were received but Eagle still complained — show raw for debug
         setEagleApiStatus("broken");
       } else {
         setEagleApiStatus("ok");
@@ -417,17 +435,15 @@ export default function IntegrationsPage() {
                       <div className={`rounded-xl p-3 text-sm flex items-start gap-3 ${eagleApiStatus === "ok" ? "bg-emerald-50 border border-emerald-200" : eagleApiStatus === "broken" ? "bg-red-50 border border-red-200" : "bg-slate-50 border border-slate-200"}`}>
                         <span className="text-lg shrink-0">{eagleApiStatus === "ok" ? "✅" : eagleApiStatus === "broken" ? "❌" : "🔍"}</span>
                         <div className="flex-1">
-                          {eagleApiStatus === "ok" && <p className="font-semibold text-emerald-700">API Eagle Express opérationnelle</p>}
+                          {eagleApiStatus === "ok" && <p className="font-semibold text-emerald-700">API Eagle Express opérationnelle ✓</p>}
                           {eagleApiStatus === "broken" && (
                             <>
-                              <p className="font-semibold text-red-700">Accès API refusé</p>
-                              <p className="text-red-600 text-xs mt-1">
-                                Eagle Express refuse les requêtes avec ces identifiants. Votre accès API est peut-être désactivé.
-                                Contactez Eagle Express : WhatsApp <strong>0690666093</strong> · <strong>eagleexpress@gmail.com</strong>
-                              </p>
+                              <p className="font-semibold text-red-700">Erreur addcolis</p>
+                              {eagleApiRaw && <p className="text-red-600 text-xs mt-1 font-mono break-all">{eagleApiRaw}</p>}
+                              {!eagleApiRaw && <p className="text-red-600 text-xs mt-1">Eagle Express refuse les requêtes — vérifiez vos identifiants.</p>}
                             </>
                           )}
-                          {eagleApiStatus === "unknown" && <p className="text-slate-500">Cliquez &quot;Tester l&apos;API&quot; pour vérifier l&apos;accès à l&apos;endpoint addcolis.php</p>}
+                          {eagleApiStatus === "unknown" && <p className="text-slate-500">Cliquez &quot;Tester l&apos;API&quot; pour diagnostiquer l&apos;endpoint addcolis.php</p>}
                         </div>
                         <button onClick={testEagleApiStatus} disabled={eagleApiTesting} className="shrink-0 text-xs px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-slate-600 hover:bg-slate-50 disabled:opacity-50">
                           {eagleApiTesting ? "Test…" : "Tester l'API"}
