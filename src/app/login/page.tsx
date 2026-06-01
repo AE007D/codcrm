@@ -95,7 +95,7 @@ export default function LoginPage() {
   const googleBtnRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    fetch("/api/auth/me").then(r => { if (r.ok) router.replace("/"); }).finally(() => setCheckingAuth(false));
+    fetch("/api/auth/me").then(r => { if (r.ok) router.replace("/dashboard"); }).finally(() => setCheckingAuth(false));
   }, [router]);
 
   const handleGoogleCredential = useCallback(async (credential: string) => {
@@ -107,7 +107,7 @@ export default function LoginPage() {
       });
       const data = await res.json();
       if (!res.ok) { setGoogleError(data.error || "Erreur Google."); return; }
-      router.replace("/");
+      router.replace("/dashboard");
     } catch { setGoogleError("Erreur réseau."); }
   }, [router]);
 
@@ -142,7 +142,7 @@ export default function LoginPage() {
       });
       const data = await res.json();
       if (!res.ok) { setLoginError(data.error || "Identifiants incorrects."); return; }
-      router.replace("/");
+      router.replace("/dashboard");
     } catch { setLoginError("Erreur réseau, réessayez."); }
     finally { setLoginLoading(false); }
   }
@@ -164,7 +164,7 @@ export default function LoginPage() {
         method: "POST", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email: regEmail, password: regPassword }),
       });
-      if (loginRes.ok) router.replace("/");
+      if (loginRes.ok) router.replace("/dashboard");
       else { setMode("login"); setEmail(regEmail); }
     } catch { setRegError("Erreur réseau, réessayez."); }
     finally { setRegLoading(false); }
