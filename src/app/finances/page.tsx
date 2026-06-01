@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback, useRef } from "react";
 import Sidebar from "@/components/Sidebar";
+import { useLang } from "@/lib/i18n";
 
 type Order = {
   id: string;
@@ -77,6 +78,7 @@ function fmt(n: number) {
 }
 
 export default function FinancesPage() {
+  const { t } = useLang();
   const [orders, setOrders] = useState<Order[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
   const [campaigns, setCampaigns] = useState<Campaign[]>([]);
@@ -347,10 +349,10 @@ export default function FinancesPage() {
   const maxVal = Math.max(1, ...chartDays.map(d => Math.max(dailyMap[d].revenue, dailyMap[d].cost)));
 
   const PERIODS: { key: Period; label: string }[] = [
-    { key: "today", label: "Aujourd'hui" },
-    { key: "week", label: "7 jours" },
-    { key: "month", label: "30 jours" },
-    { key: "all", label: "Tout" },
+    { key: "today", label: t("today") },
+    { key: "week", label: t("week") },
+    { key: "month", label: t("month") },
+    { key: "all", label: t("all") },
   ];
 
   const costFields: { key: keyof CostSettings; label: string; placeholder: string }[] = [
@@ -364,10 +366,10 @@ export default function FinancesPage() {
     <div className="flex min-h-screen bg-[#F0F4FF]">
       <Sidebar />
       <div className="flex-1 flex flex-col">
-        <header className="bg-white border-b border-slate-100 px-4 lg:px-8 py-4 pl-14 lg:pl-8 flex flex-wrap items-center justify-between gap-3">
+        <header className="sidebar-header-pl bg-white border-b border-slate-100 px-4 lg:px-8 py-4 pl-14 lg:pl-8 flex flex-wrap items-center justify-between gap-3">
           <div>
-            <h1 className="text-xl font-bold text-slate-900">Finances</h1>
-            <p className="text-sm text-slate-400">Investissement · Revenus · Bénéfice net</p>
+            <h1 className="text-xl font-bold text-slate-900">{t("finances_title")}</h1>
+            <p className="text-sm text-slate-400">{t("finances_subtitle")}</p>
           </div>
           <div className="flex items-center gap-2 flex-wrap">
             {/* Period selector */}
@@ -381,12 +383,12 @@ export default function FinancesPage() {
             </div>
             <button onClick={sendTelegramReport} disabled={sendingReport}
               className="flex items-center gap-1.5 text-xs font-semibold px-3 py-2 rounded-xl border border-blue-200 text-blue-600 hover:bg-blue-50 bg-white disabled:opacity-50">
-              {sendingReport ? "Envoi…" : "📨 Rapport Telegram"}
+              {sendingReport ? t("sending") : `📨 ${t("telegram_report")}`}
             </button>
             <button onClick={() => { setDraftCosts({ ...costs }); setEditingCosts(true); }}
               className="flex items-center gap-1.5 text-xs font-semibold px-3 py-2 rounded-xl border border-slate-200 text-slate-600 hover:bg-slate-50 bg-white">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="w-3.5 h-3.5"><path d="M12 20h9M16.5 3.5a2.121 2.121 0 013 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
-              Modifier coûts
+              {t("modify_costs")}
             </button>
           </div>
         </header>

@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { CodCrmLogo } from "@/components/CodCrmLogo";
+import { useLang, type Lang } from "@/lib/i18n";
 
 declare global {
   interface Window {
@@ -71,6 +72,7 @@ function Input({
 
 export default function LoginPage() {
   const router = useRouter();
+  const { lang, setLang, t } = useLang();
   const [mode, setMode] = useState<Mode>("login");
   const [checkingAuth, setCheckingAuth] = useState(true);
 
@@ -194,7 +196,7 @@ export default function LoginPage() {
             </div>
             <div>
               <span className="text-2xl font-extrabold text-white tracking-tight leading-none block">COD CRM</span>
-              <span className="text-blue-300/70 text-xs font-medium mt-0.5 block">Commandez. Expédiez. Encaissez.</span>
+              <span className="text-blue-300/70 text-xs font-medium mt-0.5 block">{t("tagline")}</span>
             </div>
           </div>
         </div>
@@ -232,7 +234,18 @@ export default function LoginPage() {
       </div>
 
       {/* Right panel — form */}
-      <div className="flex-1 flex flex-col items-center justify-center p-6 sm:p-12 bg-slate-50">
+      <div className="flex-1 flex flex-col items-center justify-center p-6 sm:p-12 bg-slate-50 relative">
+        {/* Language picker */}
+        <div className="absolute top-4 end-4 flex gap-1">
+          {(["fr", "ar", "en"] as Lang[]).map(l => (
+            <button key={l} onClick={() => setLang(l)}
+              className={`text-xs font-bold px-2.5 py-1 rounded-lg border transition-colors uppercase ${
+                lang === l ? "bg-blue-600 text-white border-blue-600" : "text-slate-400 border-slate-200 hover:border-slate-300 hover:text-slate-600"
+              }`}>
+              {l}
+            </button>
+          ))}
+        </div>
         {/* Mobile logo */}
         <div className="lg:hidden flex items-center gap-2.5 mb-8">
           <div className="shadow-md shadow-blue-200 rounded-[9px]">
@@ -240,7 +253,7 @@ export default function LoginPage() {
           </div>
           <div>
             <span className="text-xl font-extrabold text-slate-900 tracking-tight leading-none block">COD CRM</span>
-            <span className="text-[10px] text-slate-400 font-medium block">Commandez. Expédiez. Encaissez.</span>
+            <span className="text-[10px] text-slate-400 font-medium block">{t("tagline")}</span>
           </div>
         </div>
 
@@ -248,8 +261,8 @@ export default function LoginPage() {
           {mode === "login" ? (
             <>
               <div className="mb-8">
-                <h1 className="text-2xl font-bold text-slate-900 mb-1">Bon retour 👋</h1>
-                <p className="text-slate-500 text-sm">Connectez-vous à votre espace CRM</p>
+                <h1 className="text-2xl font-bold text-slate-900 mb-1">{t("welcome_back")}</h1>
+                <p className="text-slate-500 text-sm">{t("sign_in_subtitle")}</p>
               </div>
 
               {/* Google button */}
@@ -257,7 +270,7 @@ export default function LoginPage() {
 
               <div className="flex items-center gap-3 mb-4">
                 <div className="h-px flex-1 bg-slate-200" />
-                <span className="text-xs text-slate-400 font-medium px-1">ou avec email</span>
+                <span className="text-xs text-slate-400 font-medium px-1">{t("or_with_email")}</span>
                 <div className="h-px flex-1 bg-slate-200" />
               </div>
 
@@ -269,34 +282,34 @@ export default function LoginPage() {
               )}
 
               <form onSubmit={handleLogin} className="flex flex-col gap-4">
-                <Input label="Adresse email" type="email" value={email} onChange={setEmail}
+                <Input label={t("email")} type="email" value={email} onChange={setEmail}
                   placeholder="vous@example.com" required autoComplete="email" />
-                <Input label="Mot de passe" type="password" value={password} onChange={setPassword}
+                <Input label={t("password")} type="password" value={password} onChange={setPassword}
                   placeholder="••••••••" required autoComplete="current-password" />
                 <button type="submit" disabled={loginLoading}
                   className="w-full py-3 bg-blue-600 hover:bg-blue-700 active:bg-blue-800 disabled:opacity-50 text-white text-sm font-semibold rounded-xl shadow-lg shadow-blue-200 transition-all">
                   {loginLoading ? (
                     <span className="flex items-center justify-center gap-2">
                       <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                      Connexion...
+                      {t("signing_in")}
                     </span>
-                  ) : "Se connecter"}
+                  ) : t("sign_in")}
                 </button>
               </form>
 
               <p className="text-center text-sm text-slate-500 mt-6">
-                Pas encore de compte ?{" "}
+                {t("no_account")}{" "}
                 <button onClick={() => { setMode("register"); setLoginError(""); setGoogleError(""); }}
                   className="text-blue-600 font-semibold hover:text-blue-700 transition-colors">
-                  Créer un compte gratuit
+                  {t("create_free")}
                 </button>
               </p>
             </>
           ) : (
             <>
               <div className="mb-8">
-                <h1 className="text-2xl font-bold text-slate-900 mb-1">Créer votre compte</h1>
-                <p className="text-slate-500 text-sm">Commencez gratuitement, sans carte bancaire</p>
+                <h1 className="text-2xl font-bold text-slate-900 mb-1">{t("create_account")}</h1>
+                <p className="text-slate-500 text-sm">{t("create_subtitle")}</p>
               </div>
 
               {/* Google button */}
@@ -304,7 +317,7 @@ export default function LoginPage() {
 
               <div className="flex items-center gap-3 mb-4">
                 <div className="h-px flex-1 bg-slate-200" />
-                <span className="text-xs text-slate-400 font-medium px-1">ou avec email</span>
+                <span className="text-xs text-slate-400 font-medium px-1">{t("or_with_email")}</span>
                 <div className="h-px flex-1 bg-slate-200" />
               </div>
 
@@ -317,16 +330,16 @@ export default function LoginPage() {
 
               <form onSubmit={handleRegister} className="flex flex-col gap-3">
                 <div className="grid grid-cols-2 gap-3">
-                  <Input label="Nom complet" value={regName} onChange={setRegName}
+                  <Input label={t("full_name")} value={regName} onChange={setRegName}
                     placeholder="Votre nom" required autoComplete="name" />
-                  <Input label="Nom de la boutique" value={regStore} onChange={setRegStore}
+                  <Input label={t("store_name")} value={regStore} onChange={setRegStore}
                     placeholder="Ma Boutique" autoComplete="organization" />
                 </div>
-                <Input label="Adresse email" type="email" value={regEmail} onChange={setRegEmail}
+                <Input label={t("email")} type="email" value={regEmail} onChange={setRegEmail}
                   placeholder="vous@example.com" required autoComplete="email" />
-                <Input label="Mot de passe" type="password" value={regPassword} onChange={setRegPassword}
+                <Input label={t("password")} type="password" value={regPassword} onChange={setRegPassword}
                   placeholder="8 caractères minimum" required minLength={8} autoComplete="new-password" />
-                <Input label="Confirmer le mot de passe" type="password" value={regConfirm} onChange={setRegConfirm}
+                <Input label={t("confirm_password")} type="password" value={regConfirm} onChange={setRegConfirm}
                   placeholder="Répétez le mot de passe" required autoComplete="new-password" />
 
                 {/* Password strength */}
@@ -340,7 +353,7 @@ export default function LoginPage() {
                       }`} />
                     ))}
                     <span className="text-xs text-slate-400 ml-1">
-                      {regPassword.length < 6 ? "Faible" : regPassword.length < 8 ? "Moyen" : regPassword.length < 10 ? "Bon" : "Fort"}
+                      {regPassword.length < 6 ? t("pw_weak") : regPassword.length < 8 ? t("pw_medium") : regPassword.length < 10 ? t("pw_good") : t("pw_strong")}
                     </span>
                   </div>
                 )}
@@ -350,9 +363,9 @@ export default function LoginPage() {
                   {regLoading ? (
                     <span className="flex items-center justify-center gap-2">
                       <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                      Création en cours...
+                      {t("creating")}
                     </span>
-                  ) : "Créer mon compte →"}
+                  ) : t("create_my_account")}
                 </button>
 
                 <p className="text-xs text-slate-400 text-center">
@@ -362,10 +375,10 @@ export default function LoginPage() {
               </form>
 
               <p className="text-center text-sm text-slate-500 mt-5">
-                Déjà un compte ?{" "}
+                {t("already_account")}{" "}
                 <button onClick={() => { setMode("login"); setRegError(""); }}
                   className="text-blue-600 font-semibold hover:text-blue-700 transition-colors">
-                  Se connecter
+                  {t("sign_in")}
                 </button>
               </p>
             </>

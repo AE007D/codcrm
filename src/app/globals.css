@@ -22,3 +22,26 @@ body {
   color: var(--foreground);
   font-family: var(--font-geist-sans), Arial, sans-serif;
 }
+
+/* ── RTL layout overrides ── */
+[dir="rtl"] .sidebar-panel {
+  left: auto !important;
+  right: 0 !important;
+}
+[dir="rtl"] .sidebar-closed {
+  transform: translateX(100%) !important;
+}
+[dir="rtl"] .hamburger-btn {
+  left: auto !important;
+  right: 0.875rem !important;
+}
+[dir="rtl"] .sidebar-header-pl {
+  padding-left: 2rem !important;
+  padding-right: 3.5rem !important;
+}
+@media (min-width: 1024px) {
+  [dir="rtl"] .sidebar-header-pl {
+    padding-left: 2rem !important;
+    padding-right: 2rem !important;
+  }
+}

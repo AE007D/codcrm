@@ -4,6 +4,7 @@ import "./globals.css";
 import PixelTracker from "@/components/PixelTracker";
 import NavigationProgress from "@/components/NavigationProgress";
 import PushSubscriber from "@/components/PushSubscriber";
+import { LangProvider } from "@/lib/i18n";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -48,10 +49,12 @@ export default function RootLayout({
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col">
-        <NavigationProgress />
-        <PixelTracker />
-        <PushSubscriber />
-        {children}
+        <LangProvider>
+          <NavigationProgress />
+          <PixelTracker />
+          <PushSubscriber />
+          {children}
+        </LangProvider>
       </body>
     </html>
   );
