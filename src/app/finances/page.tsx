@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import Sidebar from "@/components/Sidebar";
 
 type Order = {
@@ -78,6 +78,8 @@ export default function FinancesPage() {
   const [costs, setCosts] = useState<CostSettings>(DEFAULT_COSTS);
   const [editingCosts, setEditingCosts] = useState(false);
   const [draftCosts, setDraftCosts] = useState<CostSettings>(DEFAULT_COSTS);
+  const [sendingReport, setSendingReport] = useState(false);
+  const reportSentRef = useRef(false);
 
   // Load cost settings and ad campaigns from Supabase
   useEffect(() => {
@@ -111,6 +113,32 @@ export default function FinancesPage() {
     } catch { /* silent */ }
     // Also keep localStorage as backup
     try { localStorage.setItem(STORAGE_KEY, JSON.stringify(draftCosts)); } catch { /* ignore */ }
+  }
+
+  async function sendTelegramReport() {
+    setSendingReport(true);
+    const d = new Date().toLocaleDateString("fr-MA", { day: "2-digit", month: "2-digit", year: "numeric" });
+    const message = [
+      `📊 <b>Rapport journalier — ${d}</b>`,
+      ``,
+      `💰 CA livré : <b>${fmt(revenue)} MAD</b> (${delivered.length} cmds)`,
+      `💸 Total investi : <b>${fmt(totalCost)} MAD</b>`,
+      `🏆 Bénéfice net : <b>${netProfit >= 0 ? "+" : ""}${fmt(netProfit)} MAD</b> (ROI ${roi.toFixed(0)}%)`,
+      ``,
+      `📦 Expédiées : ${shipped.length} · Livrées : ${delivered.length} · Retournées : ${returned.length}`,
+      `📈 Taux livraison : ${delivered.length && shipped.length ? ((delivered.length / shipped.length) * 100).toFixed(0) : 0}%`,
+    ].join("\n");
+    try {
+      const res = await fetch("/api/telegram-report", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ message }),
+      });
+      const data = await res.json() as { ok?: boolean; error?: string };
+      if (data.ok) { reportSentRef.current = true; alert("Rapport envoyé sur Telegram ✓"); }
+      else alert("Erreur: " + (data.error ?? "inconnu"));
+    } catch (e) { alert(String(e)); }
+    setSendingReport(false);
   }
 
   const fetchData = useCallback(async () => {
@@ -198,6 +226,48 @@ export default function FinancesPage() {
   const profitPerDay = netProfit / days;
   const profitPerWeek = profitPerDay * 7;
 
+  // ── Return rate per city ───────────────────────────────────────────────
+  const cityStats = (() => {
+    const map: Record<string, { shipped: number; returned: number }> = {};
+    for (const o of filtered) {
+      const s = String(o.status ?? "").toLowerCase();
+      const city = String((o as Record<string,unknown>).city ?? "").trim() || "Inconnue";
+      const isShipped = s === "expédié" || s === "expedie" || s === "livré" || s === "livre" || s === "retourné" || s === "retourne";
+      const isReturned = s === "retourné" || s === "retourne";
+      if (!isShipped) continue;
+      if (!map[city]) map[city] = { shipped: 0, returned: 0 };
+      map[city].shipped++;
+      if (isReturned) map[city].returned++;
+    }
+    return Object.entries(map)
+      .map(([city, v]) => ({ city, ...v, rate: v.shipped > 0 ? (v.returned / v.shipped) * 100 : 0 }))
+      .filter(c => c.shipped >= 2)
+      .sort((a, b) => b.rate - a.rate)
+      .slice(0, 10);
+  })();
+
+  // ── Return rate per product ────────────────────────────────────────────
+  const productStats = (() => {
+    const map: Record<string, { shipped: number; returned: number; revenue: number }> = {};
+    for (const o of filtered) {
+      const s = String(o.status ?? "").toLowerCase();
+      const prod = String((o as Record<string,unknown>).product ?? "").trim() || "Inconnu";
+      const isShipped = s === "expédié" || s === "expedie" || s === "livré" || s === "livre" || s === "retourné" || s === "retourne";
+      const isDelivered = s === "livré" || s === "livre";
+      const isReturned = s === "retourné" || s === "retourne";
+      if (!isShipped) continue;
+      if (!map[prod]) map[prod] = { shipped: 0, returned: 0, revenue: 0 };
+      map[prod].shipped++;
+      if (isReturned) map[prod].returned++;
+      if (isDelivered) map[prod].revenue += parsePrice((o as Record<string,unknown>).totalPrice ?? (o as Record<string,unknown>).total_price);
+    }
+    return Object.entries(map)
+      .map(([product, v]) => ({ product, ...v, rate: v.shipped > 0 ? (v.returned / v.shipped) * 100 : 0 }))
+      .filter(p => p.shipped >= 2)
+      .sort((a, b) => b.rate - a.rate)
+      .slice(0, 8);
+  })();
+
   // Build campaign spend by day for chart
   const campaignSpendByDay: Record<string, number> = {};
   for (const c of campaigns) {
@@ -261,6 +331,10 @@ export default function FinancesPage() {
                 </button>
               ))}
             </div>
+            <button onClick={sendTelegramReport} disabled={sendingReport}
+              className="flex items-center gap-1.5 text-xs font-semibold px-3 py-2 rounded-xl border border-blue-200 text-blue-600 hover:bg-blue-50 bg-white disabled:opacity-50">
+              {sendingReport ? "Envoi…" : "📨 Rapport Telegram"}
+            </button>
             <button onClick={() => { setDraftCosts({ ...costs }); setEditingCosts(true); }}
               className="flex items-center gap-1.5 text-xs font-semibold px-3 py-2 rounded-xl border border-slate-200 text-slate-600 hover:bg-slate-50 bg-white">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="w-3.5 h-3.5"><path d="M12 20h9M16.5 3.5a2.121 2.121 0 013 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
@@ -388,6 +462,58 @@ export default function FinancesPage() {
                       );
                     })}
                   </div>
+                </div>
+              )}
+
+              {/* ── City + Product return rates ── */}
+              {(cityStats.length > 0 || productStats.length > 0) && (
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-5">
+                  {/* Return rate by city */}
+                  {cityStats.length > 0 && (
+                    <div className="bg-white rounded-2xl p-5 shadow-sm border border-slate-100">
+                      <h2 className="text-sm font-bold text-slate-700 mb-4">🏙 Taux retour par ville</h2>
+                      <div className="space-y-2">
+                        {cityStats.map(c => (
+                          <div key={c.city}>
+                            <div className="flex items-center justify-between text-xs mb-0.5">
+                              <span className="text-slate-700 font-medium truncate flex-1">{c.city}</span>
+                              <span className={`font-bold ml-2 ${c.rate >= 50 ? "text-red-600" : c.rate >= 30 ? "text-orange-500" : "text-emerald-600"}`}>
+                                {c.rate.toFixed(0)}%
+                              </span>
+                              <span className="text-slate-400 ml-2 text-[10px]">{c.returned}/{c.shipped}</span>
+                            </div>
+                            <div className="h-1.5 bg-slate-100 rounded-full overflow-hidden">
+                              <div className={`h-full rounded-full ${c.rate >= 50 ? "bg-red-500" : c.rate >= 30 ? "bg-orange-400" : "bg-emerald-400"}`}
+                                style={{ width: `${Math.min(100, c.rate)}%` }} />
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                  {/* Return rate by product */}
+                  {productStats.length > 0 && (
+                    <div className="bg-white rounded-2xl p-5 shadow-sm border border-slate-100">
+                      <h2 className="text-sm font-bold text-slate-700 mb-4">📦 Taux retour par produit</h2>
+                      <div className="space-y-2">
+                        {productStats.map(p => (
+                          <div key={p.product}>
+                            <div className="flex items-center justify-between text-xs mb-0.5">
+                              <span className="text-slate-700 font-medium truncate flex-1">{p.product}</span>
+                              <span className={`font-bold ml-2 ${p.rate >= 50 ? "text-red-600" : p.rate >= 30 ? "text-orange-500" : "text-emerald-600"}`}>
+                                {p.rate.toFixed(0)}%
+                              </span>
+                              <span className="text-slate-400 ml-2 text-[10px]">{p.returned}/{p.shipped}</span>
+                            </div>
+                            <div className="h-1.5 bg-slate-100 rounded-full overflow-hidden">
+                              <div className={`h-full rounded-full ${p.rate >= 50 ? "bg-red-500" : p.rate >= 30 ? "bg-orange-400" : "bg-emerald-400"}`}
+                                style={{ width: `${Math.min(100, p.rate)}%` }} />
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                 </div>
               )}
 

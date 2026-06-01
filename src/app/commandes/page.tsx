@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { AMEEX_CITIES_FALLBACK } from "@/lib/moroccanCities";
 import { cachedFetch, invalidateCache } from "@/lib/clientCache";
 import Sidebar from "@/components/Sidebar";
@@ -19,6 +19,7 @@ type Order = {
   currency: string;
   status: OrderStatus;
   date: string;
+  receivedAt: string; // ISO string for date calculations
   source: "lightfunnels" | "shopify" | "manuel";
   notes: string;
   attempts: number;
@@ -182,6 +183,7 @@ export default function CommandesPage() {
         currency: String(o.currency ?? "MAD"),
         status: (o.status ?? "nouveau") as OrderStatus,
         date: new Date(String(o.receivedAt ?? o.received_at ?? Date.now())).toLocaleDateString("fr-MA", { day: "2-digit", month: "2-digit", year: "numeric" }),
+        receivedAt: String(o.receivedAt ?? o.received_at ?? new Date().toISOString()),
         source: (o.source ?? "manuel") as Order["source"],
         notes: String(o.notes ?? ""),
         attempts: Number(o.attempts ?? 0),
@@ -193,12 +195,13 @@ export default function CommandesPage() {
     } catch { /* silent */ }
   }, []);
 
+  const autoSyncDoneRef = useRef<boolean>(false);
+
   useEffect(() => {
     fetchOrders();
     const t = setInterval(fetchOrders, 30_000);
     return () => clearInterval(t);
   }, [fetchOrders]);
-
 
   // Clear carrier status when drawer changes order
   useEffect(() => { setCarrierStatus({ loading: false, text: null, ok: true }); }, [drawer?.id]);
@@ -341,6 +344,7 @@ export default function CommandesPage() {
         currency: "MAD",
         status: "nouveau",
         date: new Date(o.receivedAt ?? Date.now()).toLocaleDateString("fr-MA", { day: "2-digit", month: "2-digit", year: "numeric" }),
+        receivedAt: String(o.receivedAt ?? new Date().toISOString()),
         source: (o.source ?? "manuel") as Order["source"],
         notes: String(o.notes ?? ""),
         attempts: 0,
@@ -436,13 +440,17 @@ export default function CommandesPage() {
     }
   }
 
-  // Pull current statuses from Eagle Express and update matching CRM orders
-  async function syncEagleStatuses() {
+  // Shared Eagle sync core — silent=true suppresses toast unless ≥1 update
+  const runEagleSync = useCallback(async (silent: boolean) => {
     setSyncingEagle(true);
     try {
       const s = await fetch("/api/settings").then(r => r.json()).then(d => d.settings ?? {}).catch(() => ({}));
       const creds = s.eagle;
-      if (!creds?.tk || !creds?.sk) { showToast("Identifiants Eagle Express non configurés", false); setSyncingEagle(false); return; }
+      if (!creds?.tk || !creds?.sk) {
+        if (!silent) showToast("Identifiants Eagle Express non configurés", false);
+        setSyncingEagle(false);
+        return;
+      }
 
       // Eagle track.php returns French status strings — map to CRM statuses
       // Match is done lowercase + keyword check to handle accent variations
@@ -455,8 +463,15 @@ export default function CommandesPage() {
         return null; // no CRM status change — just update carrierStatus
       }
 
-      const expOrders = orders.filter(o => o.status === "expédié" && (o.carrierName === "eagle" || (!o.carrierName && o.carrierTracking)));
-      if (!expOrders.length) { showToast("Aucune commande Eagle expédiée à synchroniser"); setSyncingEagle(false); return; }
+      // Capture current orders snapshot for the sync (avoids stale closure)
+      let currentOrders: Order[] = [];
+      setOrders(prev => { currentOrders = prev; return prev; });
+      const expOrders = currentOrders.filter(o => o.status === "expédié" && (o.carrierName === "eagle" || (!o.carrierName && o.carrierTracking)));
+      if (!expOrders.length) {
+        if (!silent) showToast("Aucune commande Eagle expédiée à synchroniser");
+        setSyncingEagle(false);
+        return;
+      }
 
       let updated = 0;
       const patchPromises: Promise<void>[] = [];
@@ -494,12 +509,33 @@ export default function CommandesPage() {
       }
 
       await Promise.all(patchPromises);
-      showToast(updated > 0 ? `${updated} commande(s) Eagle mise(s) à jour ✓` : "Statuts Eagle déjà à jour");
+      if (!silent) {
+        showToast(updated > 0 ? `${updated} commande(s) Eagle mise(s) à jour ✓` : "Statuts Eagle déjà à jour");
+      } else if (updated > 0) {
+        showToast(`${updated} commande(s) mise(s) à jour ✓`);
+      }
     } catch (e) {
-      showToast(`Erreur sync Eagle: ${String(e).slice(0, 60)}`, false);
+      if (!silent) showToast(`Erreur sync Eagle: ${String(e).slice(0, 60)}`, false);
     }
     setSyncingEagle(false);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Pull current statuses from Eagle Express and update matching CRM orders
+  async function syncEagleStatuses() {
+    await runEagleSync(false);
   }
+
+  // Auto Eagle sync once after initial orders load (placed after runEagleSync declaration)
+  useEffect(() => {
+    if (autoSyncDoneRef.current) return;
+    if (orders.length === 0) return;
+    const hasEagleExpédié = orders.some(o => o.status === "expédié" && o.carrierTracking && (o.carrierName === "eagle" || !o.carrierName));
+    if (!hasEagleExpédié) return;
+    autoSyncDoneRef.current = true;
+    runEagleSync(true);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [orders.length]);
 
   // Send selected orders to carrier
   async function sendToCarrier(overrideIds?: Set<string>) {
@@ -633,6 +669,22 @@ export default function CommandesPage() {
     if (o.phone) acc[o.phone] = (acc[o.phone] ?? 0) + 1;
     return acc;
   }, {} as Record<string, number>);
+
+  // Phones that have at least one retourné order — for duplicate warning
+  const returnedPhones = useMemo(() => {
+    const s = new Set<string>();
+    for (const o of orders) {
+      if (o.status === "retourné" && o.phone) s.add(o.phone.replace(/\s+/g, ""));
+    }
+    return s;
+  }, [orders]);
+
+  // Days since order received — for expédié aging alert
+  function daysAgo(o: Order): number {
+    const d = new Date(o.receivedAt);
+    if (isNaN(d.getTime())) return 0;
+    return Math.floor((Date.now() - d.getTime()) / 86_400_000);
+  }
 
   return (
     <div className="flex min-h-screen bg-[#F0F4FF]">
@@ -848,6 +900,9 @@ export default function CommandesPage() {
                             🔁 {repeatCount} commandes
                           </span>
                         )}
+                        {o.status !== "retourné" && returnedPhones.has((o.phone ?? "").replace(/\s+/g, "")) && (
+                          <span className="text-[10px] font-bold px-1.5 py-0.5 bg-red-100 text-red-600 rounded-lg">⚠️ Retour passé</span>
+                        )}
                       </div>
                       <a href={`tel:${o.phone}`} onClick={e => { e.stopPropagation(); incrementAttempt(o.id); }}
                         className="flex items-center gap-1 text-blue-600 text-sm font-medium mt-0.5">
@@ -857,6 +912,12 @@ export default function CommandesPage() {
                       {o.noAnswer > 0 && (
                         <span className={`mt-1 inline-flex items-center gap-1 text-xs font-semibold px-2 py-0.5 rounded-lg ${o.noAnswer >= 3 ? "bg-amber-100 text-amber-700" : "bg-slate-100 text-slate-500"}`}>
                           📵 {o.noAnswer}× sans réponse
+                          {o.noAnswer >= 3 && o.status !== "annulé" && o.status !== "livré" && (
+                            <button onClick={e => { e.stopPropagation(); setStatus(o.id, "annulé"); }}
+                              className="ml-1 text-[10px] font-bold px-1.5 py-0.5 bg-red-100 text-red-600 rounded hover:bg-red-200">
+                              Annuler?
+                            </button>
+                          )}
                         </span>
                       )}
                     </div>
@@ -914,11 +975,20 @@ export default function CommandesPage() {
                             📦 {o.carrierTracking}
                           </span>
                         )}
+                        {daysAgo(o) > 7 && (
+                          <span className="text-[10px] font-semibold px-1.5 py-0.5 bg-orange-100 text-orange-700 rounded-lg">⏰ {daysAgo(o)}j</span>
+                        )}
                         {isAdmin && <>
                           <button onClick={() => setStatus(o.id, "livré")} className="bg-teal-600 hover:bg-teal-700 text-white text-xs font-bold px-2.5 py-1.5 rounded-xl transition-colors">Livré</button>
                           <button onClick={() => setStatus(o.id, "retourné")} className="bg-orange-500 hover:bg-orange-600 text-white text-xs font-bold px-2.5 py-1.5 rounded-xl transition-colors">Retour</button>
                         </>}
                       </>
+                    )}
+                    {o.status === "retourné" && isAdmin && (
+                      <button onClick={() => openShipModal([o.id])}
+                        className="flex items-center gap-1 bg-amber-100 hover:bg-amber-200 text-amber-700 text-xs font-bold px-2.5 py-1.5 rounded-xl transition-colors">
+                        🔄 Ré-expédier
+                      </button>
                     )}
                     <button onClick={() => setDrawer(o)}
                       className="ml-auto text-slate-400 hover:text-slate-600 border border-slate-200 hover:bg-slate-50 p-1.5 rounded-xl transition-colors">

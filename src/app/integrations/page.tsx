@@ -75,6 +75,7 @@ const INTEGRATIONS = [
   { id: "eagle",          label: "Eagle Express",    category: "shipping", color: "bg-amber-500",   desc: "API · eagleexpress.ma",        logo: "https://eagleexpress.ma/favicon.ico" },
   { id: "facebook-ads",   label: "Facebook Ads",     category: "ads",      color: "bg-blue-600",    desc: "Graph API · Meta Business",    logo: "https://www.facebook.com/favicon.ico" },
   { id: "tiktok-ads",     label: "TikTok Ads",       category: "ads",      color: "bg-slate-900",   desc: "Marketing API · TikTok",       logo: "https://www.tiktok.com/favicon.ico" },
+  { id: "telegram-bot",  label: "Telegram Bot",     category: "notif",    color: "bg-blue-500",    desc: "Rapports quotidiens · Alertes", logo: "https://telegram.org/favicon.ico" },
 ];
 
 /* ═══════════════════════════════════════════════════════
@@ -118,6 +119,10 @@ export default function IntegrationsPage() {
   const [tiktokAds, setTiktokAds] = useState({ accessToken: "", advertiserId: "" });
   const [tiktokAdsSaved, setTiktokAdsSaved] = useState<{ accessToken: string; advertiserId: string } | null>(null);
 
+  /* Telegram bot state */
+  const [tgBot, setTgBot] = useState({ botToken: "", chatId: "" });
+  const [tgBotSaved, setTgBotSaved] = useState<{ botToken: string; chatId: string } | null>(null);
+
   /* Load settings from server (per-user, not localStorage) */
   useEffect(() => {
     fetch("/api/settings").then(r => r.json()).then(d => {
@@ -126,6 +131,7 @@ export default function IntegrationsPage() {
       if (s.shopify)          { setShopifySaved(s.shopify);      setShopify(s.shopify); }
       if (s.facebook)         { setFbAdsSaved(s.facebook);       setFbAds(s.facebook); }
       if (s.tiktok)           { setTiktokAdsSaved(s.tiktok);     setTiktokAds(s.tiktok); }
+      if (s.telegram)         { setTgBotSaved(s.telegram);       setTgBot(s.telegram); }
     }).catch(() => {});
     fetch("/api/auth/me").then(r => r.json()).then(d => { if (d.workspaceId) setCurrentWorkspaceId(d.workspaceId); else if (d.id) setCurrentWorkspaceId(d.id); }).catch(() => {});
   }, []);
@@ -226,13 +232,15 @@ export default function IntegrationsPage() {
 
   /* TikTok Ads save */
   function saveTiktokAds() { if (!tiktokAds.accessToken || !tiktokAds.advertiserId) { showToast("Access Token et Advertiser ID requis.", false); return; } patchSettings({ tiktok: tiktokAds }).then(() => { setTiktokAdsSaved(tiktokAds); showToast("TikTok Ads connecté ✓"); }); }
+  function saveTgBot() { if (!tgBot.botToken || !tgBot.chatId) { showToast("Bot Token et Chat ID requis.", false); return; } patchSettings({ telegram: tgBot }).then(() => { setTgBotSaved(tgBot); showToast("Telegram Bot connecté ✓"); }); }
 
   useEffect(() => { if (active === "eagle" && eagleTab === "parcels") loadEagleParcels(); if (active === "eagle" && eagleTab === "cities" && eagleCities.length === 0) loadEagleCities(); }, [active, eagleTab, loadEagleParcels, loadEagleCities, eagleCities.length]);
 
-  const connected: Record<string, boolean> = { lightfunnels: lfEvents > 0, shopify: !!shopifySaved?.store, eagle: !!eagleSaved?.tk, "facebook-ads": !!fbAdsSaved?.accessToken, "tiktok-ads": !!tiktokAdsSaved?.accessToken };
+  const connected: Record<string, boolean> = { lightfunnels: lfEvents > 0, shopify: !!shopifySaved?.store, eagle: !!eagleSaved?.tk, "facebook-ads": !!fbAdsSaved?.accessToken, "tiktok-ads": !!tiktokAdsSaved?.accessToken, "telegram-bot": !!tgBotSaved?.botToken };
   const sources  = INTEGRATIONS.filter(i => i.category === "source");
   const shippers = INTEGRATIONS.filter(i => i.category === "shipping");
   const adsInteg = INTEGRATIONS.filter(i => i.category === "ads");
+  const notifInteg = INTEGRATIONS.filter(i => i.category === "notif");
 
   return (
     <div className="flex min-h-screen bg-[#F0F4FF]">
@@ -259,6 +267,7 @@ export default function IntegrationsPage() {
               { label: "Sources", items: sources },
               { label: "Livraison", items: shippers },
               { label: "Publicité", items: adsInteg },
+              { label: "Notifications", items: notifInteg },
             ].map(({ label, items }) => (
               <div key={label}>
                 <p className="text-xs font-bold text-slate-400 uppercase tracking-wider px-2 mb-2">{label}</p>
@@ -615,6 +624,52 @@ export default function IntegrationsPage() {
                   <div>
                     <p className="text-sm font-semibold text-slate-800">Une fois connecté</p>
                     <p className="text-sm text-slate-600">Allez dans <strong>Ads Manager</strong> → bouton <strong>Sync TikTok</strong> pour importer automatiquement vos campagnes et leurs métriques.</p>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {active === "telegram-bot" && (
+              <div className="space-y-5">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-2xl bg-blue-500 flex items-center justify-center shadow-md shadow-blue-200">
+                    <svg viewBox="0 0 24 24" fill="white" className="w-5 h-5"><path d="M9.78 18.65l.28-4.23 7.68-6.92c.34-.31-.07-.46-.52-.19L7.74 13.3 3.64 12c-.88-.25-.89-.86.2-1.3l15.97-6.16c.73-.33 1.43.18 1.15 1.3l-2.72 12.81c-.19.91-.74 1.13-1.5.71L12.6 16.3l-1.99 1.93c-.23.23-.42.42-.83.42z"/></svg>
+                  </div>
+                  <div><h2 className="font-bold text-slate-900 text-lg">Telegram Bot</h2><p className="text-xs text-slate-400">Rapports quotidiens · Alertes nouvelles commandes</p></div>
+                  <Badge connected={connected["telegram-bot"]} />
+                </div>
+
+                <div className="bg-blue-50 border border-blue-200 rounded-2xl p-4 text-sm text-blue-800">
+                  <p className="font-semibold mb-1">Comment créer un bot Telegram :</p>
+                  <ol className="list-decimal list-inside space-y-1 text-xs">
+                    <li>Ouvrez Telegram → cherchez <strong>@BotFather</strong></li>
+                    <li>Tapez <strong>/newbot</strong> et suivez les instructions</li>
+                    <li>Copiez le <strong>Bot Token</strong> fourni</li>
+                    <li>Envoyez un message à votre bot, puis allez sur <strong>api.telegram.org/bot&lt;TOKEN&gt;/getUpdates</strong> pour trouver votre <strong>Chat ID</strong></li>
+                  </ol>
+                </div>
+
+                <div className="space-y-3">
+                  <div>
+                    <label className="text-xs font-semibold text-slate-600 mb-1.5 block">Bot Token</label>
+                    <input type="password" placeholder="1234567890:ABCdefGhIJKlmNoPQRsTUVwxyZ"
+                      value={tgBot.botToken} onChange={e => setTgBot(c => ({ ...c, botToken: e.target.value }))}
+                      className="w-full text-sm border border-slate-200 rounded-xl px-4 py-2.5 outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-50 font-mono" />
+                  </div>
+                  <div>
+                    <label className="text-xs font-semibold text-slate-600 mb-1.5 block">Chat ID</label>
+                    <input type="text" placeholder="-1001234567890 ou 123456789"
+                      value={tgBot.chatId} onChange={e => setTgBot(c => ({ ...c, chatId: e.target.value }))}
+                      className="w-full text-sm border border-slate-200 rounded-xl px-4 py-2.5 outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-50 font-mono" />
+                  </div>
+                  <button onClick={saveTgBot} className="w-full py-2.5 bg-blue-500 hover:bg-blue-600 text-white font-semibold text-sm rounded-xl shadow-md shadow-blue-200 transition-colors">Sauvegarder</button>
+                </div>
+
+                <div className="bg-slate-50 border border-slate-200 rounded-2xl p-4 flex gap-3">
+                  <span className="text-slate-500 text-lg">💡</span>
+                  <div>
+                    <p className="text-sm font-semibold text-slate-800">Une fois connecté</p>
+                    <p className="text-sm text-slate-600">Allez dans <strong>Finances</strong> → bouton <strong>📨 Rapport Telegram</strong> pour envoyer le résumé du jour sur votre chat.</p>
                   </div>
                 </div>
               </div>
