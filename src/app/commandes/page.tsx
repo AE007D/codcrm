@@ -31,15 +31,15 @@ type Order = {
 };
 
 
-const STATUS_CONFIG: Record<OrderStatus, { label: string; color: string; bg: string; border: string; dot: string }> = {
-  nouveau:     { label: "Nouveau",          color: "text-blue-700",    bg: "bg-blue-50",     border: "border-blue-200",   dot: "bg-blue-500" },
-  confirmé:    { label: "Confirmé",         color: "text-emerald-700", bg: "bg-emerald-50",  border: "border-emerald-200",dot: "bg-emerald-500" },
-  annulé:      { label: "Annulé",           color: "text-red-600",     bg: "bg-red-50",      border: "border-red-200",    dot: "bg-red-500" },
-  injoignable: { label: "Injoignable",      color: "text-amber-700",   bg: "bg-amber-50",    border: "border-amber-200",  dot: "bg-amber-500" },
-  fausse:      { label: "Fausse commande",  color: "text-purple-700",  bg: "bg-purple-50",   border: "border-purple-200", dot: "bg-purple-500" },
-  expédié:     { label: "Expédié",          color: "text-indigo-700",  bg: "bg-indigo-50",   border: "border-indigo-200", dot: "bg-indigo-500" },
-  livré:       { label: "Livré",            color: "text-teal-700",    bg: "bg-teal-50",     border: "border-teal-200",   dot: "bg-teal-500" },
-  retourné:    { label: "Retourné",         color: "text-orange-700",  bg: "bg-orange-50",   border: "border-orange-200", dot: "bg-orange-500" },
+const STATUS_CONFIG_COLORS: Record<OrderStatus, { color: string; bg: string; border: string; dot: string }> = {
+  nouveau:     { color: "text-blue-700",    bg: "bg-blue-50",     border: "border-blue-200",   dot: "bg-blue-500" },
+  confirmé:    { color: "text-emerald-700", bg: "bg-emerald-50",  border: "border-emerald-200",dot: "bg-emerald-500" },
+  annulé:      { color: "text-red-600",     bg: "bg-red-50",      border: "border-red-200",    dot: "bg-red-500" },
+  injoignable: { color: "text-amber-700",   bg: "bg-amber-50",    border: "border-amber-200",  dot: "bg-amber-500" },
+  fausse:      { color: "text-purple-700",  bg: "bg-purple-50",   border: "border-purple-200", dot: "bg-purple-500" },
+  expédié:     { color: "text-indigo-700",  bg: "bg-indigo-50",   border: "border-indigo-200", dot: "bg-indigo-500" },
+  livré:       { color: "text-teal-700",    bg: "bg-teal-50",     border: "border-teal-200",   dot: "bg-teal-500" },
+  retourné:    { color: "text-orange-700",  bg: "bg-orange-50",   border: "border-orange-200", dot: "bg-orange-500" },
 };
 
 const PIPELINE: OrderStatus[] = ["nouveau", "confirmé", "annulé", "injoignable", "fausse", "expédié", "livré", "retourné"];
@@ -96,6 +96,16 @@ type CatalogProduct = {
 
 export default function CommandesPage() {
   const { t } = useLang();
+  const STATUS_CONFIG: Record<OrderStatus, { label: string; color: string; bg: string; border: string; dot: string }> = {
+    nouveau:     { label: t("status_nouveau"),    ...STATUS_CONFIG_COLORS.nouveau },
+    confirmé:    { label: t("status_confirme"),   ...STATUS_CONFIG_COLORS.confirmé },
+    annulé:      { label: t("status_annule"),     ...STATUS_CONFIG_COLORS.annulé },
+    injoignable: { label: t("status_injoignable"),...STATUS_CONFIG_COLORS.injoignable },
+    fausse:      { label: t("status_fausse"),     ...STATUS_CONFIG_COLORS.fausse },
+    expédié:     { label: t("status_expedie"),    ...STATUS_CONFIG_COLORS.expédié },
+    livré:       { label: t("status_livre"),      ...STATUS_CONFIG_COLORS.livré },
+    retourné:    { label: t("status_retourne"),   ...STATUS_CONFIG_COLORS.retourné },
+  };
   const [orders, setOrders] = useState<Order[]>([]);
   const [filter, setFilter] = useState<OrderStatus | "tous">("tous");
   const [search, setSearch] = useState("");
@@ -707,18 +717,18 @@ export default function CommandesPage() {
               <button onClick={syncEagleStatuses} disabled={syncingEagle}
                 className="flex items-center gap-1.5 text-sm font-semibold px-3 py-2.5 rounded-xl border border-amber-200 bg-amber-50 text-amber-700 hover:bg-amber-100 disabled:opacity-50 transition-colors whitespace-nowrap">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} className={`w-4 h-4 ${syncingEagle ? "animate-spin" : ""}`}><path d="M23 4v6h-6M1 20v-6h6"/><path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15"/></svg>
-                <span className="hidden sm:inline">{syncingEagle ? "Sync…" : `Sync Eagle (${eagleExpédiéCount})`}</span>
+                <span className="hidden sm:inline">{syncingEagle ? t("loading") : `${t("sync_eagle")} (${eagleExpédiéCount})`}</span>
               </button>
             )}
             {confirmedCount > 0 && (
               <button onClick={() => { openShipModal(orders.filter(o => o.status === "confirmé").map(o => o.id)); }}
                 className="bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold px-3 lg:px-4 py-2.5 rounded-xl shadow-md shadow-indigo-200 transition-colors whitespace-nowrap flex items-center gap-2">
                 <span>📦</span>
-                <span className="hidden sm:inline">Expédier ({confirmedCount})</span>
+                <span className="hidden sm:inline">{t("ship_order")} ({confirmedCount})</span>
               </button>
             )}
             <button onClick={() => setShowModal(true)} className="bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold px-3 lg:px-5 py-2.5 rounded-xl shadow-md shadow-blue-200 transition-colors whitespace-nowrap">
-              + Nouvelle commande
+              {t("new_order")}
             </button>
           </div>
         </header>
@@ -792,12 +802,12 @@ export default function CommandesPage() {
           <div className="flex flex-col sm:flex-row gap-3 mb-4">
             <div className="relative flex-1">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
-              <input type="text" placeholder="Rechercher client, téléphone, produit…" value={search} onChange={e => setSearch(e.target.value)}
+              <input type="text" placeholder={t("search_orders")} value={search} onChange={e => setSearch(e.target.value)}
                 className="w-full text-sm border border-slate-200 rounded-xl pl-10 pr-4 py-2.5 outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-50 bg-white" />
             </div>
             <select value={filter} onChange={e => setFilter(e.target.value as OrderStatus | "tous")}
               className="text-sm border border-slate-200 rounded-xl px-4 py-2.5 outline-none text-slate-600 bg-white focus:border-blue-400">
-              <option value="tous">Tous les statuts</option>
+              <option value="tous">{t("filter_all")}</option>
               {PIPELINE.map(s => <option key={s} value={s}>{STATUS_CONFIG[s].label} ({counts[s]})</option>)}
             </select>
           </div>
@@ -855,7 +865,7 @@ export default function CommandesPage() {
           {/* Mobile card layout */}
           <div className="sm:hidden space-y-3">
             {displayed.length === 0 && (
-              <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-12 text-center text-slate-400 text-sm">Aucune commande trouvée</div>
+              <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-12 text-center text-slate-400 text-sm">{t("no_orders")}</div>
             )}
             {displayed.map(o => {
               const cfg = STATUS_CONFIG[o.status];

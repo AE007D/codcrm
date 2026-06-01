@@ -6,7 +6,7 @@ export type Lang = "fr" | "ar" | "en";
 
 const T: Record<Lang, Record<string, string>> = {
   fr: {
-    // Sidebar
+    // ── Sidebar ──────────────────────────────────────────────────────────────
     tagline: "Commandez. Expédiez. Encaissez.",
     notifications: "Notifications",
     all_up_to_date: "Tout est à jour ✓",
@@ -25,7 +25,7 @@ const T: Record<Lang, Record<string, string>> = {
     role_viewer: "Viewer",
     language: "Langue",
 
-    // Nav
+    // ── Nav ──────────────────────────────────────────────────────────────────
     nav_dashboard: "Dashboard",
     nav_orders: "Commandes",
     nav_payments: "Paiements",
@@ -43,7 +43,7 @@ const T: Record<Lang, Record<string, string>> = {
     nav_integrations: "Intégrations",
     nav_reports: "Rapports",
 
-    // Statuses
+    // ── Statuses ─────────────────────────────────────────────────────────────
     status_nouveau: "Nouveau",
     status_confirme: "Confirmé",
     status_expedie: "Expédié",
@@ -53,8 +53,9 @@ const T: Record<Lang, Record<string, string>> = {
     status_injoignable: "Injoignable",
     status_fausse: "Fausse commande",
 
-    // Common
+    // ── Common actions ────────────────────────────────────────────────────────
     save: "Enregistrer",
+    saving: "Enregistrement…",
     cancel: "Annuler",
     delete: "Supprimer",
     search: "Rechercher…",
@@ -70,8 +71,59 @@ const T: Record<Lang, Record<string, string>> = {
     all: "Tout",
     show: "Afficher",
     hide: "Masquer",
+    configure: "Configurer",
+    test: "Tester",
+    no_data: "Aucune donnée",
+    back: "Retour",
+    send: "Envoyer",
+    year: "Année",
+    export: "Exporter",
+    import: "Importer",
+    refresh: "Actualiser",
 
-    // Orders page
+    // ── Dashboard ────────────────────────────────────────────────────────────
+    dashboard: "Dashboard",
+    new_order_btn: "+ Nouvelle commande",
+    kpi_orders: "Commandes",
+    kpi_confirmed: "Confirmées",
+    kpi_cancelled: "Annulées",
+    kpi_delivered: "Livrées",
+    kpi_pending: "En attente",
+    kpi_revenue: "Revenue MAD",
+    kpi_confirm_rate: "Taux confirmation",
+    kpi_delivery_rate: "Taux de livraison",
+    today_placed: "Placées",
+    chart_evolution: "Évolution",
+    no_chart_data: "Aucune donnée pour cette période",
+    top_products: "🏆 Meilleurs produits",
+    no_products_period: "Aucun produit pour cette période",
+    top_cities: "Top Villes",
+    team: "Équipe",
+    manage_team: "Gérer l'équipe →",
+    recent_orders_title: "Dernières commandes",
+    see_all: "Voir tout →",
+    no_orders_period: "Aucune commande pour cette période",
+    updated_at: "Mis à jour",
+    period_today: "Aujourd'hui",
+    period_week: "Cette semaine",
+    period_month: "Ce mois",
+    period_year: "Cette année",
+    col_id: "ID",
+    col_amount: "Montant",
+    col_date: "Date",
+    col_client: "Client",
+    chart_orders: "Commandes",
+    chart_revenue: "Revenue",
+    sold: "vendus",
+    members: "membre(s)",
+    status_confirmed: "Confirmé",
+    status_delivered: "Livré",
+    status_shipped: "Expédié",
+    status_cancelled: "Annulé",
+    status_pending: "En attente",
+    status_returned: "Retourné",
+
+    // ── Orders page ───────────────────────────────────────────────────────────
     orders_title: "Commandes",
     orders_subtitle: "Gestion des commandes clients",
     new_order: "+ Nouvelle commande",
@@ -88,8 +140,10 @@ const T: Record<Lang, Record<string, string>> = {
     notes: "Notes",
     no_orders: "Aucune commande",
     sync_eagle: "Sync Eagle",
+    filter_all: "Tout",
+    search_orders: "Rechercher nom, ville, produit, tel…",
 
-    // Finances page
+    // ── Finances page ──────────────────────────────────────────────────────────
     finances_title: "Finances",
     finances_subtitle: "Investissement · Revenus · Bénéfice net",
     revenue: "Chiffre d'affaires",
@@ -101,11 +155,167 @@ const T: Record<Lang, Record<string, string>> = {
     modify_costs: "Modifier coûts",
     telegram_report: "Rapport Telegram",
 
-    // Integrations
+    // ── Products page ─────────────────────────────────────────────────────────
+    products_title: "Produits",
+    products_subtitle: "produit(s) au catalogue",
+    add_product: "Ajouter produit",
+    edit_product: "Modifier produit",
+    product_name: "Nom du produit",
+    purchase_price: "Prix d'achat (MAD)",
+    sell_price: "Prix de vente (MAD)",
+    uploading_img: "Upload image…",
+    search_product: "Rechercher par nom ou SKU…",
+    col_product: "Produit",
+    col_sku: "SKU",
+    col_buy: "Achat",
+    col_sell: "Vente",
+    col_stock: "Stock",
+    no_products: "Aucun produit dans le catalogue",
+
+    // ── Clients page ──────────────────────────────────────────────────────────
+    clients_title: "Clients",
+    clients_registered: "clients enregistrés",
+    configure_integrations: "Configurer les intégrations",
+    col_name: "Nom",
+    col_city: "Ville",
+    col_phone: "Téléphone",
+    col_orders_short: "Cmds",
+    col_total: "Total",
+    col_last_order: "Dernière",
+    no_clients: "Aucun client",
+    search_client: "Rechercher un client…",
+
+    // ── Rapports page ─────────────────────────────────────────────────────────
+    reports_title: "Rapports",
+    real_performance: "Performances réelles",
+    monthly_report: "Rapport mensuel",
+    col_month: "Mois",
+    col_revenue_short: "Revenue",
+    col_delivery_rate: "Taux livraison",
+    col_returned: "Retournées",
+    export_csv: "Exporter CSV",
+
+    // ── Compte page ───────────────────────────────────────────────────────────
+    my_account: "Mon compte",
+    my_profile: "Mon profil",
+    change_password: "Changer le mot de passe",
+    current_password_label: "Mot de passe actuel",
+    new_password_label: "Nouveau mot de passe",
+    confirm_new_password: "Confirmer le nouveau mot de passe",
+    profile_updated: "Profil mis à jour ✓",
+    password_updated: "Mot de passe mis à jour ✓",
+
+    // ── Equipe page ───────────────────────────────────────────────────────────
+    team_title: "Équipe",
+    active_members: "membre(s) actif(s)",
+    invite_member: "Inviter",
+    no_members: "Aucun membre",
+    assign_products_btn: "Assigner des produits",
+    col_role: "Rôle",
+    col_email: "Email",
+    col_status: "Statut",
+    active: "Actif",
+    inactive: "Inactif",
+
+    // ── Boutiques page ────────────────────────────────────────────────────────
+    stores_title: "Boutiques",
+    stores_count: "boutique(s) enregistrée(s)",
+    add_store: "Ajouter boutique",
+    store_name_label: "Nom de la boutique",
+    pickup_mode: "Ramassage",
+    stock_mode: "Stock transporteur",
+    no_stores: "Aucune boutique",
+    assign_products_store: "Assigner produits à la boutique",
+
+    // ── Calculateur page ──────────────────────────────────────────────────────
+    calculator_title: "Calculateur Produits",
+    calculator_subtitle: "Analysez la rentabilité de vos produits",
+    add_to_calculator: "Ajouter un produit",
+    profitability: "Rentabilité",
+    break_even: "Seuil de rentabilité",
+    search_catalog: "Rechercher un produit du catalogue…",
+    roi: "ROI",
+
+    // ── Visiteurs page ────────────────────────────────────────────────────────
+    live_view: "Vue en direct",
+    live_subtitle: "Activité en temps réel au Maroc",
+    active_visitors: "visiteurs actifs",
+    recent_orders_live: "Commandes récentes",
+
+    // ── Ads page ──────────────────────────────────────────────────────────────
+    ads_title: "Ads Manager",
+    ads_subtitle: "Facebook & TikTok — CPP / CPD / ROAS par produit",
+    campaigns_view: "Campagnes",
+    daily_view: "Journalier",
+    col_platform: "Plateforme",
+    col_spend: "Dépenses",
+    col_cpp: "CPP",
+    col_cpd: "CPD",
+    col_roas: "ROAS",
+    add_campaign: "Ajouter campagne",
+    no_campaigns: "Aucune campagne",
+
+    // ── Telegram page ─────────────────────────────────────────────────────────
+    telegram_search_title: "Recherche Telegram",
+    telegram_search_subtitle: "Uploadez une photo produit — trouvez les groupes/canaux COD Maroc",
+    upload_image: "Uploader une image",
+    search_btn: "Rechercher",
+    drag_drop: "Glissez une image ou cliquez pour choisir",
+
+    // ── Paiements page ────────────────────────────────────────────────────────
+    payments_admin_title: "Paiements équipe",
+    payments_agent_title: "Mes paiements",
+    status_pending_pay: "En attente",
+    status_paid: "Payé ✓",
+    status_refused: "Refusé",
+    total_earned: "Total gagné",
+    already_paid: "Déjà payé",
+    available_balance: "Disponible",
+    request_payment: "Demander un paiement",
+
+    // ── Funnels page ──────────────────────────────────────────────────────────
+    checkouts_title: "Abandons Checkout",
+    checkouts_subtitle: "Paniers abandonnés · Rappel & récupération",
+    purchased: "Achetés",
+    abandoned_tab: "Abandonnés",
+    recovered: "Récupérés",
+    conv_rate: "Taux conv.",
+    search_funnel: "Rechercher nom, téléphone, produit…",
+
+    // ── Transit page ──────────────────────────────────────────────────────────
+    transit_title: "En Transit · Ameex",
+    transit_subtitle: "Suivi des colis en cours",
+    in_progress: "En cours",
+    col_total_parcels: "Total colis",
+    col_in_delivery: "En livraison",
+    type_all: "Tous",
+    type_simple: "SIMPLE",
+    type_stock: "STOCK",
+    search_transit: "Rechercher code, client, ville…",
+
+    // ── Ameex page ────────────────────────────────────────────────────────────
+    ameex_title: "Ameex",
+    ameex_subtitle: "ameex.ma · Livraison & Logistique COD",
+    tab_config: "⚙️ Config",
+    tab_add_parcel: "➕ Ajouter colis",
+    tab_my_parcels: "📦 Mes colis",
+    tab_tracking: "🔍 Tracking",
+    new_parcel: "Nouveau colis Ameex",
+
+    // ── Integrations page ─────────────────────────────────────────────────────
     integrations_title: "Intégrations",
     integrations_subtitle: "Connectez vos outils",
+    integ_sources: "Sources",
+    integ_shipping: "Livraison",
+    integ_ads: "Publicité",
+    integ_notif: "Notifications",
+    api_key_label: "Clé API",
+    test_api: "Tester l'API",
+    api_ok: "API opérationnelle ✓",
+    connected: "Connecté",
+    not_connected: "Non connecté",
 
-    // Login
+    // ── Login ──────────────────────────────────────────────────────────────────
     welcome_back: "Bon retour 👋",
     sign_in_subtitle: "Connectez-vous à votre espace CRM",
     create_account: "Créer votre compte",
@@ -127,22 +337,11 @@ const T: Record<Lang, Record<string, string>> = {
     pw_medium: "Moyen",
     pw_good: "Bon",
     pw_strong: "Fort",
-
-    // Products page
-    products_title: "Produits",
-    products_subtitle: "Catalogue et prix",
-
-    // Clients page
-    clients_title: "Clients",
-    clients_subtitle: "Base clients",
-
-    // Rapports page
-    reports_title: "Rapports",
-    reports_subtitle: "Statistiques & exports",
   },
 
+  // ════════════════════════════════════════════════════════════════════════════
   ar: {
-    // Sidebar
+    // ── Sidebar ──────────────────────────────────────────────────────────────
     tagline: "اطلب. أرسل. اقبض.",
     notifications: "الإشعارات",
     all_up_to_date: "كل شيء محدّث ✓",
@@ -161,7 +360,7 @@ const T: Record<Lang, Record<string, string>> = {
     role_viewer: "مشاهد",
     language: "اللغة",
 
-    // Nav
+    // ── Nav ──────────────────────────────────────────────────────────────────
     nav_dashboard: "لوحة التحكم",
     nav_orders: "الطلبات",
     nav_payments: "المدفوعات",
@@ -179,7 +378,7 @@ const T: Record<Lang, Record<string, string>> = {
     nav_integrations: "التكاملات",
     nav_reports: "التقارير",
 
-    // Statuses
+    // ── Statuses ─────────────────────────────────────────────────────────────
     status_nouveau: "جديد",
     status_confirme: "مؤكد",
     status_expedie: "مُرسل",
@@ -189,8 +388,9 @@ const T: Record<Lang, Record<string, string>> = {
     status_injoignable: "لا يرد",
     status_fausse: "طلب مزيف",
 
-    // Common
+    // ── Common actions ────────────────────────────────────────────────────────
     save: "حفظ",
+    saving: "جاري الحفظ…",
     cancel: "إلغاء",
     delete: "حذف",
     search: "بحث…",
@@ -206,8 +406,59 @@ const T: Record<Lang, Record<string, string>> = {
     all: "الكل",
     show: "إظهار",
     hide: "إخفاء",
+    configure: "إعداد",
+    test: "اختبار",
+    no_data: "لا توجد بيانات",
+    back: "رجوع",
+    send: "إرسال",
+    year: "سنة",
+    export: "تصدير",
+    import: "استيراد",
+    refresh: "تحديث",
 
-    // Orders page
+    // ── Dashboard ────────────────────────────────────────────────────────────
+    dashboard: "لوحة التحكم",
+    new_order_btn: "+ طلب جديد",
+    kpi_orders: "الطلبات",
+    kpi_confirmed: "المؤكدة",
+    kpi_cancelled: "الملغاة",
+    kpi_delivered: "المُسلَّمة",
+    kpi_pending: "قيد الانتظار",
+    kpi_revenue: "الإيرادات (درهم)",
+    kpi_confirm_rate: "نسبة التأكيد",
+    kpi_delivery_rate: "نسبة التسليم",
+    today_placed: "مُقدَّمة",
+    chart_evolution: "التطور",
+    no_chart_data: "لا توجد بيانات لهذه الفترة",
+    top_products: "🏆 أفضل المنتجات",
+    no_products_period: "لا توجد منتجات لهذه الفترة",
+    top_cities: "أفضل المدن",
+    team: "الفريق",
+    manage_team: "إدارة الفريق →",
+    recent_orders_title: "آخر الطلبات",
+    see_all: "عرض الكل →",
+    no_orders_period: "لا توجد طلبات لهذه الفترة",
+    updated_at: "تم التحديث",
+    period_today: "اليوم",
+    period_week: "هذا الأسبوع",
+    period_month: "هذا الشهر",
+    period_year: "هذه السنة",
+    col_id: "ID",
+    col_amount: "المبلغ",
+    col_date: "التاريخ",
+    col_client: "العميل",
+    chart_orders: "الطلبات",
+    chart_revenue: "الإيرادات",
+    sold: "مُباع",
+    members: "عضو",
+    status_confirmed: "مؤكد",
+    status_delivered: "تم التسليم",
+    status_shipped: "مُرسَل",
+    status_cancelled: "ملغى",
+    status_pending: "قيد الانتظار",
+    status_returned: "مُرجَع",
+
+    // ── Orders page ───────────────────────────────────────────────────────────
     orders_title: "الطلبات",
     orders_subtitle: "إدارة طلبات العملاء",
     new_order: "+ طلب جديد",
@@ -224,8 +475,10 @@ const T: Record<Lang, Record<string, string>> = {
     notes: "ملاحظات",
     no_orders: "لا توجد طلبات",
     sync_eagle: "مزامنة Eagle",
+    filter_all: "الكل",
+    search_orders: "بحث بالاسم، المدينة، المنتج…",
 
-    // Finances page
+    // ── Finances page ──────────────────────────────────────────────────────────
     finances_title: "المالية",
     finances_subtitle: "الاستثمار · الإيرادات · الربح الصافي",
     revenue: "رقم الأعمال",
@@ -237,11 +490,167 @@ const T: Record<Lang, Record<string, string>> = {
     modify_costs: "تعديل التكاليف",
     telegram_report: "تقرير تيليغرام",
 
-    // Integrations
+    // ── Products page ─────────────────────────────────────────────────────────
+    products_title: "المنتجات",
+    products_subtitle: "منتج في الكتالوج",
+    add_product: "إضافة منتج",
+    edit_product: "تعديل المنتج",
+    product_name: "اسم المنتج",
+    purchase_price: "سعر الشراء (درهم)",
+    sell_price: "سعر البيع (درهم)",
+    uploading_img: "رفع الصورة…",
+    search_product: "بحث بالاسم أو SKU…",
+    col_product: "المنتج",
+    col_sku: "SKU",
+    col_buy: "الشراء",
+    col_sell: "البيع",
+    col_stock: "المخزون",
+    no_products: "لا توجد منتجات في الكتالوج",
+
+    // ── Clients page ──────────────────────────────────────────────────────────
+    clients_title: "العملاء",
+    clients_registered: "عميل مسجّل",
+    configure_integrations: "إعداد التكاملات",
+    col_name: "الاسم",
+    col_city: "المدينة",
+    col_phone: "الهاتف",
+    col_orders_short: "طلبات",
+    col_total: "الإجمالي",
+    col_last_order: "آخر طلب",
+    no_clients: "لا يوجد عملاء",
+    search_client: "بحث عن عميل…",
+
+    // ── Rapports page ─────────────────────────────────────────────────────────
+    reports_title: "التقارير",
+    real_performance: "الأداء الفعلي",
+    monthly_report: "التقرير الشهري",
+    col_month: "الشهر",
+    col_revenue_short: "الإيراد",
+    col_delivery_rate: "نسبة التسليم",
+    col_returned: "المرجَعة",
+    export_csv: "تصدير CSV",
+
+    // ── Compte page ───────────────────────────────────────────────────────────
+    my_account: "حسابي",
+    my_profile: "ملفي الشخصي",
+    change_password: "تغيير كلمة المرور",
+    current_password_label: "كلمة المرور الحالية",
+    new_password_label: "كلمة المرور الجديدة",
+    confirm_new_password: "تأكيد كلمة المرور الجديدة",
+    profile_updated: "تم تحديث الملف الشخصي ✓",
+    password_updated: "تم تغيير كلمة المرور ✓",
+
+    // ── Equipe page ───────────────────────────────────────────────────────────
+    team_title: "الفريق",
+    active_members: "عضو نشط",
+    invite_member: "دعوة",
+    no_members: "لا يوجد أعضاء",
+    assign_products_btn: "تعيين المنتجات",
+    col_role: "الدور",
+    col_email: "البريد",
+    col_status: "الحالة",
+    active: "نشط",
+    inactive: "غير نشط",
+
+    // ── Boutiques page ────────────────────────────────────────────────────────
+    stores_title: "المتاجر",
+    stores_count: "متجر مسجّل",
+    add_store: "إضافة متجر",
+    store_name_label: "اسم المتجر",
+    pickup_mode: "استلام",
+    stock_mode: "مخزون الناقل",
+    no_stores: "لا توجد متاجر",
+    assign_products_store: "تعيين منتجات للمتجر",
+
+    // ── Calculateur page ──────────────────────────────────────────────────────
+    calculator_title: "حاسبة المنتجات",
+    calculator_subtitle: "حلّل ربحية منتجاتك",
+    add_to_calculator: "إضافة منتج",
+    profitability: "الربحية",
+    break_even: "نقطة التعادل",
+    search_catalog: "بحث في الكتالوج…",
+    roi: "العائد على الاستثمار",
+
+    // ── Visiteurs page ────────────────────────────────────────────────────────
+    live_view: "المشاهدة المباشرة",
+    live_subtitle: "نشاط في الوقت الفعلي بالمغرب",
+    active_visitors: "زائر نشط",
+    recent_orders_live: "الطلبات الأخيرة",
+
+    // ── Ads page ──────────────────────────────────────────────────────────────
+    ads_title: "مدير الإعلانات",
+    ads_subtitle: "فيسبوك وتيك توك — CPP / CPD / ROAS بحسب المنتج",
+    campaigns_view: "الحملات",
+    daily_view: "يومي",
+    col_platform: "المنصة",
+    col_spend: "الإنفاق",
+    col_cpp: "CPP",
+    col_cpd: "CPD",
+    col_roas: "ROAS",
+    add_campaign: "إضافة حملة",
+    no_campaigns: "لا توجد حملات",
+
+    // ── Telegram page ─────────────────────────────────────────────────────────
+    telegram_search_title: "بحث تيليغرام",
+    telegram_search_subtitle: "ارفع صورة منتج — ابحث عن مجموعات/قنوات COD المغرب",
+    upload_image: "رفع صورة",
+    search_btn: "بحث",
+    drag_drop: "اسحب صورة أو انقر للاختيار",
+
+    // ── Paiements page ────────────────────────────────────────────────────────
+    payments_admin_title: "مدفوعات الفريق",
+    payments_agent_title: "مدفوعاتي",
+    status_pending_pay: "قيد الانتظار",
+    status_paid: "مدفوع ✓",
+    status_refused: "مرفوض",
+    total_earned: "إجمالي الأرباح",
+    already_paid: "المدفوع بالفعل",
+    available_balance: "المتاح",
+    request_payment: "طلب دفع",
+
+    // ── Funnels page ──────────────────────────────────────────────────────────
+    checkouts_title: "السلات المهجورة",
+    checkouts_subtitle: "سلات التسوق المهجورة · التذكير والاسترداد",
+    purchased: "مشتريات",
+    abandoned_tab: "مهجورة",
+    recovered: "مُستردّة",
+    conv_rate: "نسبة التحويل",
+    search_funnel: "بحث بالاسم، الهاتف، المنتج…",
+
+    // ── Transit page ──────────────────────────────────────────────────────────
+    transit_title: "في الطريق · Ameex",
+    transit_subtitle: "متابعة الطرود الجارية",
+    in_progress: "قيد التنفيذ",
+    col_total_parcels: "إجمالي الطرود",
+    col_in_delivery: "قيد التوصيل",
+    type_all: "الكل",
+    type_simple: "بسيط",
+    type_stock: "مخزون",
+    search_transit: "بحث برمز، عميل، مدينة…",
+
+    // ── Ameex page ────────────────────────────────────────────────────────────
+    ameex_title: "Ameex",
+    ameex_subtitle: "ameex.ma · توصيل ولوجستيك COD",
+    tab_config: "⚙️ الإعداد",
+    tab_add_parcel: "➕ إضافة طرد",
+    tab_my_parcels: "📦 طرودي",
+    tab_tracking: "🔍 تتبع",
+    new_parcel: "طرد Ameex جديد",
+
+    // ── Integrations page ─────────────────────────────────────────────────────
     integrations_title: "التكاملات",
     integrations_subtitle: "اربط أدواتك",
+    integ_sources: "المصادر",
+    integ_shipping: "التوصيل",
+    integ_ads: "الإعلانات",
+    integ_notif: "الإشعارات",
+    api_key_label: "مفتاح API",
+    test_api: "اختبار API",
+    api_ok: "API يعمل بشكل صحيح ✓",
+    connected: "متصل",
+    not_connected: "غير متصل",
 
-    // Login
+    // ── Login ──────────────────────────────────────────────────────────────────
     welcome_back: "مرحباً بعودتك 👋",
     sign_in_subtitle: "سجّل الدخول إلى حسابك",
     create_account: "إنشاء حساب",
@@ -263,22 +672,11 @@ const T: Record<Lang, Record<string, string>> = {
     pw_medium: "متوسط",
     pw_good: "جيد",
     pw_strong: "قوي",
-
-    // Products page
-    products_title: "المنتجات",
-    products_subtitle: "الكتالوج والأسعار",
-
-    // Clients page
-    clients_title: "العملاء",
-    clients_subtitle: "قاعدة العملاء",
-
-    // Rapports page
-    reports_title: "التقارير",
-    reports_subtitle: "إحصائيات وتصديرات",
   },
 
+  // ════════════════════════════════════════════════════════════════════════════
   en: {
-    // Sidebar
+    // ── Sidebar ──────────────────────────────────────────────────────────────
     tagline: "Order. Ship. Collect.",
     notifications: "Notifications",
     all_up_to_date: "All up to date ✓",
@@ -297,7 +695,7 @@ const T: Record<Lang, Record<string, string>> = {
     role_viewer: "Viewer",
     language: "Language",
 
-    // Nav
+    // ── Nav ──────────────────────────────────────────────────────────────────
     nav_dashboard: "Dashboard",
     nav_orders: "Orders",
     nav_payments: "Payments",
@@ -315,7 +713,7 @@ const T: Record<Lang, Record<string, string>> = {
     nav_integrations: "Integrations",
     nav_reports: "Reports",
 
-    // Statuses
+    // ── Statuses ─────────────────────────────────────────────────────────────
     status_nouveau: "New",
     status_confirme: "Confirmed",
     status_expedie: "Shipped",
@@ -325,8 +723,9 @@ const T: Record<Lang, Record<string, string>> = {
     status_injoignable: "Unreachable",
     status_fausse: "Fake order",
 
-    // Common
+    // ── Common actions ────────────────────────────────────────────────────────
     save: "Save",
+    saving: "Saving…",
     cancel: "Cancel",
     delete: "Delete",
     search: "Search…",
@@ -342,8 +741,59 @@ const T: Record<Lang, Record<string, string>> = {
     all: "All",
     show: "Show",
     hide: "Hide",
+    configure: "Configure",
+    test: "Test",
+    no_data: "No data",
+    back: "Back",
+    send: "Send",
+    year: "Year",
+    export: "Export",
+    import: "Import",
+    refresh: "Refresh",
 
-    // Orders page
+    // ── Dashboard ────────────────────────────────────────────────────────────
+    dashboard: "Dashboard",
+    new_order_btn: "+ New order",
+    kpi_orders: "Orders",
+    kpi_confirmed: "Confirmed",
+    kpi_cancelled: "Cancelled",
+    kpi_delivered: "Delivered",
+    kpi_pending: "Pending",
+    kpi_revenue: "Revenue MAD",
+    kpi_confirm_rate: "Confirmation rate",
+    kpi_delivery_rate: "Delivery rate",
+    today_placed: "Placed",
+    chart_evolution: "Evolution",
+    no_chart_data: "No data for this period",
+    top_products: "🏆 Best products",
+    no_products_period: "No products for this period",
+    top_cities: "Top Cities",
+    team: "Team",
+    manage_team: "Manage team →",
+    recent_orders_title: "Recent orders",
+    see_all: "See all →",
+    no_orders_period: "No orders for this period",
+    updated_at: "Updated",
+    period_today: "Today",
+    period_week: "This week",
+    period_month: "This month",
+    period_year: "This year",
+    col_id: "ID",
+    col_amount: "Amount",
+    col_date: "Date",
+    col_client: "Client",
+    chart_orders: "Orders",
+    chart_revenue: "Revenue",
+    sold: "sold",
+    members: "member(s)",
+    status_confirmed: "Confirmed",
+    status_delivered: "Delivered",
+    status_shipped: "Shipped",
+    status_cancelled: "Cancelled",
+    status_pending: "Pending",
+    status_returned: "Returned",
+
+    // ── Orders page ───────────────────────────────────────────────────────────
     orders_title: "Orders",
     orders_subtitle: "Customer order management",
     new_order: "+ New order",
@@ -360,8 +810,10 @@ const T: Record<Lang, Record<string, string>> = {
     notes: "Notes",
     no_orders: "No orders",
     sync_eagle: "Sync Eagle",
+    filter_all: "All",
+    search_orders: "Search name, city, product, phone…",
 
-    // Finances page
+    // ── Finances page ──────────────────────────────────────────────────────────
     finances_title: "Finances",
     finances_subtitle: "Investment · Revenue · Net profit",
     revenue: "Revenue",
@@ -373,11 +825,167 @@ const T: Record<Lang, Record<string, string>> = {
     modify_costs: "Edit costs",
     telegram_report: "Telegram report",
 
-    // Integrations
+    // ── Products page ─────────────────────────────────────────────────────────
+    products_title: "Products",
+    products_subtitle: "product(s) in catalog",
+    add_product: "Add product",
+    edit_product: "Edit product",
+    product_name: "Product name",
+    purchase_price: "Purchase price (MAD)",
+    sell_price: "Sell price (MAD)",
+    uploading_img: "Uploading image…",
+    search_product: "Search by name or SKU…",
+    col_product: "Product",
+    col_sku: "SKU",
+    col_buy: "Buy",
+    col_sell: "Sell",
+    col_stock: "Stock",
+    no_products: "No products in catalog",
+
+    // ── Clients page ──────────────────────────────────────────────────────────
+    clients_title: "Clients",
+    clients_registered: "clients registered",
+    configure_integrations: "Configure integrations",
+    col_name: "Name",
+    col_city: "City",
+    col_phone: "Phone",
+    col_orders_short: "Orders",
+    col_total: "Total",
+    col_last_order: "Last order",
+    no_clients: "No clients",
+    search_client: "Search a client…",
+
+    // ── Rapports page ─────────────────────────────────────────────────────────
+    reports_title: "Reports",
+    real_performance: "Real performance",
+    monthly_report: "Monthly report",
+    col_month: "Month",
+    col_revenue_short: "Revenue",
+    col_delivery_rate: "Delivery rate",
+    col_returned: "Returned",
+    export_csv: "Export CSV",
+
+    // ── Compte page ───────────────────────────────────────────────────────────
+    my_account: "My account",
+    my_profile: "My profile",
+    change_password: "Change password",
+    current_password_label: "Current password",
+    new_password_label: "New password",
+    confirm_new_password: "Confirm new password",
+    profile_updated: "Profile updated ✓",
+    password_updated: "Password updated ✓",
+
+    // ── Equipe page ───────────────────────────────────────────────────────────
+    team_title: "Team",
+    active_members: "active member(s)",
+    invite_member: "Invite",
+    no_members: "No members",
+    assign_products_btn: "Assign products",
+    col_role: "Role",
+    col_email: "Email",
+    col_status: "Status",
+    active: "Active",
+    inactive: "Inactive",
+
+    // ── Boutiques page ────────────────────────────────────────────────────────
+    stores_title: "Stores",
+    stores_count: "store(s) registered",
+    add_store: "Add store",
+    store_name_label: "Store name",
+    pickup_mode: "Pickup",
+    stock_mode: "Carrier stock",
+    no_stores: "No stores",
+    assign_products_store: "Assign products to store",
+
+    // ── Calculateur page ──────────────────────────────────────────────────────
+    calculator_title: "Product Calculator",
+    calculator_subtitle: "Analyze your product profitability",
+    add_to_calculator: "Add a product",
+    profitability: "Profitability",
+    break_even: "Break-even",
+    search_catalog: "Search catalog products…",
+    roi: "ROI",
+
+    // ── Visiteurs page ────────────────────────────────────────────────────────
+    live_view: "Live view",
+    live_subtitle: "Real-time activity in Morocco",
+    active_visitors: "active visitors",
+    recent_orders_live: "Recent orders",
+
+    // ── Ads page ──────────────────────────────────────────────────────────────
+    ads_title: "Ads Manager",
+    ads_subtitle: "Facebook & TikTok — CPP / CPD / ROAS by product",
+    campaigns_view: "Campaigns",
+    daily_view: "Daily",
+    col_platform: "Platform",
+    col_spend: "Spend",
+    col_cpp: "CPP",
+    col_cpd: "CPD",
+    col_roas: "ROAS",
+    add_campaign: "Add campaign",
+    no_campaigns: "No campaigns",
+
+    // ── Telegram page ─────────────────────────────────────────────────────────
+    telegram_search_title: "Telegram Search",
+    telegram_search_subtitle: "Upload a product photo — find COD Morocco groups/channels",
+    upload_image: "Upload an image",
+    search_btn: "Search",
+    drag_drop: "Drag an image or click to choose",
+
+    // ── Paiements page ────────────────────────────────────────────────────────
+    payments_admin_title: "Team payments",
+    payments_agent_title: "My payments",
+    status_pending_pay: "Pending",
+    status_paid: "Paid ✓",
+    status_refused: "Refused",
+    total_earned: "Total earned",
+    already_paid: "Already paid",
+    available_balance: "Available",
+    request_payment: "Request payment",
+
+    // ── Funnels page ──────────────────────────────────────────────────────────
+    checkouts_title: "Abandoned Checkouts",
+    checkouts_subtitle: "Abandoned carts · Reminder & recovery",
+    purchased: "Purchased",
+    abandoned_tab: "Abandoned",
+    recovered: "Recovered",
+    conv_rate: "Conv. rate",
+    search_funnel: "Search name, phone, product…",
+
+    // ── Transit page ──────────────────────────────────────────────────────────
+    transit_title: "In Transit · Ameex",
+    transit_subtitle: "Tracking in-progress parcels",
+    in_progress: "In progress",
+    col_total_parcels: "Total parcels",
+    col_in_delivery: "In delivery",
+    type_all: "All",
+    type_simple: "SIMPLE",
+    type_stock: "STOCK",
+    search_transit: "Search code, client, city…",
+
+    // ── Ameex page ────────────────────────────────────────────────────────────
+    ameex_title: "Ameex",
+    ameex_subtitle: "ameex.ma · COD Delivery & Logistics",
+    tab_config: "⚙️ Config",
+    tab_add_parcel: "➕ Add parcel",
+    tab_my_parcels: "📦 My parcels",
+    tab_tracking: "🔍 Tracking",
+    new_parcel: "New Ameex parcel",
+
+    // ── Integrations page ─────────────────────────────────────────────────────
     integrations_title: "Integrations",
     integrations_subtitle: "Connect your tools",
+    integ_sources: "Sources",
+    integ_shipping: "Shipping",
+    integ_ads: "Advertising",
+    integ_notif: "Notifications",
+    api_key_label: "API Key",
+    test_api: "Test API",
+    api_ok: "API working ✓",
+    connected: "Connected",
+    not_connected: "Not connected",
 
-    // Login
+    // ── Login ──────────────────────────────────────────────────────────────────
     welcome_back: "Welcome back 👋",
     sign_in_subtitle: "Sign in to your CRM workspace",
     create_account: "Create your account",
@@ -399,18 +1007,6 @@ const T: Record<Lang, Record<string, string>> = {
     pw_medium: "Medium",
     pw_good: "Good",
     pw_strong: "Strong",
-
-    // Products page
-    products_title: "Products",
-    products_subtitle: "Catalog & pricing",
-
-    // Clients page
-    clients_title: "Clients",
-    clients_subtitle: "Client database",
-
-    // Rapports page
-    reports_title: "Reports",
-    reports_subtitle: "Stats & exports",
   },
 };
 

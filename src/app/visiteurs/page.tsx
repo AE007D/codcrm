@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import Sidebar from "@/components/Sidebar";
 import { MOROCCO_PATHS } from "./moroccoPathsData";
+import { useLang } from "@/lib/i18n";
 
 /* ─── Types ─────────────────────────────────────────────── */
 type Visitor = {
@@ -254,6 +255,7 @@ function Funnel({
 
 /* ─── Main Page ─────────────────────────────────────────── */
 export default function LiveViewPage() {
+  const { t } = useLang();
   const [visitors, setVisitors] = useState<Visitor[]>([]);
   const [orders, setOrders] = useState<Order[]>([]);
   const [tableExists, setTableExists] = useState(true);
@@ -419,7 +421,7 @@ export default function LiveViewPage() {
         <div className="flex items-center justify-between px-5 py-3 shrink-0 z-10">
           {/* Legend */}
           <div className="flex items-center gap-5">
-            <h1 className="text-slate-100 font-semibold text-base tracking-wide">Vue en direct</h1>
+            <h1 className="text-slate-100 font-semibold text-base tracking-wide">{t("live_view")}</h1>
             <div className="flex items-center gap-1.5">
               <span className="inline-block w-2.5 h-2.5 rounded-full bg-emerald-500 ring-2 ring-emerald-500/30"/>
               <span className="text-slate-400 text-xs">Visiteur</span>

@@ -2,10 +2,12 @@
 
 import { useState, useRef } from "react";
 import Sidebar from "@/components/Sidebar";
+import { useLang } from "@/lib/i18n";
 
 type TelegramResult = { url: string; title: string; snippet: string; channel: string };
 
 export default function TelegramPage() {
+  const { t } = useLang();
   const [query, setQuery] = useState("");
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
@@ -60,14 +62,14 @@ export default function TelegramPage() {
     <div className="flex min-h-screen bg-[#F0F4FF]">
       <Sidebar />
       <div className="flex-1 flex flex-col">
-        <header className="bg-white border-b border-slate-100 px-4 lg:px-8 py-4 pl-14 lg:pl-8">
+        <header className="bg-white border-b border-slate-100 px-4 lg:px-8 py-4 pl-14 lg:pl-8 sidebar-header-pl">
           <div className="flex items-center gap-3">
             <div className="w-9 h-9 rounded-xl bg-blue-500 flex items-center justify-center shadow-md shadow-blue-200">
               <svg viewBox="0 0 24 24" fill="white" className="w-5 h-5"><path d="M9.78 18.65l.28-4.23 7.68-6.92c.34-.31-.07-.46-.52-.19L7.74 13.3 3.64 12c-.88-.25-.89-.86.2-1.3l15.97-6.16c.73-.33 1.43.18 1.15 1.3l-2.72 12.81c-.19.91-.74 1.13-1.5.71L12.6 16.3l-1.99 1.93c-.23.23-.42.42-.83.42z"/></svg>
             </div>
             <div>
-              <h1 className="text-xl font-bold text-slate-900">Recherche Telegram</h1>
-              <p className="text-sm text-slate-400">Uploadez une photo produit — trouvez les groupes/canaux COD Maroc</p>
+              <h1 className="text-xl font-bold text-slate-900">{t("telegram_search_title")}</h1>
+              <p className="text-sm text-slate-400">{t("telegram_search_subtitle")}</p>
             </div>
           </div>
         </header>
@@ -88,7 +90,7 @@ export default function TelegramPage() {
                     <svg viewBox="0 0 24 24" fill="none" stroke="#94a3b8" strokeWidth={1.5} className="w-7 h-7"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M17 8l-5-5-5 5M12 3v12"/></svg>
                   </div>
                   <div className="text-center">
-                    <p className="font-semibold text-slate-700">Glissez une image ici</p>
+                    <p className="font-semibold text-slate-700">{t("drag_drop")}</p>
                     <p className="text-sm text-slate-400 mt-0.5">ou cliquez pour sélectionner — JPG, PNG, WEBP</p>
                   </div>
                   <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={e => { const f = e.target.files?.[0]; if (f) handleFile(f); }} />
@@ -128,7 +130,7 @@ export default function TelegramPage() {
                   ) : (
                     <svg viewBox="0 0 24 24" fill="white" className="w-4 h-4"><path d="M9.78 18.65l.28-4.23 7.68-6.92c.34-.31-.07-.46-.52-.19L7.74 13.3 3.64 12c-.88-.25-.89-.86.2-1.3l15.97-6.16c.73-.33 1.43.18 1.15 1.3l-2.72 12.81c-.19.91-.74 1.13-1.5.71L12.6 16.3l-1.99 1.93c-.23.23-.42.42-.83.42z"/></svg>
                   )}
-                  Rechercher
+                  {t("search_btn")}
                 </button>
               </div>
               <p className="text-xs text-slate-400 mt-2">La recherche cherche automatiquement sur les canaux/groupes Telegram Maroc COD</p>

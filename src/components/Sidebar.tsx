@@ -499,7 +499,7 @@ export default function Sidebar() {
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="w-4 h-4 text-slate-400 shrink-0">
               <circle cx="12" cy="12" r="10"/><path d="M2 12h20M12 2a15.3 15.3 0 010 20M12 2a15.3 15.3 0 000 20"/>
             </svg>
-            <div className="flex gap-0.5 ms-1">
+            <div className="flex gap-0.5 ml-1">
               {(["fr", "ar", "en"] as Lang[]).map(l => (
                 <button key={l} onClick={() => setLang(l)}
                   className={`text-xs font-bold px-2 py-1 rounded-lg transition-colors uppercase ${
@@ -524,7 +524,7 @@ export default function Sidebar() {
                   <path d="M15.54 8.46a5 5 0 010 7.07M19.07 4.93a10 10 0 010 14.14"/>
                 </svg>
                 <span className="text-slate-500">{t("sound_on")}</span>
-                <span className="ms-auto w-2 h-2 rounded-full bg-emerald-400"/>
+                <span className="ml-auto w-2 h-2 rounded-full bg-emerald-400"/>
               </>
             ) : (
               <>

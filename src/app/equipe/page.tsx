@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import Sidebar from "@/components/Sidebar";
+import { useLang } from "@/lib/i18n";
 
 type UserRole = "admin" | "agent" | "viewer";
 type TeamUser = { id: string; name: string; email: string; role: UserRole; active: boolean; createdAt: string };
@@ -25,6 +26,7 @@ function UserInitial({ name }: { name: string }) {
 }
 
 export default function EquipePage() {
+  const { t } = useLang();
   const [users, setUsers] = useState<TeamUser[]>([]);
   const [currentUser, setCurrentUser] = useState<CurrentUser | null>(null);
   const [loading, setLoading] = useState(true);
@@ -156,15 +158,15 @@ export default function EquipePage() {
     <div className="flex min-h-screen bg-[#F0F4FF]">
       <Sidebar />
       <div className="flex-1 flex flex-col">
-        <header className="bg-white border-b border-slate-100 px-4 lg:px-8 py-4 pl-14 lg:pl-8 flex items-center justify-between">
+        <header className="sidebar-header-pl bg-white border-b border-slate-100 px-4 lg:px-8 py-4 pl-14 lg:pl-8 flex items-center justify-between">
           <div>
-            <h1 className="text-xl font-bold text-slate-900">Équipe</h1>
-            <p className="text-sm text-slate-400">{users.filter(u => u.active).length} membre(s) actif(s)</p>
+            <h1 className="text-xl font-bold text-slate-900">{t("team_title")}</h1>
+            <p className="text-sm text-slate-400">{`${users.filter(u => u.active).length} ${t("active_members")}`}</p>
           </div>
           {isAdmin && (
             <button onClick={() => setShowInviteModal(true)}
               className="bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold px-5 py-2.5 rounded-xl shadow-md shadow-blue-200 transition-colors">
-              + Inviter
+              + {t("invite_member")}
             </button>
           )}
         </header>
@@ -186,7 +188,7 @@ export default function EquipePage() {
                   <div className="w-12 h-12 bg-slate-100 rounded-2xl flex items-center justify-center mb-3">
                     <svg viewBox="0 0 24 24" fill="none" stroke="#94A3B8" strokeWidth={2} className="w-6 h-6"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/></svg>
                   </div>
-                  <p className="text-sm font-semibold text-slate-400">Aucun membre</p>
+                  <p className="text-sm font-semibold text-slate-400">{t("no_members")}</p>
                 </div>
               ) : (
                 <div className="overflow-x-auto">
@@ -238,7 +240,7 @@ export default function EquipePage() {
                                   {(u.role === "agent" || u.role === "admin") && (
                                     <button onClick={() => openAgentAssign(u)}
                                       className="text-xs px-3 py-1.5 rounded-lg border border-emerald-200 text-emerald-600 hover:bg-emerald-50 font-medium transition-colors">
-                                      Produits
+                                      {t("assign_products_btn")}
                                     </button>
                                   )}
                                   {!isSelf && (
@@ -306,7 +308,7 @@ export default function EquipePage() {
               </div>
               <div className="flex gap-3 mt-1">
                 <button type="button" onClick={() => { setShowInviteModal(false); setInviteError(""); }}
-                  className="flex-1 py-2.5 rounded-xl border border-slate-200 text-sm font-semibold text-slate-600 hover:bg-slate-50">Annuler</button>
+                  className="flex-1 py-2.5 rounded-xl border border-slate-200 text-sm font-semibold text-slate-600 hover:bg-slate-50">{t("cancel")}</button>
                 <button type="submit" disabled={inviteLoading}
                   className="flex-1 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white text-sm font-semibold shadow-md shadow-blue-200">
                   {inviteLoading ? "Création..." : "Créer le compte"}
@@ -377,10 +379,10 @@ export default function EquipePage() {
             </div>
             <div className="px-6 py-4 border-t border-slate-100 flex gap-3">
               <button onClick={() => setAssignAgent(null)}
-                className="flex-1 py-2.5 rounded-xl border border-slate-200 text-sm font-semibold text-slate-600 hover:bg-slate-50">Annuler</button>
+                className="flex-1 py-2.5 rounded-xl border border-slate-200 text-sm font-semibold text-slate-600 hover:bg-slate-50">{t("cancel")}</button>
               <button onClick={saveAgentAssign} disabled={agentAssignSaving || agentAssignLoading}
                 className="flex-1 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white text-sm font-semibold shadow-md shadow-emerald-200">
-                {agentAssignSaving ? "Enregistrement…" : "Enregistrer"}
+                {agentAssignSaving ? t("saving") : t("save")}
               </button>
             </div>
           </div>

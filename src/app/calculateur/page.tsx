@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback, useMemo } from "react";
 import Image from "next/image";
 import Sidebar from "@/components/Sidebar";
+import { useLang } from "@/lib/i18n";
 
 type AdCampaign = {
   id: number;
@@ -142,6 +143,7 @@ function matchCampaigns(name: string, sku: string, campaigns: AdCampaign[]) {
 }
 
 export default function CalculateurPage() {
+  const { t } = useLang();
   const [products, setProducts] = useState<Product[]>([]);
   const [catalog, setCatalog] = useState<CatalogProduct[]>([]);
   const [adCampaigns, setAdCampaigns] = useState<AdCampaign[]>([]);
@@ -335,10 +337,10 @@ export default function CalculateurPage() {
     <div className="flex min-h-screen bg-[#F0F4FF]">
       <Sidebar />
       <div className="flex-1 flex flex-col">
-        <header className="bg-white border-b border-slate-100 px-4 lg:px-8 py-4 pl-14 lg:pl-8 flex flex-wrap items-center justify-between gap-2">
+        <header className="sidebar-header-pl bg-white border-b border-slate-100 px-4 lg:px-8 py-4 pl-14 lg:pl-8 flex flex-wrap items-center justify-between gap-2">
           <div>
-            <h1 className="text-xl font-bold text-slate-900">Calculateur Produits</h1>
-            <p className="text-sm text-slate-400 hidden sm:block">Taux de livraison réel par produit — depuis Ameex & Eagle Express</p>
+            <h1 className="text-xl font-bold text-slate-900">{t("calculator_title")}</h1>
+            <p className="text-sm text-slate-400 hidden sm:block">{t("calculator_subtitle")}</p>
           </div>
           <div className="flex items-center gap-2 flex-wrap">
             {syncing ? (
@@ -353,7 +355,7 @@ export default function CalculateurPage() {
               </div>
             ) : null}
             <button onClick={() => setShowModal(true)} className="bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold px-4 py-2.5 rounded-xl shadow-md shadow-blue-200 transition-colors whitespace-nowrap">
-              + Ajouter
+              + {t("add_to_calculator")}
             </button>
           </div>
         </header>
@@ -564,7 +566,7 @@ export default function CalculateurPage() {
         <div className="fixed inset-0 bg-black/30 backdrop-blur-sm flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-2xl shadow-xl w-full max-w-md p-6 max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between mb-5">
-              <h2 className="text-lg font-bold text-slate-900">Ajouter un produit</h2>
+              <h2 className="text-lg font-bold text-slate-900">{t("add_to_calculator")}</h2>
               <button onClick={() => { setShowModal(false); setError(""); setForm(emptyForm); setSelectedCatalogId(null); setCatalogSearch(""); }} className="text-slate-400 hover:text-slate-600">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="w-5 h-5"><path d="M18 6L6 18M6 6l12 12"/></svg>
               </button>
@@ -609,7 +611,7 @@ export default function CalculateurPage() {
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
                     <input
                       type="text"
-                      placeholder="Rechercher un produit du catalogue…"
+                      placeholder={t("search_catalog")}
                       value={catalogSearch}
                       onChange={e => setCatalogSearch(e.target.value)}
                       className="w-full text-sm border border-slate-200 rounded-xl pl-9 pr-4 py-2.5 outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-50"
@@ -697,8 +699,8 @@ export default function CalculateurPage() {
               </div>
             )}
             <div className="flex gap-3 mt-5">
-              <button onClick={() => { setShowModal(false); setError(""); setForm(emptyForm); }} className="flex-1 py-2.5 rounded-xl border border-slate-200 text-sm font-semibold text-slate-600 hover:bg-slate-50">Annuler</button>
-              <button onClick={handleAdd} className="flex-1 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold shadow-md shadow-blue-200">Ajouter</button>
+              <button onClick={() => { setShowModal(false); setError(""); setForm(emptyForm); }} className="flex-1 py-2.5 rounded-xl border border-slate-200 text-sm font-semibold text-slate-600 hover:bg-slate-50">{t("cancel")}</button>
+              <button onClick={handleAdd} className="flex-1 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold shadow-md shadow-blue-200">{t("add")}</button>
             </div>
           </div>
         </div>

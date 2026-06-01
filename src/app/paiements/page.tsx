@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import Sidebar from "@/components/Sidebar";
+import { useLang } from "@/lib/i18n";
 
 type PayRequest = {
   id: string;
@@ -13,13 +14,14 @@ type PayRequest = {
   created_at: string;
 };
 
-const STATUS_LABELS: Record<string, { label: string; color: string; bg: string }> = {
-  pending:  { label: "En attente", color: "text-amber-700",  bg: "bg-amber-50 border-amber-200" },
-  paid:     { label: "Payé ✓",    color: "text-emerald-700", bg: "bg-emerald-50 border-emerald-200" },
-  rejected: { label: "Refusé",    color: "text-red-600",     bg: "bg-red-50 border-red-200" },
+const STATUS_LABELS: Record<string, { labelKey: string; color: string; bg: string }> = {
+  pending:  { labelKey: "status_pending_pay", color: "text-amber-700",  bg: "bg-amber-50 border-amber-200" },
+  paid:     { labelKey: "status_paid",        color: "text-emerald-700", bg: "bg-emerald-50 border-emerald-200" },
+  rejected: { labelKey: "status_refused",     color: "text-red-600",     bg: "bg-red-50 border-red-200" },
 };
 
 export default function PaiementsPage() {
+  const { t } = useLang();
   const [role, setRole] = useState<"admin" | "agent" | "viewer" | null>(null);
   const [requests, setRequests] = useState<PayRequest[]>([]);
   const [loading, setLoading] = useState(true);
@@ -109,7 +111,7 @@ export default function PaiementsPage() {
           {/* Header */}
           <div className="mb-6">
             <h1 className="text-2xl font-bold text-slate-900">
-              {role === "admin" ? "Paiements équipe" : "Mes paiements"}
+              {role === "admin" ? t("payments_admin_title") : t("payments_agent_title")}
             </h1>
             <p className="text-slate-500 text-sm mt-1">
               {role === "admin"
@@ -130,17 +132,17 @@ export default function PaiementsPage() {
               {/* Stats cards */}
               <div className="grid grid-cols-2 md:grid-cols-3 gap-4 mb-6">
                 <div className="bg-white rounded-2xl p-4 shadow-sm border border-slate-100">
-                  <p className="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-1">Total gagné</p>
+                  <p className="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-1">{t("total_earned")}</p>
                   <p className="text-2xl font-bold text-slate-700">{totalEarned} MAD</p>
                   <p className="text-xs text-slate-400 mt-0.5">{requests.length} commission(s)</p>
                 </div>
                 <div className="bg-white rounded-2xl p-4 shadow-sm border border-slate-100">
-                  <p className="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-1">Déjà payé</p>
+                  <p className="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-1">{t("already_paid")}</p>
                   <p className="text-2xl font-bold text-emerald-600">{paidTotal} MAD</p>
                   <p className="text-xs text-slate-400 mt-0.5">{requests.filter(r => r.status === "paid").length} virement(s)</p>
                 </div>
                 <div className="bg-gradient-to-br from-blue-600 to-blue-700 rounded-2xl p-4 shadow-md shadow-blue-200">
-                  <p className="text-xs font-semibold text-blue-200 uppercase tracking-wide mb-1">Disponible</p>
+                  <p className="text-xs font-semibold text-blue-200 uppercase tracking-wide mb-1">{t("available_balance")}</p>
                   <p className="text-2xl font-bold text-white">{availableBalance} MAD</p>
                   <p className="text-xs text-blue-200 mt-0.5">{requests.filter(r => r.status === "pending").length} en attente</p>
                 </div>
@@ -149,7 +151,7 @@ export default function PaiementsPage() {
               {/* Pending & paid summary */}
               <div className="grid grid-cols-2 gap-4 mb-6">
                 <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4">
-                  <p className="text-xs font-semibold text-amber-600 uppercase tracking-wide mb-1">En attente</p>
+                  <p className="text-xs font-semibold text-amber-600 uppercase tracking-wide mb-1">{t("status_pending_pay")}</p>
                   <p className="text-xl font-bold text-amber-700">{pendingTotal} MAD</p>
                   <p className="text-xs text-amber-600 mt-0.5">{requests.filter(r => r.status === "pending").length} demande(s)</p>
                 </div>
@@ -225,7 +227,7 @@ export default function PaiementsPage() {
                     </div>
                   </div>
                   <div className="flex gap-3 mt-4">
-                    <button onClick={() => setShowForm(false)} className="flex-1 py-2.5 rounded-xl border border-slate-200 text-sm font-semibold text-slate-600 hover:bg-slate-50">Annuler</button>
+                    <button onClick={() => setShowForm(false)} className="flex-1 py-2.5 rounded-xl border border-slate-200 text-sm font-semibold text-slate-600 hover:bg-slate-50">{t("cancel")}</button>
                     <button
                       onClick={submitRequest}
                       disabled={submitting || !amount || parseFloat(amount) <= 0 || parseFloat(amount) > availableBalance || availableBalance <= 0}
@@ -243,7 +245,7 @@ export default function PaiementsPage() {
           {role === "admin" && (
             <div className="grid grid-cols-3 gap-4 mb-6">
               <div className="bg-white rounded-2xl p-4 shadow-sm border border-slate-100">
-                <p className="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-1">En attente</p>
+                <p className="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-1">{t("status_pending_pay")}</p>
                 <p className="text-2xl font-bold text-amber-600">{requests.filter(r => r.status === "pending").length}</p>
                 <p className="text-xs text-slate-400 mt-0.5">{pendingTotal} MAD total</p>
               </div>
@@ -304,7 +306,7 @@ export default function PaiementsPage() {
                       </div>
                       <div className="flex flex-col items-end gap-2 shrink-0">
                         <span className="text-base font-bold text-slate-900">{r.amount} MAD</span>
-                        <span className={`text-xs font-semibold px-2.5 py-1 rounded-full border ${st.bg} ${st.color}`}>{st.label}</span>
+                        <span className={`text-xs font-semibold px-2.5 py-1 rounded-full border ${st.bg} ${st.color}`}>{t(st.labelKey)}</span>
                         {/* Admin actions */}
                         {role === "admin" && r.status === "pending" && (
                           <div className="flex gap-1.5 mt-1">

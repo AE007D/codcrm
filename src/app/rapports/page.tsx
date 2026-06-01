@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import Sidebar from "@/components/Sidebar";
+import { useLang } from "@/lib/i18n";
 
 type MonthlyRow = {
   month: string;
@@ -14,6 +15,7 @@ type MonthlyRow = {
 const MONTH_NAMES = ["Janvier", "Février", "Mars", "Avril", "Mai", "Juin", "Juillet", "Août", "Septembre", "Octobre", "Novembre", "Décembre"];
 
 export default function RapportsPage() {
+  const { t } = useLang();
   const [monthly, setMonthly] = useState<MonthlyRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [totalRevenue, setTotalRevenue] = useState(0);
@@ -85,10 +87,10 @@ export default function RapportsPage() {
     <div className="flex min-h-screen bg-[#F0F4FF]">
       <Sidebar />
       <div className="flex-1 flex flex-col">
-        <header className="bg-white border-b border-slate-100 px-4 lg:px-8 py-4 pl-14 lg:pl-8 flex items-center justify-between">
+        <header className="sidebar-header-pl bg-white border-b border-slate-100 px-4 lg:px-8 py-4 pl-14 lg:pl-8 flex items-center justify-between">
           <div>
-            <h1 className="text-xl font-bold text-slate-900">Rapports</h1>
-            <p className="text-sm text-slate-400">Performances réelles</p>
+            <h1 className="text-xl font-bold text-slate-900">{t("reports_title")}</h1>
+            <p className="text-sm text-slate-400">{t("real_performance")}</p>
           </div>
         </header>
         <main className="flex-1 p-4 lg:p-8">
@@ -118,12 +120,12 @@ export default function RapportsPage() {
               </div>
               <div className="bg-white rounded-2xl shadow-sm border border-slate-100">
                 <div className="px-6 py-4 border-b border-slate-100">
-                  <h2 className="text-base font-bold text-slate-900">Rapport mensuel</h2>
+                  <h2 className="text-base font-bold text-slate-900">{t("monthly_report")}</h2>
                 </div>
                 <table className="w-full text-sm">
                   <thead>
                     <tr className="text-xs text-slate-400 border-b border-slate-50">
-                      {["Mois", "Commandes", "Revenue", "Livrées", "Retournées", "Taux livraison"].map(h => (
+                      {[t("col_month"), "Commandes", t("col_revenue_short"), t("kpi_delivered"), t("col_returned"), t("col_delivery_rate")].map(h => (
                         <th key={h} className="text-left px-6 py-3 font-semibold uppercase tracking-wide">{h}</th>
                       ))}
                     </tr>

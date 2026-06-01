@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import Image from "next/image";
 import Sidebar from "@/components/Sidebar";
+import { useLang } from "@/lib/i18n";
 
 type ShippingMode = "ramassage" | "stock";
 
@@ -61,6 +62,7 @@ type Product = { id: string; name: string; agentName?: string; boutiqueNom?: str
 const emptyForm = { name: "", logo: "", city: "", address: "", phone: "", manager: "", shippingMode: "ramassage" as ShippingMode };
 
 export default function BoutiquesPage() {
+  const { t } = useLang();
   const [stores, setStores] = useState<Store[]>([]);
   const [loaded, setLoaded] = useState(false);
   const [search, setSearch] = useState("");
@@ -184,13 +186,13 @@ export default function BoutiquesPage() {
     <div className="flex min-h-screen bg-[#F0F4FF]">
       <Sidebar />
       <div className="flex-1 flex flex-col">
-        <header className="bg-white border-b border-slate-100 px-4 lg:px-8 py-4 pl-14 lg:pl-8 flex items-center justify-between">
+        <header className="sidebar-header-pl bg-white border-b border-slate-100 px-4 lg:px-8 py-4 pl-14 lg:pl-8 flex items-center justify-between">
           <div>
-            <h1 className="text-xl font-bold text-slate-900">Boutiques</h1>
-            <p className="text-sm text-slate-400">{stores.length} boutique{stores.length !== 1 ? "s" : ""} enregistrée{stores.length !== 1 ? "s" : ""}</p>
+            <h1 className="text-xl font-bold text-slate-900">{t("stores_title")}</h1>
+            <p className="text-sm text-slate-400">{`${stores.length} ${t("stores_count")}`}</p>
           </div>
           <button onClick={openAdd} className="bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold px-5 py-2.5 rounded-xl transition-colors shadow-md shadow-blue-200">
-            + Ajouter boutique
+            + {t("add_store")}
           </button>
         </header>
 
@@ -216,7 +218,7 @@ export default function BoutiquesPage() {
               type="text"
               value={search}
               onChange={e => setSearch(e.target.value)}
-              placeholder="Rechercher une boutique…"
+              placeholder={t("search")}
               className="w-full sm:w-80 text-sm border border-slate-200 rounded-xl px-4 py-2.5 outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-50 bg-white"
             />
           </div>
@@ -344,10 +346,10 @@ export default function BoutiquesPage() {
             </div>
             <div className="px-6 py-4 border-t border-slate-100 flex gap-3">
               <button onClick={() => setAssignBoutique(null)}
-                className="flex-1 py-2.5 rounded-xl border border-slate-200 text-sm font-semibold text-slate-600 hover:bg-slate-50">Annuler</button>
+                className="flex-1 py-2.5 rounded-xl border border-slate-200 text-sm font-semibold text-slate-600 hover:bg-slate-50">{t("cancel")}</button>
               <button onClick={saveBoutiqueAssign} disabled={assignSaving || assignLoading}
                 className="flex-1 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white text-sm font-semibold shadow-md shadow-emerald-200">
-                {assignSaving ? "Enregistrement…" : "Enregistrer"}
+                {assignSaving ? t("saving") : t("save")}
               </button>
             </div>
           </div>
@@ -451,11 +453,11 @@ export default function BoutiquesPage() {
             <div className="flex gap-3 mt-6">
               <button onClick={() => { setShowModal(false); setError(""); }}
                 className="flex-1 py-2.5 rounded-xl border border-slate-200 text-sm font-semibold text-slate-600 hover:bg-slate-50 transition-colors">
-                Annuler
+                {t("cancel")}
               </button>
               <button onClick={handleSave}
                 className="flex-1 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold shadow-md shadow-blue-200 transition-colors">
-                {editStore ? "Enregistrer" : "Ajouter"}
+                {editStore ? t("save") : t("add")}
               </button>
             </div>
           </div>

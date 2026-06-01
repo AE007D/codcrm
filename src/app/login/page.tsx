@@ -236,7 +236,7 @@ export default function LoginPage() {
       {/* Right panel — form */}
       <div className="flex-1 flex flex-col items-center justify-center p-6 sm:p-12 bg-slate-50 relative">
         {/* Language picker */}
-        <div className="absolute top-4 end-4 flex gap-1">
+        <div className="absolute top-4 right-4 flex gap-1">
           {(["fr", "ar", "en"] as Lang[]).map(l => (
             <button key={l} onClick={() => setLang(l)}
               className={`text-xs font-bold px-2.5 py-1 rounded-lg border transition-colors uppercase ${

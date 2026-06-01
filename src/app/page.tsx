@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useMemo, useCallback, useRef } from "react";
 import Sidebar from "@/components/Sidebar";
+import { useLang } from "@/lib/i18n";
 import {
   AreaChart, Area, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip,
   ResponsiveContainer, PieChart, Pie, Cell, Legend,
@@ -54,14 +55,6 @@ const STATUS_STYLE: Record<string, string> = {
   "retourné": "bg-orange-50 text-orange-500",
 };
 
-function statusLabel(s: string) {
-  const map: Record<string, string> = {
-    confirmé: "Confirmé", livré: "Livré", expédié: "Expédié",
-    annulé: "Annulé", pending: "En attente", retourné: "Retourné",
-    confirmed: "Confirmé", delivered: "Livré", cancelled: "Annulé",
-  };
-  return map[s] ?? s;
-}
 
 // ── Date helpers ──────────────────────────────────────────────────────────────
 function startOf(period: Period, now: Date): Date {
@@ -139,14 +132,22 @@ function buildChartData(orders: Order[], period: Period, now: Date) {
   return buckets.map(b => ({ ...b, revenue: Math.round(b.revenue) }));
 }
 
-const PERIOD_LABELS: Record<Period, string> = {
-  today: "Aujourd'hui",
-  week: "Cette semaine",
-  month: "Ce mois",
-  year: "Cette année",
-};
-
 export default function Home() {
+  const { t } = useLang();
+  const PERIOD_LABELS: Record<Period, string> = {
+    today: t("period_today"),
+    week: t("period_week"),
+    month: t("period_month"),
+    year: t("period_year"),
+  };
+  const statusT = (s: string) => {
+    const m: Record<string, string> = {
+      confirmé: t("status_confirmed"), livré: t("status_delivered"), expédié: t("status_shipped"),
+      annulé: t("status_cancelled"), pending: t("status_pending"), retourné: t("status_returned"),
+      confirmed: t("status_confirmed"), delivered: t("status_delivered"), cancelled: t("status_cancelled"),
+    };
+    return m[s] ?? s;
+  };
   const [allOrders, setAllOrders] = useState<Order[]>([]);
   const [team, setTeam] = useState<TeamUser[]>([]);
   const [loading, setLoading] = useState(true);
@@ -260,34 +261,34 @@ export default function Home() {
   );
 
   const kpis = [
-    { label: "Commandes", value: totalOrders, color: "text-blue-600", bg: "bg-blue-50", icon: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="w-5 h-5"><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2"/><rect x="9" y="3" width="6" height="4" rx="1"/><path d="M9 12h6M9 16h4"/></svg> },
-    { label: "Confirmées", value: confirmed, color: "text-emerald-600", bg: "bg-emerald-50", icon: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="w-5 h-5"><path d="M22 11.08V12a10 10 0 11-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg> },
-    { label: "Annulées", value: cancelled, color: "text-red-500", bg: "bg-red-50", icon: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="w-5 h-5"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg> },
-    { label: "Livrées", value: delivered, color: "text-violet-600", bg: "bg-violet-50", icon: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="w-5 h-5"><path d="M5 17H3a2 2 0 01-2-2V5a2 2 0 012-2h11a2 2 0 012 2v3M9 17h6m4 0h2"/><circle cx="7" cy="17" r="2"/><path d="M13 17V9h5l3 4v4h-2"/><circle cx="19" cy="17" r="2"/></svg> },
-    { label: "En attente", value: pending, color: "text-amber-600", bg: "bg-amber-50", icon: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="w-5 h-5"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg> },
-    { label: "Revenue MAD", value: `${Math.round(revenue).toLocaleString("fr-MA")}`, color: "text-slate-900", bg: "bg-slate-50", icon: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="w-5 h-5"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/></svg> },
-    { label: "Taux confirmation", value: `${confirmRate}%`, color: "text-blue-700", bg: "bg-blue-50", icon: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="w-5 h-5"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/><line x1="2" y1="20" x2="22" y2="20"/></svg> },
-    { label: "Taux de livraison", value: `${deliveryRate}%`, color: "text-emerald-700", bg: "bg-emerald-50", icon: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="w-5 h-5"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg> },
+    { label: t("kpi_orders"), value: totalOrders, color: "text-blue-600", bg: "bg-blue-50", icon: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="w-5 h-5"><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2"/><rect x="9" y="3" width="6" height="4" rx="1"/><path d="M9 12h6M9 16h4"/></svg> },
+    { label: t("kpi_confirmed"), value: confirmed, color: "text-emerald-600", bg: "bg-emerald-50", icon: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="w-5 h-5"><path d="M22 11.08V12a10 10 0 11-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg> },
+    { label: t("kpi_cancelled"), value: cancelled, color: "text-red-500", bg: "bg-red-50", icon: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="w-5 h-5"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg> },
+    { label: t("kpi_delivered"), value: delivered, color: "text-violet-600", bg: "bg-violet-50", icon: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="w-5 h-5"><path d="M5 17H3a2 2 0 01-2-2V5a2 2 0 012-2h11a2 2 0 012 2v3M9 17h6m4 0h2"/><circle cx="7" cy="17" r="2"/><path d="M13 17V9h5l3 4v4h-2"/><circle cx="19" cy="17" r="2"/></svg> },
+    { label: t("kpi_pending"), value: pending, color: "text-amber-600", bg: "bg-amber-50", icon: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="w-5 h-5"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg> },
+    { label: t("kpi_revenue"), value: `${Math.round(revenue).toLocaleString("fr-MA")}`, color: "text-slate-900", bg: "bg-slate-50", icon: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="w-5 h-5"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/></svg> },
+    { label: t("kpi_confirm_rate"), value: `${confirmRate}%`, color: "text-blue-700", bg: "bg-blue-50", icon: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="w-5 h-5"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/><line x1="2" y1="20" x2="22" y2="20"/></svg> },
+    { label: t("kpi_delivery_rate"), value: `${deliveryRate}%`, color: "text-emerald-700", bg: "bg-emerald-50", icon: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="w-5 h-5"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg> },
   ];
 
   return (
     <div className="flex min-h-screen bg-[#F0F4FF]">
       <Sidebar />
       <div className="flex-1 flex flex-col overflow-hidden">
-        <header className="bg-white border-b border-slate-100 px-4 lg:px-8 py-4 pl-14 lg:pl-8 flex items-center justify-between gap-4">
+        <header className="sidebar-header-pl bg-white border-b border-slate-100 px-4 lg:px-8 py-4 pl-14 lg:pl-8 flex items-center justify-between gap-4">
           <div>
-            <h1 className="text-xl font-bold text-slate-900">Dashboard</h1>
+            <h1 className="text-xl font-bold text-slate-900">{t("dashboard")}</h1>
             <div className="flex items-center gap-1.5">
               <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse shrink-0" />
               <p className="text-xs text-slate-400">
                 {lastRefresh
-                  ? `Mis à jour ${lastRefresh.toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })} · auto 1 min`
-                  : "Chargement…"}
+                  ? `${t("updated_at")} ${lastRefresh.toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })} · auto 1 min`
+                  : t("loading")}
               </p>
             </div>
           </div>
           <a href="/commandes" className="bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold px-4 py-2.5 rounded-xl transition-colors shadow-md shadow-blue-200 whitespace-nowrap">
-            + Nouvelle commande
+            {t("new_order_btn")}
           </a>
         </header>
 
@@ -302,17 +303,17 @@ export default function Home() {
               <div className="bg-blue-600 rounded-2xl p-4 lg:p-5 mb-6 shadow-md shadow-blue-200">
                 <div className="flex flex-wrap items-center justify-between gap-3">
                   <div>
-                    <p className="text-blue-200 text-xs font-semibold uppercase tracking-wider mb-0.5">Aujourd&apos;hui</p>
+                    <p className="text-blue-200 text-xs font-semibold uppercase tracking-wider mb-0.5">{t("today")}</p>
                     <p className="text-white font-bold text-lg leading-tight">
                       {new Date().toLocaleDateString("fr-MA", { weekday: "long", day: "numeric", month: "long" })}
                     </p>
                   </div>
                   <div className="flex flex-wrap gap-3 lg:gap-6">
                     {[
-                      { label: "Placées", value: todayTotal, color: "text-white" },
-                      { label: "Confirmées", value: todayConfirmed, color: "text-emerald-300" },
-                      { label: "Annulées", value: todayCancelled, color: "text-red-300" },
-                      { label: "Livrées", value: todayDelivered, color: "text-blue-200" },
+                      { label: t("today_placed"), value: todayTotal, color: "text-white" },
+                      { label: t("kpi_confirmed"), value: todayConfirmed, color: "text-emerald-300" },
+                      { label: t("kpi_cancelled"), value: todayCancelled, color: "text-red-300" },
+                      { label: t("kpi_delivered"), value: todayDelivered, color: "text-blue-200" },
                     ].map(s => (
                       <div key={s.label} className="text-center">
                         <p className={`text-2xl font-bold ${s.color}`}>{s.value}</p>
@@ -351,14 +352,14 @@ export default function Home() {
                 {/* Main chart */}
                 <div className="lg:col-span-2 bg-white rounded-2xl p-4 lg:p-6 shadow-sm border border-slate-100">
                   <div className="flex items-center justify-between mb-4">
-                    <h2 className="text-base font-bold text-slate-900">Évolution — {PERIOD_LABELS[period]}</h2>
+                    <h2 className="text-base font-bold text-slate-900">{t("chart_evolution")} — {PERIOD_LABELS[period]}</h2>
                     <div className="flex gap-1 bg-slate-50 rounded-xl p-1">
                       {(["commandes","revenue"] as const).map(m => (
                         <button key={m} onClick={() => setChartMode(m)}
                           className={`px-3 py-1 rounded-lg text-xs font-semibold transition-all ${
                             chartMode === m ? "bg-white shadow-sm text-slate-800" : "text-slate-400 hover:text-slate-600"
                           }`}>
-                          {m === "commandes" ? "Commandes" : "Revenue"}
+                          {m === "commandes" ? t("chart_orders") : t("chart_revenue")}
                         </button>
                       ))}
                     </div>
@@ -366,7 +367,7 @@ export default function Home() {
                   {orders.length === 0 ? (
                     <div className="flex flex-col items-center justify-center h-[200px] text-slate-300">
                       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5} className="w-10 h-10 mb-2"><path d="M3 3v18h18"/><path d="M7 16l4-4 4 4 4-4"/></svg>
-                      <p className="text-sm">Aucune donnée pour cette période</p>
+                      <p className="text-sm">{t("no_chart_data")}</p>
                     </div>
                   ) : (
                     <ResponsiveContainer width="100%" height={200}>
@@ -401,11 +402,11 @@ export default function Home() {
 
                 {/* Cities pie */}
                 <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-100">
-                  <h2 className="text-base font-bold text-slate-900 mb-4">Top Villes</h2>
+                  <h2 className="text-base font-bold text-slate-900 mb-4">{t("top_cities")}</h2>
                   {orders.length === 0 ? (
                     <div className="flex flex-col items-center justify-center h-[200px] text-slate-300">
                       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5} className="w-10 h-10 mb-2"><circle cx="12" cy="12" r="10"/></svg>
-                      <p className="text-sm text-center">Aucune commande</p>
+                      <p className="text-sm text-center">{t("no_orders")}</p>
                     </div>
                   ) : (
                     <ResponsiveContainer width="100%" height={200}>
@@ -425,12 +426,12 @@ export default function Home() {
               <div className="grid grid-cols-1 lg:grid-cols-3 gap-3 lg:gap-5 mb-6">
                 <div className="lg:col-span-2 bg-white rounded-2xl shadow-sm border border-slate-100">
                   <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between">
-                    <h2 className="text-base font-bold text-slate-900">🏆 Meilleurs produits</h2>
+                    <h2 className="text-base font-bold text-slate-900">{t("top_products")}</h2>
                     <span className="text-xs text-slate-400">{PERIOD_LABELS[period]}</span>
                   </div>
                   {bestProducts.length === 0 ? (
                     <div className="flex flex-col items-center justify-center h-40 text-slate-300">
-                      <p className="text-sm">Aucun produit pour cette période</p>
+                      <p className="text-sm">{t("no_products_period")}</p>
                     </div>
                   ) : (
                     <div className="divide-y divide-slate-50">
@@ -441,7 +442,7 @@ export default function Home() {
                           </span>
                           <div className="flex-1 min-w-0">
                             <p className="text-sm font-semibold text-slate-800 truncate">{p.name}</p>
-                            <p className="text-xs text-slate-400">{p.sold} vendus</p>
+                            <p className="text-xs text-slate-400">{p.sold} {t("sold")}</p>
                           </div>
                           <p className="text-sm font-bold text-slate-800 shrink-0">{p.revenue}</p>
                         </div>
@@ -452,12 +453,12 @@ export default function Home() {
 
                 <div className="bg-white rounded-2xl shadow-sm border border-slate-100">
                   <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between">
-                    <h2 className="text-base font-bold text-slate-900">Équipe</h2>
-                    <span className="text-xs text-slate-400 bg-slate-50 px-2.5 py-1 rounded-full">{team.length} membre{team.length !== 1 ? "s" : ""}</span>
+                    <h2 className="text-base font-bold text-slate-900">{t("team")}</h2>
+                    <span className="text-xs text-slate-400 bg-slate-50 px-2.5 py-1 rounded-full">{team.length} {t("members")}</span>
                   </div>
                   {team.length === 0 ? (
                     <div className="flex flex-col items-center justify-center h-40 text-slate-300">
-                      <p className="text-sm">Aucun membre</p>
+                      <p className="text-sm">{t("no_members")}</p>
                     </div>
                   ) : (
                     <div className="divide-y divide-slate-50">
@@ -476,7 +477,7 @@ export default function Home() {
                     </div>
                   )}
                   <div className="px-6 py-3 border-t border-slate-50">
-                    <a href="/equipe" className="text-xs text-blue-600 font-medium hover:underline">Gérer l&apos;équipe →</a>
+                    <a href="/equipe" className="text-xs text-blue-600 font-medium hover:underline">{t("manage_team")}</a>
                   </div>
                 </div>
               </div>
@@ -484,20 +485,20 @@ export default function Home() {
               {/* ── Recent orders ── */}
               <div className="bg-white rounded-2xl shadow-sm border border-slate-100">
                 <div className="px-4 lg:px-6 py-4 border-b border-slate-100 flex items-center justify-between">
-                  <h2 className="text-base font-bold text-slate-900">Dernières commandes — {PERIOD_LABELS[period]}</h2>
-                  <a href="/commandes" className="text-sm text-blue-600 font-medium hover:underline">Voir tout →</a>
+                  <h2 className="text-base font-bold text-slate-900">{t("recent_orders_title")} — {PERIOD_LABELS[period]}</h2>
+                  <a href="/commandes" className="text-sm text-blue-600 font-medium hover:underline">{t("see_all")}</a>
                 </div>
                 {recentOrders.length === 0 ? (
                   <div className="flex flex-col items-center justify-center h-40 text-slate-300">
-                    <p className="text-sm">Aucune commande pour cette période</p>
-                    <a href="/integrations" className="text-xs text-blue-500 mt-1 hover:underline">Configurer les intégrations →</a>
+                    <p className="text-sm">{t("no_orders_period")}</p>
+                    <a href="/integrations" className="text-xs text-blue-500 mt-1 hover:underline">{t("configure_integrations")} →</a>
                   </div>
                 ) : (
                   <div className="overflow-x-auto">
                     <table className="w-full text-sm min-w-[480px]">
                       <thead>
                         <tr className="text-xs text-slate-400 border-b border-slate-50">
-                          {["ID","Client","Ville","Montant","Statut","Date"].map(h => (
+                          {[t("col_id"), t("col_client"), t("col_city"), t("col_amount"), t("col_status"), t("col_date")].map(h => (
                             <th key={h} className="text-left px-6 py-3 font-semibold uppercase tracking-wide">{h}</th>
                           ))}
                         </tr>
@@ -511,7 +512,7 @@ export default function Home() {
                             <td className="px-6 py-3.5 font-bold text-slate-800">{parseFloat(o.total_price).toLocaleString("fr-MA")} MAD</td>
                             <td className="px-6 py-3.5">
                               <span className={`px-2.5 py-1 rounded-lg text-xs font-semibold ${STATUS_STYLE[o.status] ?? "bg-slate-100 text-slate-500"}`}>
-                                {statusLabel(o.status)}
+                                {statusT(o.status)}
                               </span>
                             </td>
                             <td className="px-6 py-3.5 text-xs text-slate-400">
