@@ -349,7 +349,7 @@ export default function AdsPage() {
             {/* Daily view */}
             {viewMode === "daily" && (
               <div className="overflow-x-auto">
-                <table className="w-full text-sm">
+                <table className="w-full text-sm min-w-[700px]">
                   <thead>
                     <tr className="text-xs text-slate-400 border-b border-slate-50">
                       {["Date", "Campagnes", "Budget", "Commandes", "Livrées ✅", "Taux livraison", "CPP", "CPD", "Revenue", "ROAS"].map(h => (

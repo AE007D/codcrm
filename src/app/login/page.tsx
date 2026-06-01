@@ -181,7 +181,7 @@ export default function LoginPage() {
   return (
     <div className="min-h-screen flex">
       {/* Left panel — branding */}
-      <div className="hidden lg:flex lg:w-[52%] bg-gradient-to-br from-slate-900 via-blue-950 to-slate-900 flex-col justify-between p-12 relative overflow-hidden">
+      <div className="hidden md:flex md:w-[48%] lg:w-[52%] bg-gradient-to-br from-slate-900 via-blue-950 to-slate-900 flex-col justify-between p-8 lg:p-12 relative overflow-hidden">
         {/* Background decoration */}
         <div className="absolute inset-0 pointer-events-none">
           <div className="absolute top-[-80px] right-[-80px] w-[400px] h-[400px] bg-blue-600/10 rounded-full blur-3xl" />
@@ -234,7 +234,7 @@ export default function LoginPage() {
       </div>
 
       {/* Right panel — form */}
-      <div className="flex-1 flex flex-col items-center justify-center p-6 sm:p-12 bg-slate-50 relative">
+      <div className="flex-1 flex flex-col items-center justify-center p-6 sm:p-8 lg:p-12 bg-slate-50 relative">
         {/* Language picker */}
         <div className="absolute top-4 right-4 flex gap-1">
           {(["fr", "ar", "en"] as Lang[]).map(l => (
@@ -247,7 +247,7 @@ export default function LoginPage() {
           ))}
         </div>
         {/* Mobile logo */}
-        <div className="lg:hidden flex items-center gap-2.5 mb-8">
+        <div className="md:hidden flex items-center gap-2.5 mb-8">
           <div className="shadow-md shadow-blue-200 rounded-[9px]">
             <CodCrmLogo size={32} />
           </div>

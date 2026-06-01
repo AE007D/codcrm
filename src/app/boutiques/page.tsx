@@ -198,7 +198,7 @@ export default function BoutiquesPage() {
 
         <main className="flex-1 p-4 lg:p-8 overflow-y-auto">
           {/* KPIs */}
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 lg:gap-5 mb-6">
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-5 mb-6">
             {[
               { label: "Total boutiques", value: stores.length, color: "text-slate-900" },
               { label: "Actives", value: activeCount, color: "text-emerald-600" },

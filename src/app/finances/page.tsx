@@ -399,7 +399,7 @@ export default function FinancesPage() {
           ) : (
             <>
               {/* ── Main KPIs ── */}
-              <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 lg:gap-4 mb-5">
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4 mb-5">
                 {[
                   { label: "Chiffre d'affaires", value: `${fmt(revenue)} MAD`, sub: `${delivered.length} cmds livrées`, color: "text-emerald-600", bg: "bg-emerald-50", icon: "📦" },
                   { label: "Total investi", value: `${fmt(totalCost)} MAD`, sub: `produits + pub + conf. + livraison`, color: "text-red-500", bg: "bg-red-50", icon: "💸" },
@@ -620,13 +620,13 @@ export default function FinancesPage() {
               {/* ── Profit projection ── */}
               <div className="bg-gradient-to-br from-blue-600 to-violet-600 rounded-2xl p-5 text-white shadow-lg">
                 <h2 className="text-sm font-bold opacity-80 mb-4">🎯 Projection bénéfice</h2>
-                <div className="grid grid-cols-3 gap-3">
+                <div className="grid grid-cols-3 gap-2 sm:gap-3">
                   {[
                     { label: "/ Jour", value: fmt(profitPerDay) },
                     { label: "/ Semaine", value: fmt(profitPerWeek) },
                     { label: "/ Mois (30j)", value: fmt(profitPerDay * 30) },
                   ].map(p => (
-                    <div key={p.label} className="bg-white/10 rounded-xl p-3 text-center backdrop-blur-sm">
+                    <div key={p.label} className="bg-white/10 rounded-xl p-2 sm:p-3 text-center backdrop-blur-sm">
                       <p className="text-xs opacity-70 mb-1">{p.label}</p>
                       <p className="text-lg font-black">{p.value}</p>
                       <p className="text-xs opacity-60">MAD</p>
@@ -648,14 +648,14 @@ export default function FinancesPage() {
                   </button>
                 </div>
 
-                <div className="grid grid-cols-3 gap-3 mb-4">
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-4">
                   <div className="bg-emerald-50 rounded-xl p-3 text-center">
                     <p className="text-xs text-slate-500 mb-1">CA attendu (livré)</p>
-                    <p className="text-lg font-black text-emerald-700">{fmt(revenue)} MAD</p>
+                    <p className="text-xl font-black text-emerald-700">{fmt(revenue)} MAD</p>
                   </div>
                   <div className="bg-blue-50 rounded-xl p-3 text-center">
                     <p className="text-xs text-slate-500 mb-1">Virements reçus</p>
-                    <p className="text-lg font-black text-blue-700">{fmt(totalVirements)} MAD</p>
+                    <p className="text-xl font-black text-blue-700">{fmt(totalVirements)} MAD</p>
                   </div>
                   <div className={`rounded-xl p-3 text-center ${pendingVirement > 0 ? "bg-amber-50" : "bg-emerald-50"}`}>
                     <p className="text-xs text-slate-500 mb-1">En attente</p>

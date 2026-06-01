@@ -122,11 +122,12 @@ export default function RapportsPage() {
                 <div className="px-6 py-4 border-b border-slate-100">
                   <h2 className="text-base font-bold text-slate-900">{t("monthly_report")}</h2>
                 </div>
-                <table className="w-full text-sm">
+                <div className="overflow-x-auto">
+                <table className="w-full text-sm min-w-[480px]">
                   <thead>
                     <tr className="text-xs text-slate-400 border-b border-slate-50">
-                      {[t("col_month"), "Commandes", t("col_revenue_short"), t("kpi_delivered"), t("col_returned"), t("col_delivery_rate")].map(h => (
-                        <th key={h} className="text-left px-6 py-3 font-semibold uppercase tracking-wide">{h}</th>
+                      {[t("col_month"), t("kpi_orders"), t("col_revenue_short"), t("kpi_delivered"), t("col_returned"), t("col_delivery_rate")].map(h => (
+                        <th key={h} className="text-left px-4 py-3 font-semibold uppercase tracking-wide whitespace-nowrap">{h}</th>
                       ))}
                     </tr>
                   </thead>
@@ -135,21 +136,22 @@ export default function RapportsPage() {
                       const rate = r.orders > 0 ? Math.round((r.delivered / r.orders) * 100) : 0;
                       return (
                         <tr key={r.month} className="border-b border-slate-50 hover:bg-slate-50/60 transition-colors">
-                          <td className="px-6 py-3.5 font-semibold text-slate-800">{r.month}</td>
-                          <td className="px-6 py-3.5 text-slate-600">{r.orders}</td>
-                          <td className="px-6 py-3.5 font-bold text-slate-800">{r.revenue.toLocaleString("fr-MA")} MAD</td>
-                          <td className="px-6 py-3.5">
+                          <td className="px-4 py-3.5 font-semibold text-slate-800">{r.month}</td>
+                          <td className="px-4 py-3.5 text-slate-600">{r.orders}</td>
+                          <td className="px-4 py-3.5 font-bold text-slate-800">{r.revenue.toLocaleString("fr-MA")} MAD</td>
+                          <td className="px-4 py-3.5">
                             <span className="bg-emerald-50 text-emerald-600 text-xs font-semibold px-2.5 py-1 rounded-lg">{r.delivered}</span>
                           </td>
-                          <td className="px-6 py-3.5">
+                          <td className="px-4 py-3.5">
                             <span className="bg-red-50 text-red-500 text-xs font-semibold px-2.5 py-1 rounded-lg">{r.returned}</span>
                           </td>
-                          <td className="px-6 py-3.5 font-semibold text-slate-700">{rate}%</td>
+                          <td className="px-4 py-3.5 font-semibold text-slate-700">{rate}%</td>
                         </tr>
                       );
                     })}
                   </tbody>
                 </table>
+                </div>
               </div>
             </>
           )}
