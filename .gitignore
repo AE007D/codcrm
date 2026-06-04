@@ -40,3 +40,13 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 .claude/
+
+# WhatsApp server runtime files
+/whatsapp-server/auth_info_wwjs/
+/whatsapp-server/conversations.json
+/whatsapp-server/sent_confirms.json
+/.wwebjs_cache/
+/openwa/
+/wa-bg.png.jpg
+/whatsapp-server/auth_info/
+/whatsapp-server/node_modules/

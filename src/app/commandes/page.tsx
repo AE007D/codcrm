@@ -57,6 +57,32 @@ function LightfunnelsIcon() {
   );
 }
 
+const WA_TEMPLATES: Record<string, (name: string, product: string, city: string, amount: string, currency: string) => string> = {
+  confirm: (n, p, c, a, cur) => `السلام عليكم ${n} 👋\n\nتم تأكيد طلبكم بنجاح ✅\n\n📦 المنتج : ${p}\n💵 المبلغ : ${a} ${cur}\n📍 المدينة : ${c}\n\nسنتواصل معكم قبل التوصيل.\n\nشكراً على ثقتكم 🙏`,
+  shipping_attempt: (n) => `السلام عليكم ${n} 👋\n\nحاول مندوب التوصيل الاتصال بكم اليوم لتسليم طردكم 📦\n\nيرجى الاتصال به في أقرب وقت أو راسلونا لتحديد موعد آخر.\n\nشكراً 🙏`,
+  shipped: (n, p, c) => `السلام عليكم ${n} 👋\n\nتم شحن طلبكم *${p}* في الطريق إلى *${c}* 🚚\n\nسيتصل بكم المندوب قبل التسليم.\n\nشكراً 🙏`,
+};
+
+function WAButton({ order, templateId, label, onSent }: { order: Order; templateId: string; label: string; onSent: (msg: string) => void }) {
+  const [sending, setSending] = useState(false);
+  async function send() {
+    setSending(true);
+    try {
+      const message = WA_TEMPLATES[templateId](order.customer, order.product, order.city, String(order.amount), order.currency);
+      const r = await fetch("/api/whatsapp", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ phone: order.phone, message }) });
+      const d = await r.json();
+      onSent(d.ok ? `WhatsApp envoyé ✓` : (d.error ?? "Erreur WhatsApp"));
+    } catch { onSent("Erreur réseau"); }
+    setSending(false);
+  }
+  return (
+    <button onClick={send} disabled={sending}
+      className="flex items-center gap-1.5 text-xs font-semibold px-3 py-2 rounded-xl bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200 transition-colors disabled:opacity-50">
+      {sending ? "…" : label}
+    </button>
+  );
+}
+
 function SourceBadge({ source }: { source: Order["source"] }) {
   if (source === "lightfunnels") return (
     <span className="inline-flex items-center gap-1.5 bg-slate-50 border border-slate-200 text-slate-700 text-xs font-semibold px-2.5 py-1 rounded-lg">
@@ -162,6 +188,37 @@ export default function CommandesPage() {
   const [trackEditCarrier, setTrackEditCarrier] = useState("eagle");
   const [showCityDrop, setShowCityDrop] = useState(false);
   const [showEditCityDrop, setShowEditCityDrop] = useState(false);
+
+  // AI phone check state
+  const [aiCheck, setAiCheck] = useState<{ valid: boolean; msg: string } | null>(null);
+  const [aiChecking, setAiChecking] = useState(false);
+
+  function checkPhoneAI(phone: string) {
+    setAiChecking(true);
+    setAiCheck(null);
+    setTimeout(() => {
+      const cleaned = phone.replace(/[\s\-().+]/g, "");
+      const isMaroc = /^(212|0)(6|7)\d{8}$/.test(cleaned) || /^(06|07)\d{8}$/.test(cleaned);
+      if (isMaroc) {
+        setAiCheck({ valid: true, msg: "Numéro marocain valide (06/07)" });
+      } else if (cleaned.length < 8) {
+        setAiCheck({ valid: false, msg: "Numéro trop court ou manquant" });
+      } else if (!/^\d+$/.test(cleaned.replace(/^(\+|00)/, ""))) {
+        setAiCheck({ valid: false, msg: "Caractères invalides dans le numéro" });
+      } else {
+        setAiCheck({ valid: false, msg: "Format non reconnu — vérifier manuellement" });
+      }
+      setAiChecking(false);
+    }, 600);
+  }
+
+  function buildWhatsAppLink(order: Order) {
+    const cleaned = order.phone.replace(/[\s\-().]/g, "").replace(/^0/, "212").replace(/^\+/, "");
+    const msg = encodeURIComponent(
+      `Bonjour ${order.customer} 👋\n\nVotre commande a bien été reçue ✅\n\n📦 Produit : ${order.product}\n💵 Montant : ${order.amount} ${order.currency}\n📍 Ville : ${order.city}\n\nNous allons vous contacter bientôt pour confirmer la livraison.\n\nMerci pour votre confiance ! 🙏`
+    );
+    return `https://wa.me/${cleaned}?text=${msg}`;
+  }
 
   // ── Fetch all orders from Supabase ────────────────────────────────────────
   const fetchOrders = useCallback(async () => {
@@ -1522,6 +1579,12 @@ export default function CommandesPage() {
                         📵 {drawer.noAnswer} sans réponse · {drawer.attempts} appel(s)
                       </div>
                     )}
+                    {/* WhatsApp quick-send buttons */}
+                    <div className="flex gap-2 flex-wrap">
+                      <WAButton order={drawer} templateId="confirm" label="✅ Confirmée" onSent={msg => showToast(msg)} />
+                      <WAButton order={drawer} templateId="shipping_attempt" label="📵 Transporteur a appelé" onSent={msg => showToast(msg)} />
+                      <WAButton order={drawer} templateId="shipped" label="🚚 Expédié" onSent={msg => showToast(msg)} />
+                    </div>
                   </div>
                   <div className="bg-slate-50 rounded-2xl p-4">
                     <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Commande</h3>

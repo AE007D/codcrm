@@ -3,9 +3,12 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev",
+    "dev": "pm2 start ecosystem.config.cjs && pm2 logs",
+    "stop": "pm2 stop ecosystem.config.cjs",
+    "restart": "pm2 restart ecosystem.config.cjs",
+    "status": "pm2 status",
     "build": "next build",
-    "start": "next start",
+    "start": "pm2 start ecosystem.config.cjs --env production && pm2 logs",
     "lint": "eslint"
   },
   "dependencies": {
@@ -22,6 +25,7 @@
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "@types/web-push": "^3.6.4",
+    "concurrently": "^10.0.3",
     "eslint": "^9",
     "eslint-config-next": "16.2.6",
     "tailwindcss": "^4",

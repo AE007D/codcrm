@@ -11,9 +11,12 @@ const PUBLIC_API_PREFIXES = [
   "/api/lp-submit",
   "/api/lp-pages",
   "/api/auth",   // all auth endpoints are public
+  "/api/wa-confirm",    // called by WA server (uses shared token auth)
+  "/api/wa-webhook",    // called by OpenWA webhooks
+  "/api/wa-auto-check", // called by WA server scheduler
 ];
 
-export function proxy(request: NextRequest) {
+export default function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
   // Always allow static assets
