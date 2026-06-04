@@ -90,6 +90,11 @@ const navItems: NavItem[] = [
       <path d="M22 12h-4l-3 9L9 3l-3 9H2"/>
     </svg>
   )},
+  { label: "WhatsApp", href: "/whatsapp", adminOnly: true, icon: (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="w-5 h-5">
+      <path d="M21 11.5a8.38 8.38 0 01-.9 3.8 8.5 8.5 0 01-7.6 4.7 8.38 8.38 0 01-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 01-.9-3.8 8.5 8.5 0 014.7-7.6 8.38 8.38 0 013.8-.9h.5a8.48 8.48 0 018 8v.5z"/>
+    </svg>
+  )},
   { label: "Telegram", href: "/telegram", adminOnly: true, icon: (
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="w-5 h-5">
       <path d="M21.5 4.5L2.5 10.5l7 2m12-8L17 21.5l-7.5-9m12-8l-10 7"/>
@@ -154,9 +159,10 @@ export default function Sidebar() {
   }
 
   // ── New order sound + polling ─────────────────────────────────────────────
-  const [soundEnabled, setSoundEnabled] = useState(() => {
-    try { return localStorage.getItem("codcrm_sound") !== "0"; } catch { return true; }
-  });
+  const [soundEnabled, setSoundEnabled] = useState(true);
+  useEffect(() => {
+    try { setSoundEnabled(localStorage.getItem("codcrm_sound") !== "0"); } catch {}
+  }, []);
   const lastOrderCount = useRef<number | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const audioUnlocked = useRef(false);
