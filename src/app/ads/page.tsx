@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import Sidebar from "@/components/Sidebar";
+import { useLang } from "@/lib/i18n";
 
 type Platform = "Facebook" | "TikTok";
 
@@ -61,6 +62,7 @@ function fmtDate(d: string) {
 }
 
 export default function AdsPage() {
+  const { t } = useLang();
   const [campaigns, setCampaigns] = useState<Campaign[]>([]);
   const [catalog, setCatalog] = useState<CatalogProduct[]>([]);
   const [allOrders, setAllOrders] = useState<OrderRow[]>([]);
@@ -215,10 +217,10 @@ export default function AdsPage() {
       <div className="flex-1 flex flex-col">
 
         {/* Header */}
-        <header className="bg-white border-b border-slate-100 px-4 lg:px-8 py-4 pl-14 lg:pl-8 flex flex-wrap items-center justify-between gap-2">
+        <header className="sidebar-header-pl bg-white border-b border-slate-100 px-4 lg:px-8 py-4 pl-14 lg:pl-8 flex flex-wrap items-center justify-between gap-2">
           <div>
-            <h1 className="text-xl font-bold text-slate-900">Ads Manager</h1>
-            <p className="text-sm text-slate-400 hidden sm:block">Facebook & TikTok — CPP / CPD / ROAS par produit</p>
+            <h1 className="text-xl font-bold text-slate-900">{t("ads_title")}</h1>
+            <p className="text-sm text-slate-400 hidden sm:block">{t("ads_subtitle")}</p>
           </div>
           <div className="flex items-center gap-2">
             {saving && <span className="text-xs text-slate-400 animate-pulse">Sauvegarde…</span>}
@@ -227,7 +229,7 @@ export default function AdsPage() {
               onClick={() => setShowModal(true)}
               className="bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold px-4 py-2.5 rounded-xl transition-colors shadow-md shadow-blue-200 whitespace-nowrap"
             >
-              + Ajouter campagne
+              + {t("add_campaign")}
             </button>
           </div>
         </header>
@@ -293,13 +295,13 @@ export default function AdsPage() {
                   onClick={() => setViewMode("campaigns")}
                   className={`px-3 py-1.5 text-xs font-semibold transition-colors ${viewMode === "campaigns" ? "bg-blue-600 text-white" : "bg-white text-slate-500 hover:bg-slate-50"}`}
                 >
-                  Campagnes
+                  {t("campaigns_view")}
                 </button>
                 <button
                   onClick={() => setViewMode("daily")}
                   className={`px-3 py-1.5 text-xs font-semibold transition-colors ${viewMode === "daily" ? "bg-indigo-600 text-white" : "bg-white text-slate-500 hover:bg-slate-50"}`}
                 >
-                  📅 Par jour
+                  📅 {t("daily_view")}
                 </button>
               </div>
               <h2 className="text-base font-bold text-slate-900 mr-auto">
@@ -347,7 +349,7 @@ export default function AdsPage() {
             {/* Daily view */}
             {viewMode === "daily" && (
               <div className="overflow-x-auto">
-                <table className="w-full text-sm">
+                <table className="w-full text-sm min-w-[700px]">
                   <thead>
                     <tr className="text-xs text-slate-400 border-b border-slate-50">
                       {["Date", "Campagnes", "Budget", "Commandes", "Livrées ✅", "Taux livraison", "CPP", "CPD", "Revenue", "ROAS"].map(h => (
@@ -603,7 +605,7 @@ export default function AdsPage() {
             <div className="flex gap-3 mt-5">
               <button onClick={() => { setShowModal(false); setError(""); setForm(emptyForm); setProductSearch(""); setAutoFilled(false); }}
                 className="flex-1 py-2.5 rounded-xl border border-slate-200 text-sm font-semibold text-slate-600 hover:bg-slate-50 transition-colors">
-                Annuler
+                {t("cancel")}
               </button>
               <button onClick={handleAdd}
                 className="flex-1 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold shadow-md shadow-blue-200 transition-colors">

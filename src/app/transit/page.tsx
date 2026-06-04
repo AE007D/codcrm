@@ -2,6 +2,7 @@
 
 import { useState, useCallback, useEffect } from "react";
 import Sidebar from "@/components/Sidebar";
+import { useLang } from "@/lib/i18n";
 
 type Parcel = Record<string, unknown>;
 
@@ -46,6 +47,7 @@ function DaysChip({ days }: { days: number | null }) {
 const STATUS_FILTERS = ["Tous", "En cours", "Livré", "Retourné", "Annulé"];
 
 export default function TransitPage() {
+  const { t } = useLang();
   const [parcels, setParcels] = useState<Parcel[]>([]);
   const [loading, setLoading] = useState(false);
   const [loaded, setLoaded] = useState(false);
@@ -163,11 +165,11 @@ export default function TransitPage() {
     <div className="flex min-h-screen bg-[#F0F4FF]">
       <Sidebar />
       <div className="flex-1 flex flex-col">
-        <header className="bg-white border-b border-slate-100 px-4 lg:px-8 py-4 pl-14 lg:pl-8 flex items-center justify-between gap-3">
+        <header className="bg-white border-b border-slate-100 px-4 lg:px-8 py-4 pl-14 lg:pl-8 flex items-center justify-between gap-3 sidebar-header-pl">
           <div>
-            <h1 className="text-xl font-bold text-slate-900">En Transit · Ameex</h1>
+            <h1 className="text-xl font-bold text-slate-900">{t("transit_title")}</h1>
             <p className="text-sm text-slate-400 hidden sm:block">
-              🏭 {hubName} · STOCK + Ramassage
+              {t("transit_subtitle")}
             </p>
           </div>
           <button onClick={loadAll} disabled={loading}
@@ -235,7 +237,7 @@ export default function TransitPage() {
                   {STATUS_FILTERS.map(f => (
                     <button key={f} onClick={() => setFilter(f)}
                       className={`text-xs font-semibold px-3 py-1.5 rounded-xl border transition-colors ${filter === f ? "bg-blue-600 text-white border-blue-600" : "bg-white text-slate-500 border-slate-200 hover:border-blue-300"}`}>
-                      {f}
+                      {f === "Tous" ? t("type_all") : f === "En cours" ? t("in_progress") : f === "Livré" ? t("status_livre") : f}
                       {f !== "Tous" && (
                         <span className="ml-1 opacity-60">
                           ({f === "Livré" ? delivered.length : f === "Retourné" ? returned.length : f === "En cours" ? inTransit.length : parcels.filter(p => String(p.statut ?? p.status ?? "").toLowerCase().includes("annul")).length})
@@ -244,15 +246,15 @@ export default function TransitPage() {
                     </button>
                   ))}
                   <span className="text-slate-200 hidden sm:block">|</span>
-                  {(["Tous", "STOCK", "SIMPLE"] as const).map(t => (
-                    <button key={t} onClick={() => setTypeFilter(t)}
-                      className={`text-xs font-semibold px-3 py-1.5 rounded-xl border transition-colors ${typeFilter === t ? "bg-indigo-600 text-white border-indigo-600" : "bg-white text-slate-500 border-slate-200 hover:border-indigo-300"}`}>
-                      {t === "Tous" ? "Tous types" : t === "STOCK" ? `Stock (${stockCount})` : `Ramassage (${simpleCount})`}
+                  {(["Tous", "STOCK", "SIMPLE"] as const).map(typ => (
+                    <button key={typ} onClick={() => setTypeFilter(typ)}
+                      className={`text-xs font-semibold px-3 py-1.5 rounded-xl border transition-colors ${typeFilter === typ ? "bg-indigo-600 text-white border-indigo-600" : "bg-white text-slate-500 border-slate-200 hover:border-indigo-300"}`}>
+                      {typ === "Tous" ? t("type_all") : typ === "STOCK" ? `${t("type_stock")} (${stockCount})` : `${t("type_simple")} (${simpleCount})`}
                     </button>
                   ))}
                   <input
                     type="text"
-                    placeholder="Rechercher code, client, ville…"
+                    placeholder={t("search_transit")}
                     value={search}
                     onChange={e => setSearch(e.target.value)}
                     className="sm:ml-auto w-full sm:w-64 text-sm border border-slate-200 rounded-xl px-4 py-2 outline-none focus:border-blue-400 bg-white"

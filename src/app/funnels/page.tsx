@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import Sidebar from "@/components/Sidebar";
+import { useLang } from "@/lib/i18n";
 
 type LeadType = "purchase" | "abandoned";
 
@@ -39,6 +40,7 @@ function relTime(iso: string) {
 }
 
 export default function FunnelsPage() {
+  const { t } = useLang();
   const [leads, setLeads] = useState<FunnelLead[]>([]);
   const [filter, setFilter] = useState<Filter>("tous");
   const [search, setSearch] = useState("");
@@ -113,10 +115,10 @@ export default function FunnelsPage() {
     <div className="flex min-h-screen bg-[#F0F4FF]">
       <Sidebar />
       <div className="flex-1 flex flex-col overflow-hidden">
-        <header className="bg-white border-b border-slate-100 px-4 lg:px-8 py-4 pl-14 lg:pl-8 flex items-center justify-between shrink-0">
+        <header className="bg-white border-b border-slate-100 px-4 lg:px-8 py-4 pl-14 lg:pl-8 flex items-center justify-between shrink-0 sidebar-header-pl">
           <div>
-            <h1 className="text-xl font-bold text-slate-900">Abandons Checkout</h1>
-            <p className="text-sm text-slate-400 hidden sm:block">Paniers abandonnés · Rappel & récupération</p>
+            <h1 className="text-xl font-bold text-slate-900">{t("checkouts_title")}</h1>
+            <p className="text-sm text-slate-400 hidden sm:block">{t("checkouts_subtitle")}</p>
           </div>
           <div className="flex items-center gap-2">
             <span className="flex items-center gap-1.5 text-xs font-semibold text-emerald-600 bg-emerald-50 px-3 py-1.5 rounded-full">
@@ -190,10 +192,10 @@ export default function FunnelsPage() {
           <div className="flex flex-col sm:flex-row gap-3 mb-4">
             <div className="flex gap-2 flex-wrap">
               {([
-                { key: "tous",      label: "Tous",       count: leads.length },
-                { key: "purchase",  label: "Achetés",    count: purchases.length },
-                { key: "abandoned", label: "Abandonnés", count: abandoned.filter(l => !l.recovered).length },
-                { key: "recovered", label: "Récupérés",  count: recovered.length },
+                { key: "tous",      label: t("filter_all"),    count: leads.length },
+                { key: "purchase",  label: t("purchased"),     count: purchases.length },
+                { key: "abandoned", label: t("abandoned_tab"), count: abandoned.filter(l => !l.recovered).length },
+                { key: "recovered", label: t("recovered"),     count: recovered.length },
               ] as const).map(tab => (
                 <button key={tab.key} onClick={() => setFilter(tab.key)}
                   className={`text-xs font-semibold px-3 py-2 rounded-xl border transition-all ${filter === tab.key ? "bg-blue-600 text-white border-blue-600 shadow-md shadow-blue-200" : "bg-white text-slate-500 border-slate-200 hover:border-slate-300"}`}>
@@ -203,7 +205,7 @@ export default function FunnelsPage() {
             </div>
             <div className="relative flex-1 min-w-0">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
-              <input type="text" placeholder="Rechercher nom, téléphone, produit…" value={search} onChange={e => setSearch(e.target.value)}
+              <input type="text" placeholder={t("search_funnel")} value={search} onChange={e => setSearch(e.target.value)}
                 className="w-full text-sm border border-slate-200 rounded-xl pl-10 pr-4 py-2.5 outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-50 bg-white" />
             </div>
           </div>
@@ -305,7 +307,7 @@ export default function FunnelsPage() {
               placeholder="Raison d'abandon, heure préférée de rappel, objection client…"
               className="w-full text-sm border border-slate-200 rounded-xl px-4 py-3 outline-none focus:border-blue-400 resize-none" />
             <div className="flex gap-3 mt-4">
-              <button onClick={() => setNoteModal(null)} className="flex-1 py-2.5 rounded-xl border border-slate-200 text-sm font-semibold text-slate-600 hover:bg-slate-50">Annuler</button>
+              <button onClick={() => setNoteModal(null)} className="flex-1 py-2.5 rounded-xl border border-slate-200 text-sm font-semibold text-slate-600 hover:bg-slate-50">{t("cancel")}</button>
               <button onClick={() => { patchLead(noteModal.id, { notes: noteText }); setNoteModal(null); }}
                 className="flex-1 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold">Sauvegarder</button>
             </div>

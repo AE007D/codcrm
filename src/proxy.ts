@@ -3,7 +3,7 @@ import { NextResponse, type NextRequest } from "next/server";
 const SESSION_COOKIE = "codcrm_session";
 
 // Routes that are always public
-const PUBLIC_PATHS = ["/login"];
+const PUBLIC_PATHS = ["/login", "/"];
 
 // API routes that are public (no auth needed)
 const PUBLIC_API_PREFIXES = [

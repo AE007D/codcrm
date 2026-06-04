@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import Image from "next/image";
 import Sidebar from "@/components/Sidebar";
+import { useLang } from "@/lib/i18n";
 
 type Product = {
   id: string;
@@ -52,6 +53,7 @@ function StockBadge({ stock, minStock }: { stock: number; minStock: number }) {
 }
 
 export default function ProduitsPage() {
+  const { t } = useLang();
   const [products, setProducts] = useState<Product[]>([]);
   const [orderStats, setOrderStats] = useState<Map<string, OrderProduct>>(new Map());
   const [loading, setLoading] = useState(true);
@@ -242,13 +244,13 @@ export default function ProduitsPage() {
     <div className="flex min-h-screen bg-[#F0F4FF]">
       <Sidebar />
       <div className="flex-1 flex flex-col">
-        <header className="bg-white border-b border-slate-100 px-4 lg:px-8 py-4 pl-14 lg:pl-8 flex items-center justify-between">
+        <header className="sidebar-header-pl bg-white border-b border-slate-100 px-4 lg:px-8 py-4 pl-14 lg:pl-8 flex items-center justify-between">
           <div>
-            <h1 className="text-xl font-bold text-slate-900">Produits</h1>
-            <p className="text-sm text-slate-400">{products.length} produit{products.length !== 1 ? "s" : ""} au catalogue</p>
+            <h1 className="text-xl font-bold text-slate-900">{t("products_title")}</h1>
+            <p className="text-sm text-slate-400">{`${products.length} ${t("products_subtitle")}`}</p>
           </div>
           <button onClick={openAdd} className="bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold px-5 py-2.5 rounded-xl shadow-md shadow-blue-200 transition-colors">
-            + Ajouter produit
+            + {t("add_product")}
           </button>
         </header>
 
@@ -286,7 +288,7 @@ export default function ProduitsPage() {
           <div className="flex items-center gap-3 mb-4">
             <div className="relative flex-1 max-w-sm">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
-              <input type="text" placeholder="Rechercher par nom ou SKU…" value={search} onChange={e => setSearch(e.target.value)}
+              <input type="text" placeholder={t("search_product")} value={search} onChange={e => setSearch(e.target.value)}
                 className="w-full text-sm border border-slate-200 rounded-xl pl-10 pr-4 py-2.5 outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-50 bg-white" />
             </div>
             <div className="flex gap-1 bg-white border border-slate-200 rounded-xl p-1">
@@ -472,7 +474,7 @@ export default function ProduitsPage() {
         <div className="fixed inset-0 bg-black/30 backdrop-blur-sm flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-2xl shadow-xl w-full max-w-lg p-6 overflow-y-auto max-h-[90vh]">
             <div className="flex items-center justify-between mb-5">
-              <h2 className="text-lg font-bold text-slate-900">{editProduct ? "Modifier le produit" : "Ajouter un produit"}</h2>
+              <h2 className="text-lg font-bold text-slate-900">{editProduct ? t("edit_product") : t("add_product")}</h2>
               <button onClick={() => setShowModal(false)} className="text-slate-400 hover:text-slate-600">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="w-5 h-5"><path d="M18 6L6 18M6 6l12 12"/></svg>
               </button>
@@ -685,9 +687,9 @@ export default function ProduitsPage() {
             </div>
 
             <div className="flex gap-3 mt-6">
-              <button onClick={() => setShowModal(false)} className="flex-1 py-2.5 rounded-xl border border-slate-200 text-sm font-semibold text-slate-600 hover:bg-slate-50">Annuler</button>
+              <button onClick={() => setShowModal(false)} className="flex-1 py-2.5 rounded-xl border border-slate-200 text-sm font-semibold text-slate-600 hover:bg-slate-50">{t("cancel")}</button>
               <button onClick={handleSave} disabled={saving || form.image === "__uploading__"} className="flex-1 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 disabled:opacity-60 text-white text-sm font-semibold shadow-md shadow-blue-200">
-                {form.image === "__uploading__" ? "Upload image…" : saving ? "Enregistrement…" : editProduct ? "Enregistrer" : "Ajouter"}
+                {form.image === "__uploading__" ? "Upload image…" : saving ? t("saving") : editProduct ? t("save") : t("add")}
               </button>
             </div>
           </div>
@@ -739,10 +741,10 @@ export default function ProduitsPage() {
             </div>
 
             <div className="flex gap-3 mt-5">
-              <button onClick={() => setStockModal(null)} className="flex-1 py-2.5 rounded-xl border border-slate-200 text-sm font-semibold text-slate-600 hover:bg-slate-50">Annuler</button>
+              <button onClick={() => setStockModal(null)} className="flex-1 py-2.5 rounded-xl border border-slate-200 text-sm font-semibold text-slate-600 hover:bg-slate-50">{t("cancel")}</button>
               <button onClick={handleAddStock} disabled={stockSaving || !stockQty || parseInt(stockQty) <= 0}
                 className="flex-1 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 disabled:opacity-60 text-white text-sm font-semibold shadow-md shadow-blue-200">
-                {stockSaving ? "Enregistrement…" : `+ ${stockQty || 0} unités`}
+                {stockSaving ? t("saving") : `+ ${stockQty || 0} unités`}
               </button>
             </div>
           </div>

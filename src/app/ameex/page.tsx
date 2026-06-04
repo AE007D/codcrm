@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import Sidebar from "@/components/Sidebar";
+import { useLang } from "@/lib/i18n";
 
 type Creds = { apiId: string; apiKey: string };
 const CREDS_KEY = "ameex_creds";
@@ -25,6 +26,7 @@ const emptyForm = {
 };
 
 export default function AmeexPage() {
+  const { t } = useLang();
   const [creds, setCreds] = useState<Creds>({ apiId: "", apiKey: "" });
   const [savedCreds, setSavedCreds] = useState<Creds | null>(null);
   const [tab, setTab] = useState<"config" | "add" | "parcels" | "track">("config");
@@ -110,10 +112,10 @@ export default function AmeexPage() {
   const isConnected = !!savedCreds?.apiId;
 
   const tabs = [
-    { key: "config",  label: "⚙️ Config" },
-    { key: "add",     label: "➕ Ajouter colis" },
-    { key: "parcels", label: `📦 Mes colis${parcels.length ? ` (${parcels.length})` : ""}` },
-    { key: "track",   label: "🔍 Tracking" },
+    { key: "config",  label: t("tab_config") },
+    { key: "add",     label: t("tab_add_parcel") },
+    { key: "parcels", label: `${t("tab_my_parcels")}${parcels.length ? ` (${parcels.length})` : ""}` },
+    { key: "track",   label: t("tab_tracking") },
   ] as const;
 
   return (
@@ -121,7 +123,7 @@ export default function AmeexPage() {
       <Sidebar />
       <div className="flex-1 flex flex-col">
         {/* Header */}
-        <header className="bg-white border-b border-slate-100 px-8 py-4 flex items-center justify-between">
+        <header className="bg-white border-b border-slate-100 px-8 py-4 flex items-center justify-between sidebar-header-pl">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 bg-blue-700 rounded-xl flex items-center justify-center shadow-md shadow-blue-200">
               <svg viewBox="0 0 24 24" fill="white" className="w-5 h-5">
@@ -129,8 +131,8 @@ export default function AmeexPage() {
               </svg>
             </div>
             <div>
-              <h1 className="text-xl font-bold text-slate-900">Ameex</h1>
-              <p className="text-sm text-slate-400">ameex.ma · Livraison & Logistique COD</p>
+              <h1 className="text-xl font-bold text-slate-900">{t("ameex_title")}</h1>
+              <p className="text-sm text-slate-400">{t("ameex_subtitle")}</p>
             </div>
           </div>
           <span className={`flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-full ${isConnected ? "bg-emerald-50 text-emerald-600" : "bg-amber-50 text-amber-600"}`}>
@@ -142,10 +144,10 @@ export default function AmeexPage() {
         <main className="flex-1 p-8">
           {/* Tabs */}
           <div className="flex gap-2 mb-6 flex-wrap">
-            {tabs.map(t => (
-              <button key={t.key} onClick={() => setTab(t.key)}
-                className={`text-sm font-semibold px-4 py-2 rounded-xl transition-colors ${tab === t.key ? "bg-blue-700 text-white shadow-md shadow-blue-200" : "bg-white text-slate-500 border border-slate-200 hover:bg-slate-50"}`}>
-                {t.label}
+            {tabs.map(tb => (
+              <button key={tb.key} onClick={() => setTab(tb.key)}
+                className={`text-sm font-semibold px-4 py-2 rounded-xl transition-colors ${tab === tb.key ? "bg-blue-700 text-white shadow-md shadow-blue-200" : "bg-white text-slate-500 border border-slate-200 hover:bg-slate-50"}`}>
+                {tb.label}
               </button>
             ))}
           </div>
@@ -220,7 +222,7 @@ export default function AmeexPage() {
                 </div>
               )}
               <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-6">
-                <h2 className="font-bold text-slate-900 mb-5">Nouveau colis Ameex</h2>
+                <h2 className="font-bold text-slate-900 mb-5">{t("new_parcel")}</h2>
                 {addResult && (
                   <div className="bg-emerald-50 border border-emerald-200 rounded-xl px-4 py-3 mb-4 text-sm text-emerald-700 font-medium">{addResult}</div>
                 )}

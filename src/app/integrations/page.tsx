@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import Sidebar from "@/components/Sidebar";
+import { useLang } from "@/lib/i18n";
 
 /* ── types ── */
 type LFOrder = { id: string; order_number: number; status: string; financial_status: string; total_price: string; currency: string; customer_name: string; customer_phone: string; city: string; product: string; quantity: number; funnel: string; received_at: string };
@@ -82,6 +83,7 @@ const INTEGRATIONS = [
    MAIN PAGE
 ═══════════════════════════════════════════════════════ */
 export default function IntegrationsPage() {
+  const { t } = useLang();
   const [active, setActive] = useState<string>("lightfunnels");
   const [toast, setToast] = useState<{ msg: string; ok: boolean } | null>(null);
 
@@ -246,10 +248,10 @@ export default function IntegrationsPage() {
     <div className="flex min-h-screen bg-[#F0F4FF]">
       <Sidebar />
       <div className="flex-1 flex flex-col">
-        <header className="bg-white border-b border-slate-100 px-4 lg:px-8 py-4 pl-14 lg:pl-8 flex items-center justify-between">
+        <header className="bg-white border-b border-slate-100 px-4 lg:px-8 py-4 pl-14 lg:pl-8 flex items-center justify-between sidebar-header-pl">
           <div>
-            <h1 className="text-xl font-bold text-slate-900">Intégrations</h1>
-            <p className="text-sm text-slate-400 hidden sm:block">Sources de commandes & sociétés de livraison</p>
+            <h1 className="text-xl font-bold text-slate-900">{t("integrations_title")}</h1>
+            <p className="text-sm text-slate-400 hidden sm:block">{t("integrations_subtitle")}</p>
           </div>
           <div className="flex items-center gap-2">
             {Object.values(connected).filter(Boolean).length > 0 && (
@@ -264,10 +266,10 @@ export default function IntegrationsPage() {
           {/* Left panel — integration list */}
           <aside className="w-full lg:w-64 bg-white border-b lg:border-b-0 lg:border-r border-slate-100 p-4 flex flex-col gap-4 lg:gap-6 overflow-y-auto lg:overflow-y-auto max-h-48 lg:max-h-none">
             {[
-              { label: "Sources", items: sources },
-              { label: "Livraison", items: shippers },
-              { label: "Publicité", items: adsInteg },
-              { label: "Notifications", items: notifInteg },
+              { label: t("integ_sources"), items: sources },
+              { label: t("integ_shipping"), items: shippers },
+              { label: t("integ_ads"), items: adsInteg },
+              { label: t("integ_notif"), items: notifInteg },
             ].map(({ label, items }) => (
               <div key={label}>
                 <p className="text-xs font-bold text-slate-400 uppercase tracking-wider px-2 mb-2">{label}</p>
@@ -402,7 +404,7 @@ export default function IntegrationsPage() {
                       <input type="password" placeholder="shpat_xxxx" value={shopify.apiKey} onChange={e => setShopify(s => ({ ...s, apiKey: e.target.value }))} className="w-full text-sm border border-slate-200 rounded-xl px-4 py-2.5 outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-50 font-mono" />
                     </div>
                   </div>
-                  <button onClick={saveShopify} className="mt-4 w-full py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-sm rounded-xl shadow-md shadow-emerald-200 transition-colors">Sauvegarder</button>
+                  <button onClick={saveShopify} className="mt-4 w-full py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-sm rounded-xl shadow-md shadow-emerald-200 transition-colors">{t("save")}</button>
                 </div>
                 <div className="bg-white rounded-2xl border border-slate-100 p-5">
                   <h3 className="font-bold text-slate-800 mb-3">Comment connecter</h3>
@@ -438,7 +440,7 @@ export default function IntegrationsPage() {
                         <input type={f.pw?"password":"text"} placeholder={f.ph} value={eagle[f.k as keyof EagleCreds]} onChange={e=>setEagle(c=>({...c,[f.k]:e.target.value}))} className="w-full text-sm border border-slate-200 rounded-xl px-4 py-2.5 outline-none focus:border-amber-400 font-mono" />
                       </div>
                     ))}
-                    <button onClick={saveEagle} className="w-full py-2.5 bg-amber-500 hover:bg-amber-600 text-white font-semibold text-sm rounded-xl shadow-md shadow-amber-200 transition-colors">Sauvegarder</button>
+                    <button onClick={saveEagle} className="w-full py-2.5 bg-amber-500 hover:bg-amber-600 text-white font-semibold text-sm rounded-xl shadow-md shadow-amber-200 transition-colors">{t("save")}</button>
                     {/* API Status Diagnostic */}
                     {eagleSaved && (
                       <div className={`rounded-xl p-3 text-sm flex items-start gap-3 ${eagleApiStatus === "ok" ? "bg-emerald-50 border border-emerald-200" : eagleApiStatus === "broken" ? "bg-red-50 border border-red-200" : "bg-slate-50 border border-slate-200"}`}>
@@ -455,7 +457,7 @@ export default function IntegrationsPage() {
                           {eagleApiStatus === "unknown" && <p className="text-slate-500">Cliquez &quot;Tester l&apos;API&quot; pour diagnostiquer l&apos;endpoint addcolis.php</p>}
                         </div>
                         <button onClick={testEagleApiStatus} disabled={eagleApiTesting} className="shrink-0 text-xs px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-slate-600 hover:bg-slate-50 disabled:opacity-50">
-                          {eagleApiTesting ? "Test…" : "Tester l'API"}
+                          {eagleApiTesting ? "Test…" : t("test_api")}
                         </button>
                       </div>
                     )}
@@ -552,7 +554,7 @@ export default function IntegrationsPage() {
                     <input type="text" placeholder="act_123456789" value={fbAds.adAccountId} onChange={e => setFbAds(c => ({ ...c, adAccountId: e.target.value }))} className="w-full text-sm border border-slate-200 rounded-xl px-4 py-2.5 outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-50 font-mono" />
                     <p className="text-xs text-slate-400 mt-1">Format : act_XXXXXXXX — visible dans Ads Manager → URL</p>
                   </div>
-                  <button onClick={saveFbAds} className="w-full py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-semibold text-sm rounded-xl shadow-md shadow-blue-200 transition-colors">Sauvegarder</button>
+                  <button onClick={saveFbAds} className="w-full py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-semibold text-sm rounded-xl shadow-md shadow-blue-200 transition-colors">{t("save")}</button>
                 </div>
 
                 <div className="bg-white rounded-2xl border border-slate-100 p-5">
@@ -601,7 +603,7 @@ export default function IntegrationsPage() {
                     <input type="text" placeholder="7000000000000000000" value={tiktokAds.advertiserId} onChange={e => setTiktokAds(c => ({ ...c, advertiserId: e.target.value }))} className="w-full text-sm border border-slate-200 rounded-xl px-4 py-2.5 outline-none focus:border-slate-400 focus:ring-2 focus:ring-slate-50 font-mono" />
                     <p className="text-xs text-slate-400 mt-1">Visible dans TikTok Ads Manager → URL du compte</p>
                   </div>
-                  <button onClick={saveTiktokAds} className="w-full py-2.5 bg-slate-900 hover:bg-slate-800 text-white font-semibold text-sm rounded-xl shadow-md transition-colors">Sauvegarder</button>
+                  <button onClick={saveTiktokAds} className="w-full py-2.5 bg-slate-900 hover:bg-slate-800 text-white font-semibold text-sm rounded-xl shadow-md transition-colors">{t("save")}</button>
                 </div>
 
                 <div className="bg-white rounded-2xl border border-slate-100 p-5">
@@ -662,7 +664,7 @@ export default function IntegrationsPage() {
                       value={tgBot.chatId} onChange={e => setTgBot(c => ({ ...c, chatId: e.target.value }))}
                       className="w-full text-sm border border-slate-200 rounded-xl px-4 py-2.5 outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-50 font-mono" />
                   </div>
-                  <button onClick={saveTgBot} className="w-full py-2.5 bg-blue-500 hover:bg-blue-600 text-white font-semibold text-sm rounded-xl shadow-md shadow-blue-200 transition-colors">Sauvegarder</button>
+                  <button onClick={saveTgBot} className="w-full py-2.5 bg-blue-500 hover:bg-blue-600 text-white font-semibold text-sm rounded-xl shadow-md shadow-blue-200 transition-colors">{t("save")}</button>
                 </div>
 
                 <div className="bg-slate-50 border border-slate-200 rounded-2xl p-4 flex gap-3">

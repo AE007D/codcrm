@@ -1,533 +1,329 @@
 "use client";
 
-import { useEffect, useState, useMemo, useCallback, useRef } from "react";
-import Sidebar from "@/components/Sidebar";
-import {
-  AreaChart, Area, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip,
-  ResponsiveContainer, PieChart, Pie, Cell, Legend,
-} from "recharts";
+import { useEffect, useState } from "react";
+import Link from "next/link";
+import { CodCrmLogo } from "@/components/CodCrmLogo";
 
-const COLORS = ["#2563EB", "#3B82F6", "#60A5FA", "#93C5FD", "#BFDBFE"];
-const MONTHS = ["Jan","Fév","Mar","Avr","Mai","Jun","Jul","Aoû","Sep","Oct","Nov","Déc"];
-const DAYS = ["Dim","Lun","Mar","Mer","Jeu","Ven","Sam"];
-type Period = "today" | "week" | "month" | "year";
+const FEATURES = [
+  {
+    icon: "📦",
+    title: "Gestion des commandes",
+    desc: "Pipeline Kanban complet — confirmez, expédiez et suivez chaque commande en temps réel. Statuts automatiques, notes, historique.",
+  },
+  {
+    icon: "🦅",
+    title: "Intégration Eagle Express",
+    desc: "Expédiez en 1 clic via Eagle Express. Numéro de suivi automatique, sync des statuts livrés/retournés toutes les heures.",
+  },
+  {
+    icon: "📊",
+    title: "Dashboard & Analytics",
+    desc: "KPIs en temps réel — commandes, taux de livraison, CA, top produits, top villes. Graphiques sur 7j / 30j / 12 mois.",
+  },
+  {
+    icon: "💰",
+    title: "Finances & ROAS",
+    desc: "Coût par lead, seuil de rentabilité, CA livré vs investi. Suivi des virements Eagle Express. Rapports Telegram automatiques.",
+  },
+  {
+    icon: "👥",
+    title: "Équipe & Agents",
+    desc: "Gérez vos agents de confirmation avec des rôles (Admin, Agent, Viewer). Suivi des paiements et commissions par agent.",
+  },
+  {
+    icon: "🤖",
+    title: "Notifications Telegram",
+    desc: "Alertes instantanées pour chaque nouvelle commande. Rapports quotidiens automatisés directement dans votre groupe Telegram.",
+  },
+  {
+    icon: "🛍️",
+    title: "Multi-boutiques",
+    desc: "Connectez Lightfunnels, Shopify et vos boutiques COD. Toutes vos commandes centralisées dans un seul tableau de bord.",
+  },
+  {
+    icon: "📈",
+    title: "Ads Manager intégré",
+    desc: "CPP, CPD, ROAS par campagne Facebook & TikTok. Comparez vos performances publicitaires avec votre CA réel livré.",
+  },
+  {
+    icon: "🚀",
+    title: "Funnels & Abandons",
+    desc: "Récupérez les paniers abandonnés de vos landing pages. Relancez par téléphone, suivez les taux de conversion.",
+  },
+];
 
-type Order = {
-  id: string;
-  order_number: number;
-  status: string;
-  financial_status: string;
-  total_price: string;
-  currency: string;
-  customer_name: string;
-  city: string;
-  product: string;
-  quantity: number;
-  created_at: string; // normalized from receivedAt
-};
+const STATS = [
+  { value: "500+", label: "Vendeurs COD actifs" },
+  { value: "50K+", label: "Commandes gérées / mois" },
+  { value: "98%", label: "Taux de satisfaction" },
+  { value: "0 MAD", label: "Pour commencer" },
+];
 
-type TeamUser = {
-  id: string;
-  name: string;
-  email: string;
-  role: string;
-  active: boolean;
-};
+const INTEGRATIONS = [
+  { name: "Eagle Express", color: "bg-amber-50 text-amber-700 border-amber-200", icon: "🦅" },
+  { name: "Ameex", color: "bg-blue-50 text-blue-700 border-blue-200", icon: "🚚" },
+  { name: "Lightfunnels", color: "bg-indigo-50 text-indigo-700 border-indigo-200", icon: "⚡" },
+  { name: "Shopify", color: "bg-emerald-50 text-emerald-700 border-emerald-200", icon: "🛒" },
+  { name: "Facebook Ads", color: "bg-blue-50 text-blue-800 border-blue-200", icon: "📘" },
+  { name: "TikTok Ads", color: "bg-slate-50 text-slate-700 border-slate-200", icon: "🎵" },
+  { name: "Telegram", color: "bg-sky-50 text-sky-700 border-sky-200", icon: "✈️" },
+  { name: "WhatsApp", color: "bg-emerald-50 text-emerald-700 border-emerald-200", icon: "💬" },
+];
 
-function AgentAvatar({ name }: { name: string }) {
-  const initials = name.split(" ").map((w: string) => w[0]).join("").slice(0, 2).toUpperCase();
-  const colors = ["bg-blue-500", "bg-violet-500", "bg-emerald-500", "bg-amber-500", "bg-rose-500"];
-  const color = colors[name.charCodeAt(0) % colors.length];
-  return (
-    <div className={`w-9 h-9 rounded-xl ${color} flex items-center justify-center text-white text-xs font-bold shrink-0`}>
-      {initials}
-    </div>
-  );
-}
+const STEPS = [
+  {
+    step: "01",
+    title: "Créez votre compte",
+    desc: "Inscription gratuite en 30 secondes. Aucune carte bancaire requise.",
+  },
+  {
+    step: "02",
+    title: "Connectez vos boutiques",
+    desc: "Lightfunnels, Shopify, Eagle Express — toutes vos sources en quelques clics.",
+  },
+  {
+    step: "03",
+    title: "Gérez & encaissez",
+    desc: "Confirmez, expédiez, analysez. Votre business COD enfin sous contrôle.",
+  },
+];
 
-const STATUS_STYLE: Record<string, string> = {
-  "confirmé": "bg-blue-50 text-blue-600",
-  "livré": "bg-emerald-50 text-emerald-600",
-  "expédié": "bg-violet-50 text-violet-600",
-  "annulé": "bg-red-50 text-red-500",
-  "pending": "bg-amber-50 text-amber-600",
-  "retourné": "bg-orange-50 text-orange-500",
-};
-
-function statusLabel(s: string) {
-  const map: Record<string, string> = {
-    confirmé: "Confirmé", livré: "Livré", expédié: "Expédié",
-    annulé: "Annulé", pending: "En attente", retourné: "Retourné",
-    confirmed: "Confirmé", delivered: "Livré", cancelled: "Annulé",
-  };
-  return map[s] ?? s;
-}
-
-// ── Date helpers ──────────────────────────────────────────────────────────────
-function startOf(period: Period, now: Date): Date {
-  const d = new Date(now);
-  if (period === "today") { d.setHours(0, 0, 0, 0); return d; }
-  if (period === "week") {
-    const day = d.getDay(); // 0=Sun
-    d.setDate(d.getDate() - day);
-    d.setHours(0, 0, 0, 0);
-    return d;
-  }
-  if (period === "month") { d.setDate(1); d.setHours(0, 0, 0, 0); return d; }
-  // year
-  d.setMonth(0, 1); d.setHours(0, 0, 0, 0); return d;
-}
-
-function filterByPeriod(orders: Order[], period: Period, now: Date) {
-  const start = startOf(period, now).getTime();
-  return orders.filter(o => new Date(o.created_at).getTime() >= start);
-}
-
-// ── Chart data builders ───────────────────────────────────────────────────────
-function buildChartData(orders: Order[], period: Period, now: Date) {
-  if (period === "today") {
-    // 24 hours
-    const buckets: { label: string; commandes: number; revenue: number }[] = Array.from({ length: 24 }, (_, h) => ({
-      label: `${h}h`, commandes: 0, revenue: 0,
-    }));
-    orders.forEach(o => {
-      const h = new Date(o.created_at).getHours();
-      buckets[h].commandes++;
-      if (["confirmé","livré","expédié"].includes(o.status))
-        buckets[h].revenue += parseFloat(o.total_price) || 0;
-    });
-    // Only show up to current hour + 1
-    const curH = now.getHours();
-    return buckets.slice(0, curH + 2).map(b => ({ ...b, revenue: Math.round(b.revenue) }));
-  }
-
-  if (period === "week") {
-    const buckets = DAYS.map(d => ({ label: d, commandes: 0, revenue: 0 }));
-    orders.forEach(o => {
-      const day = new Date(o.created_at).getDay();
-      buckets[day].commandes++;
-      if (["confirmé","livré","expédié"].includes(o.status))
-        buckets[day].revenue += parseFloat(o.total_price) || 0;
-    });
-    return buckets.map(b => ({ ...b, revenue: Math.round(b.revenue) }));
-  }
-
-  if (period === "month") {
-    const daysInMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
-    const buckets = Array.from({ length: daysInMonth }, (_, i) => ({
-      label: `${i + 1}`, commandes: 0, revenue: 0,
-    }));
-    orders.forEach(o => {
-      const d = new Date(o.created_at).getDate() - 1;
-      if (d >= 0 && d < daysInMonth) {
-        buckets[d].commandes++;
-        if (["confirmé","livré","expédié"].includes(o.status))
-          buckets[d].revenue += parseFloat(o.total_price) || 0;
-      }
-    });
-    return buckets.map(b => ({ ...b, revenue: Math.round(b.revenue) }));
-  }
-
-  // year — by month
-  const buckets = MONTHS.map(m => ({ label: m, commandes: 0, revenue: 0 }));
-  orders.forEach(o => {
-    const month = new Date(o.created_at).getMonth();
-    buckets[month].commandes++;
-    if (["confirmé","livré","expédié"].includes(o.status))
-      buckets[month].revenue += parseFloat(o.total_price) || 0;
-  });
-  return buckets.map(b => ({ ...b, revenue: Math.round(b.revenue) }));
-}
-
-const PERIOD_LABELS: Record<Period, string> = {
-  today: "Aujourd'hui",
-  week: "Cette semaine",
-  month: "Ce mois",
-  year: "Cette année",
-};
-
-export default function Home() {
-  const [allOrders, setAllOrders] = useState<Order[]>([]);
-  const [team, setTeam] = useState<TeamUser[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [lastRefresh, setLastRefresh] = useState<Date | null>(null);
-  const [period, setPeriod] = useState<Period>("today");
-  const [chartMode, setChartMode] = useState<"commandes" | "revenue">("commandes");
-  const isFirstLoad = useRef(true);
-
-  const now = useMemo(() => new Date(), []);
-
-  const fetchData = useCallback(() => {
-    if (isFirstLoad.current) setLoading(true);
-    Promise.all([
-      fetch("/api/orders").then(r => {
-        if (r.status === 401) { window.location.href = "/login"; return { orders: [] }; }
-        return r.ok ? r.json() : { orders: [] };
-      }),
-      fetch("/api/auth/users").then(r => r.ok ? r.json() : { users: [] }),
-    ]).then(([ordersData, teamData]) => {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const normalized = (ordersData.orders ?? []).map((o: any) => ({
-        id: o.id,
-        order_number: o.orderNumber ?? o.order_number ?? "",
-        status: o.status ?? "nouveau",
-        financial_status: o.financial_status ?? "cod",
-        total_price: String(o.totalPrice ?? o.total_price ?? "0"),
-        currency: o.currency ?? "MAD",
-        customer_name: o.customerName ?? o.customer_name ?? "",
-        city: o.city ?? "",
-        product: o.product ?? "",
-        quantity: o.quantity ?? 1,
-        created_at: o.receivedAt ?? o.received_at ?? o.created_at ?? new Date().toISOString(),
-      }));
-      setAllOrders(normalized);
-      setTeam((teamData.users ?? []).filter((u: TeamUser) => u.active));
-      setLastRefresh(new Date());
-    }).finally(() => {
-      setLoading(false);
-      isFirstLoad.current = false;
-    });
-  }, []);
+export default function LandingPage() {
+  const [authed, setAuthed] = useState(false);
 
   useEffect(() => {
-    fetchData();
-    const interval = setInterval(fetchData, 60_000);
-    return () => clearInterval(interval);
-  }, [fetchData]);
+    fetch("/api/auth/me").then(r => {
+      if (r.ok) {
+        setAuthed(true);
+        window.location.href = "/dashboard";
+      }
+    }).catch(() => {});
+  }, []);
 
-  // ── Filtered orders for selected period ──────────────────────────────────────
-  const orders = useMemo(() => filterByPeriod(allOrders, period, now), [allOrders, period, now]);
-
-  // ── Today's snapshot (always) ─────────────────────────────────────────────
-  const todayOrders = useMemo(() => filterByPeriod(allOrders, "today", now), [allOrders, now]);
-  const todayTotal = todayOrders.length;
-  const todayConfirmed = todayOrders.filter(o => ["confirmé","confirmed"].includes(o.status)).length;
-  const todayCancelled = todayOrders.filter(o => ["annulé","cancelled"].includes(o.status)).length;
-  const todayDelivered = todayOrders.filter(o => ["livré","delivered"].includes(o.status)).length;
-
-  // ── Period stats ──────────────────────────────────────────────────────────────
-  const totalOrders = orders.length;
-  const confirmed = orders.filter(o => ["confirmé","confirmed"].includes(o.status)).length;
-  const cancelled = orders.filter(o => ["annulé","cancelled"].includes(o.status)).length;
-  const delivered = orders.filter(o => ["livré","delivered"].includes(o.status)).length;
-  const pending = orders.filter(o => o.status === "pending").length;
-  const revenue = orders
-    .filter(o => ["confirmé","livré","expédié","confirmed","delivered"].includes(o.status))
-    .reduce((s, o) => s + (parseFloat(o.total_price) || 0), 0);
-  const deliveryRate = confirmed > 0 ? Math.round((delivered / confirmed) * 100) : 0;
-  const confirmRate = totalOrders > 0 ? Math.round((confirmed / totalOrders) * 100) : 0;
-
-  // ── Chart ─────────────────────────────────────────────────────────────────────
-  const chartData = useMemo(() => buildChartData(orders, period, now), [orders, period, now]);
-
-  // ── City distribution (period) ────────────────────────────────────────────────
-  const cityData = useMemo(() => {
-    const cityCount: Record<string, number> = {};
-    orders.forEach(o => {
-      const city = (o.city || "Autre").trim() || "Autre";
-      cityCount[city] = (cityCount[city] || 0) + 1;
-    });
-    const total = orders.length || 1;
-    const sorted = Object.entries(cityCount).sort((a, b) => b[1] - a[1]);
-    const top = sorted.slice(0, 4).map(([name, count]) => ({ name, value: Math.round((count / total) * 100) }));
-    const other = 100 - top.reduce((s, c) => s + c.value, 0);
-    if (other > 0) top.push({ name: "Autre", value: other });
-    return top.length > 0 ? top : [{ name: "Aucune donnée", value: 100 }];
-  }, [orders]);
-
-  // ── Best products (period) ────────────────────────────────────────────────────
-  const bestProducts = useMemo(() => {
-    const productMap: Record<string, { sold: number; revenue: number }> = {};
-    orders.forEach(o => {
-      const key = o.product || "Produit";
-      if (!productMap[key]) productMap[key] = { sold: 0, revenue: 0 };
-      productMap[key].sold += o.quantity || 1;
-      productMap[key].revenue += parseFloat(o.total_price) || 0;
-    });
-    return Object.entries(productMap)
-      .sort((a, b) => b[1].revenue - a[1].revenue)
-      .slice(0, 5)
-      .map(([name, { sold, revenue: rev }], i) => ({
-        rank: i + 1, name, sold,
-        revenue: `${Math.round(rev).toLocaleString("fr-MA")} MAD`,
-      }));
-  }, [orders]);
-
-  // ── Recent orders (period) ────────────────────────────────────────────────────
-  const recentOrders = useMemo(() =>
-    [...orders].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()).slice(0, 5),
-    [orders]
-  );
-
-  const kpis = [
-    { label: "Commandes", value: totalOrders, color: "text-blue-600", bg: "bg-blue-50", icon: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="w-5 h-5"><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2"/><rect x="9" y="3" width="6" height="4" rx="1"/><path d="M9 12h6M9 16h4"/></svg> },
-    { label: "Confirmées", value: confirmed, color: "text-emerald-600", bg: "bg-emerald-50", icon: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="w-5 h-5"><path d="M22 11.08V12a10 10 0 11-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg> },
-    { label: "Annulées", value: cancelled, color: "text-red-500", bg: "bg-red-50", icon: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="w-5 h-5"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg> },
-    { label: "Livrées", value: delivered, color: "text-violet-600", bg: "bg-violet-50", icon: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="w-5 h-5"><path d="M5 17H3a2 2 0 01-2-2V5a2 2 0 012-2h11a2 2 0 012 2v3M9 17h6m4 0h2"/><circle cx="7" cy="17" r="2"/><path d="M13 17V9h5l3 4v4h-2"/><circle cx="19" cy="17" r="2"/></svg> },
-    { label: "En attente", value: pending, color: "text-amber-600", bg: "bg-amber-50", icon: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="w-5 h-5"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg> },
-    { label: "Revenue MAD", value: `${Math.round(revenue).toLocaleString("fr-MA")}`, color: "text-slate-900", bg: "bg-slate-50", icon: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="w-5 h-5"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/></svg> },
-    { label: "Taux confirmation", value: `${confirmRate}%`, color: "text-blue-700", bg: "bg-blue-50", icon: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="w-5 h-5"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/><line x1="2" y1="20" x2="22" y2="20"/></svg> },
-    { label: "Taux de livraison", value: `${deliveryRate}%`, color: "text-emerald-700", bg: "bg-emerald-50", icon: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="w-5 h-5"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg> },
-  ];
+  if (authed) {
+    return (
+      <div className="min-h-screen bg-slate-900 flex items-center justify-center">
+        <div className="w-8 h-8 border-2 border-blue-400 border-t-transparent rounded-full animate-spin" />
+      </div>
+    );
+  }
 
   return (
-    <div className="flex min-h-screen bg-[#F0F4FF]">
-      <Sidebar />
-      <div className="flex-1 flex flex-col overflow-hidden">
-        <header className="bg-white border-b border-slate-100 px-4 lg:px-8 py-4 pl-14 lg:pl-8 flex items-center justify-between gap-4">
-          <div>
-            <h1 className="text-xl font-bold text-slate-900">Dashboard</h1>
-            <div className="flex items-center gap-1.5">
-              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse shrink-0" />
-              <p className="text-xs text-slate-400">
-                {lastRefresh
-                  ? `Mis à jour ${lastRefresh.toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })} · auto 1 min`
-                  : "Chargement…"}
-              </p>
-            </div>
+    <div className="min-h-screen bg-white text-slate-900 overflow-x-hidden">
+      {/* ── Navbar ── */}
+      <nav className="sticky top-0 z-50 bg-white/90 backdrop-blur-md border-b border-slate-100 px-4 sm:px-8 py-3 flex items-center justify-between gap-4">
+        <Link href="/" className="flex items-center gap-2.5 shrink-0">
+          <CodCrmLogo size={32} />
+          <span className="text-lg font-extrabold text-slate-900 tracking-tight">COD CRM</span>
+        </Link>
+        <div className="hidden md:flex items-center gap-6 text-sm font-medium text-slate-500">
+          <a href="#features" className="hover:text-slate-900 transition-colors">Fonctionnalités</a>
+          <a href="#integrations" className="hover:text-slate-900 transition-colors">Intégrations</a>
+          <a href="#how" className="hover:text-slate-900 transition-colors">Comment ça marche</a>
+        </div>
+        <div className="flex items-center gap-2 shrink-0">
+          <Link href="/login" className="text-sm font-semibold text-slate-600 hover:text-slate-900 px-3 py-2 rounded-xl transition-colors hidden sm:block">
+            Se connecter
+          </Link>
+          <Link href="/login" className="bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold px-4 py-2 rounded-xl transition-colors shadow-md shadow-blue-200 whitespace-nowrap">
+            Démarrer gratuitement →
+          </Link>
+        </div>
+      </nav>
+
+      {/* ── Hero ── */}
+      <section className="relative bg-gradient-to-br from-slate-900 via-blue-950 to-slate-900 text-white overflow-hidden">
+        {/* Background orbs */}
+        <div className="absolute inset-0 pointer-events-none">
+          <div className="absolute top-[-100px] right-[-100px] w-[500px] h-[500px] bg-blue-600/10 rounded-full blur-3xl" />
+          <div className="absolute bottom-[-80px] left-[-80px] w-[400px] h-[400px] bg-indigo-600/10 rounded-full blur-3xl" />
+        </div>
+
+        <div className="relative z-10 max-w-6xl mx-auto px-4 sm:px-8 pt-20 pb-24 text-center">
+          <div className="inline-flex items-center gap-2 bg-blue-600/20 border border-blue-500/30 rounded-full px-4 py-1.5 text-blue-300 text-sm font-semibold mb-6">
+            <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+            Plateforme COD · Maroc
           </div>
-          <a href="/commandes" className="bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold px-4 py-2.5 rounded-xl transition-colors shadow-md shadow-blue-200 whitespace-nowrap">
-            + Nouvelle commande
-          </a>
-        </header>
 
-        <main className="flex-1 p-4 lg:p-8 overflow-y-auto">
-          {loading ? (
-            <div className="flex items-center justify-center h-64">
-              <div className="w-8 h-8 border-2 border-blue-600 border-t-transparent rounded-full animate-spin" />
+          <h1 className="text-4xl sm:text-5xl lg:text-6xl font-extrabold text-white leading-tight mb-6 tracking-tight">
+            Votre business COD,<br />
+            <span className="text-blue-400">enfin sous contrôle.</span>
+          </h1>
+
+          <p className="text-slate-300 text-lg sm:text-xl max-w-2xl mx-auto mb-10 leading-relaxed">
+            La plateforme tout-en-un pour les e-commerçants marocains — commandes, livraisons, équipe et finances. Tout au même endroit.
+          </p>
+
+          <div className="flex flex-col sm:flex-row items-center justify-center gap-4 mb-16">
+            <Link href="/login"
+              className="w-full sm:w-auto bg-blue-600 hover:bg-blue-500 text-white font-bold px-8 py-4 rounded-2xl transition-all shadow-xl shadow-blue-900/50 text-lg">
+              Démarrer gratuitement →
+            </Link>
+            <Link href="/login"
+              className="w-full sm:w-auto bg-white/10 hover:bg-white/20 border border-white/20 text-white font-semibold px-8 py-4 rounded-2xl transition-all text-lg">
+              Se connecter
+            </Link>
+          </div>
+
+          {/* Dashboard preview card */}
+          <div className="relative mx-auto max-w-4xl">
+            <div className="bg-white/5 border border-white/10 rounded-3xl p-3 sm:p-4 backdrop-blur-sm shadow-2xl">
+              <div className="bg-[#F0F4FF] rounded-2xl p-4 sm:p-6">
+                {/* Mini dashboard mockup */}
+                <div className="flex items-center justify-between mb-4">
+                  <div className="h-3 bg-slate-300/50 rounded-full w-28" />
+                  <div className="h-8 bg-blue-600 rounded-xl w-28 opacity-80" />
+                </div>
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-3 mb-4">
+                  {["bg-blue-100", "bg-emerald-100", "bg-red-100", "bg-violet-100"].map((bg, i) => (
+                    <div key={i} className={`${bg} rounded-2xl p-4`}>
+                      <div className="h-2 bg-current rounded opacity-30 mb-2 w-16" />
+                      <div className="h-5 bg-current rounded opacity-40 w-10" />
+                    </div>
+                  ))}
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div className="bg-white rounded-2xl p-4 h-24 flex flex-col gap-2">
+                    <div className="h-2 bg-slate-200 rounded-full w-20" />
+                    <div className="flex items-end gap-1 flex-1">
+                      {[60, 80, 45, 90, 70, 85, 55].map((h, i) => (
+                        <div key={i} className="flex-1 bg-blue-500 rounded-t opacity-70" style={{ height: `${h}%` }} />
+                      ))}
+                    </div>
+                  </div>
+                  <div className="bg-white rounded-2xl p-4 h-24 flex flex-col gap-2">
+                    <div className="h-2 bg-slate-200 rounded-full w-20" />
+                    <div className="flex flex-col gap-1 mt-auto">
+                      {[{ w: "75%", c: "bg-blue-500" }, { w: "55%", c: "bg-emerald-400" }, { w: "30%", c: "bg-red-400" }].map((b, i) => (
+                        <div key={i} className="h-1.5 bg-slate-100 rounded-full overflow-hidden">
+                          <div className={`h-full ${b.c} rounded-full`} style={{ width: b.w }} />
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              </div>
             </div>
-          ) : (
-            <>
-              {/* ── Today's snapshot strip ── */}
-              <div className="bg-blue-600 rounded-2xl p-4 lg:p-5 mb-6 shadow-md shadow-blue-200">
-                <div className="flex flex-wrap items-center justify-between gap-3">
-                  <div>
-                    <p className="text-blue-200 text-xs font-semibold uppercase tracking-wider mb-0.5">Aujourd&apos;hui</p>
-                    <p className="text-white font-bold text-lg leading-tight">
-                      {new Date().toLocaleDateString("fr-MA", { weekday: "long", day: "numeric", month: "long" })}
-                    </p>
-                  </div>
-                  <div className="flex flex-wrap gap-3 lg:gap-6">
-                    {[
-                      { label: "Placées", value: todayTotal, color: "text-white" },
-                      { label: "Confirmées", value: todayConfirmed, color: "text-emerald-300" },
-                      { label: "Annulées", value: todayCancelled, color: "text-red-300" },
-                      { label: "Livrées", value: todayDelivered, color: "text-blue-200" },
-                    ].map(s => (
-                      <div key={s.label} className="text-center">
-                        <p className={`text-2xl font-bold ${s.color}`}>{s.value}</p>
-                        <p className="text-blue-200 text-xs mt-0.5">{s.label}</p>
-                      </div>
-                    ))}
-                  </div>
-                </div>
+            {/* Glow */}
+            <div className="absolute inset-0 -z-10 blur-3xl opacity-20 bg-blue-500 rounded-full" />
+          </div>
+        </div>
+      </section>
+
+      {/* ── Stats ── */}
+      <section className="bg-white py-12 border-b border-slate-100">
+        <div className="max-w-5xl mx-auto px-4 sm:px-8">
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-6 sm:gap-8 text-center">
+            {STATS.map(s => (
+              <div key={s.label}>
+                <p className="text-3xl sm:text-4xl font-extrabold text-blue-600 mb-1">{s.value}</p>
+                <p className="text-sm text-slate-500 font-medium">{s.label}</p>
               </div>
+            ))}
+          </div>
+        </div>
+      </section>
 
-              {/* ── Period selector ── */}
-              <div className="flex items-center gap-2 mb-5 bg-white rounded-2xl border border-slate-100 shadow-sm p-1.5 w-fit">
-                {(["today","week","month","year"] as Period[]).map(p => (
-                  <button key={p} onClick={() => setPeriod(p)}
-                    className={`px-4 py-2 rounded-xl text-sm font-semibold transition-all ${
-                      period === p ? "bg-blue-600 text-white shadow-md shadow-blue-200" : "text-slate-500 hover:bg-slate-50"
-                    }`}>
-                    {PERIOD_LABELS[p]}
-                  </button>
-                ))}
+      {/* ── Features ── */}
+      <section id="features" className="py-20 bg-[#F8FAFF]">
+        <div className="max-w-6xl mx-auto px-4 sm:px-8">
+          <div className="text-center mb-14">
+            <span className="text-blue-600 font-bold text-sm uppercase tracking-widest">Fonctionnalités</span>
+            <h2 className="text-3xl sm:text-4xl font-extrabold text-slate-900 mt-2 mb-4">Tout ce dont vous avez besoin</h2>
+            <p className="text-slate-500 text-lg max-w-xl mx-auto">Une seule plateforme pour gérer votre activité COD de A à Z.</p>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+            {FEATURES.map(f => (
+              <div key={f.title} className="bg-white rounded-2xl p-6 border border-slate-100 shadow-sm hover:shadow-md hover:border-blue-100 transition-all group">
+                <span className="text-3xl mb-4 block">{f.icon}</span>
+                <h3 className="text-base font-bold text-slate-900 mb-2 group-hover:text-blue-600 transition-colors">{f.title}</h3>
+                <p className="text-sm text-slate-500 leading-relaxed">{f.desc}</p>
               </div>
+            ))}
+          </div>
+        </div>
+      </section>
 
-              {/* ── KPI grid ── */}
-              <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-3 mb-6">
-                {kpis.map(k => (
-                  <div key={k.label} className="bg-white rounded-2xl p-4 shadow-sm border border-slate-100 flex flex-col gap-2">
-                    <div className={`w-8 h-8 rounded-xl flex items-center justify-center ${k.bg} ${k.color}`}>{k.icon}</div>
-                    <p className={`text-xl font-bold ${k.color}`}>{k.value}</p>
-                    <p className="text-xs text-slate-400 font-medium leading-tight">{k.label}</p>
-                  </div>
-                ))}
-              </div>
-
-              {/* ── Chart + cities ── */}
-              <div className="grid grid-cols-1 lg:grid-cols-3 gap-3 lg:gap-5 mb-6">
-                {/* Main chart */}
-                <div className="lg:col-span-2 bg-white rounded-2xl p-4 lg:p-6 shadow-sm border border-slate-100">
-                  <div className="flex items-center justify-between mb-4">
-                    <h2 className="text-base font-bold text-slate-900">Évolution — {PERIOD_LABELS[period]}</h2>
-                    <div className="flex gap-1 bg-slate-50 rounded-xl p-1">
-                      {(["commandes","revenue"] as const).map(m => (
-                        <button key={m} onClick={() => setChartMode(m)}
-                          className={`px-3 py-1 rounded-lg text-xs font-semibold transition-all ${
-                            chartMode === m ? "bg-white shadow-sm text-slate-800" : "text-slate-400 hover:text-slate-600"
-                          }`}>
-                          {m === "commandes" ? "Commandes" : "Revenue"}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                  {orders.length === 0 ? (
-                    <div className="flex flex-col items-center justify-center h-[200px] text-slate-300">
-                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5} className="w-10 h-10 mb-2"><path d="M3 3v18h18"/><path d="M7 16l4-4 4 4 4-4"/></svg>
-                      <p className="text-sm">Aucune donnée pour cette période</p>
-                    </div>
-                  ) : (
-                    <ResponsiveContainer width="100%" height={200}>
-                      {chartMode === "commandes" ? (
-                        <BarChart data={chartData} margin={{ top: 5, right: 5, bottom: 0, left: -20 }}>
-                          <CartesianGrid strokeDasharray="3 3" stroke="#F1F5F9" />
-                          <XAxis dataKey="label" tick={{ fontSize: 11, fill: "#94A3B8" }} axisLine={false} tickLine={false} interval={period === "month" ? 3 : 0} />
-                          <YAxis tick={{ fontSize: 11, fill: "#94A3B8" }} axisLine={false} tickLine={false} allowDecimals={false} />
-                          <Tooltip contentStyle={{ background: "#fff", border: "1px solid #E2E8F0", borderRadius: "12px", fontSize: 12 }}
-                            formatter={(v) => [v, "Commandes"]} />
-                          <Bar dataKey="commandes" fill="#2563EB" radius={[4, 4, 0, 0]} maxBarSize={32} />
-                        </BarChart>
-                      ) : (
-                        <AreaChart data={chartData} margin={{ top: 5, right: 5, bottom: 0, left: -10 }}>
-                          <defs>
-                            <linearGradient id="gr" x1="0" y1="0" x2="0" y2="1">
-                              <stop offset="5%" stopColor="#2563EB" stopOpacity={0.15}/>
-                              <stop offset="95%" stopColor="#2563EB" stopOpacity={0}/>
-                            </linearGradient>
-                          </defs>
-                          <CartesianGrid strokeDasharray="3 3" stroke="#F1F5F9" />
-                          <XAxis dataKey="label" tick={{ fontSize: 11, fill: "#94A3B8" }} axisLine={false} tickLine={false} interval={period === "month" ? 3 : 0} />
-                          <YAxis tick={{ fontSize: 11, fill: "#94A3B8" }} axisLine={false} tickLine={false} tickFormatter={v => v >= 1000 ? `${(v/1000).toFixed(0)}k` : v} />
-                          <Tooltip contentStyle={{ background: "#fff", border: "1px solid #E2E8F0", borderRadius: "12px", fontSize: 12 }}
-                            formatter={(v) => [`${Number(v).toLocaleString("fr-MA")} MAD`, "Revenue"]} />
-                          <Area type="monotone" dataKey="revenue" stroke="#2563EB" strokeWidth={2.5} fill="url(#gr)" dot={false} activeDot={{ r: 5, fill: "#2563EB" }} />
-                        </AreaChart>
-                      )}
-                    </ResponsiveContainer>
-                  )}
-                </div>
-
-                {/* Cities pie */}
-                <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-100">
-                  <h2 className="text-base font-bold text-slate-900 mb-4">Top Villes</h2>
-                  {orders.length === 0 ? (
-                    <div className="flex flex-col items-center justify-center h-[200px] text-slate-300">
-                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5} className="w-10 h-10 mb-2"><circle cx="12" cy="12" r="10"/></svg>
-                      <p className="text-sm text-center">Aucune commande</p>
-                    </div>
-                  ) : (
-                    <ResponsiveContainer width="100%" height={200}>
-                      <PieChart>
-                        <Pie data={cityData} cx="50%" cy="42%" innerRadius={50} outerRadius={72} paddingAngle={3} dataKey="value">
-                          {cityData.map((_, i) => <Cell key={i} fill={COLORS[i % COLORS.length]} />)}
-                        </Pie>
-                        <Legend iconType="circle" iconSize={8} formatter={(v) => <span style={{ fontSize: 11, color: "#64748B" }}>{v}</span>} />
-                        <Tooltip contentStyle={{ background: "#fff", border: "1px solid #E2E8F0", borderRadius: "12px", fontSize: 12 }} formatter={(v) => [`${v}%`, ""]} />
-                      </PieChart>
-                    </ResponsiveContainer>
-                  )}
-                </div>
-              </div>
-
-              {/* ── Products + Team ── */}
-              <div className="grid grid-cols-1 lg:grid-cols-3 gap-3 lg:gap-5 mb-6">
-                <div className="lg:col-span-2 bg-white rounded-2xl shadow-sm border border-slate-100">
-                  <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between">
-                    <h2 className="text-base font-bold text-slate-900">🏆 Meilleurs produits</h2>
-                    <span className="text-xs text-slate-400">{PERIOD_LABELS[period]}</span>
-                  </div>
-                  {bestProducts.length === 0 ? (
-                    <div className="flex flex-col items-center justify-center h-40 text-slate-300">
-                      <p className="text-sm">Aucun produit pour cette période</p>
-                    </div>
-                  ) : (
-                    <div className="divide-y divide-slate-50">
-                      {bestProducts.map((p) => (
-                        <div key={p.rank} className="flex items-center gap-4 px-6 py-3.5 hover:bg-slate-50/60 transition-colors">
-                          <span className={`w-6 h-6 rounded-lg flex items-center justify-center text-xs font-bold shrink-0 ${p.rank === 1 ? "bg-amber-100 text-amber-600" : p.rank === 2 ? "bg-slate-100 text-slate-500" : "bg-orange-50 text-orange-400"}`}>
-                            {p.rank}
-                          </span>
-                          <div className="flex-1 min-w-0">
-                            <p className="text-sm font-semibold text-slate-800 truncate">{p.name}</p>
-                            <p className="text-xs text-slate-400">{p.sold} vendus</p>
-                          </div>
-                          <p className="text-sm font-bold text-slate-800 shrink-0">{p.revenue}</p>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-
-                <div className="bg-white rounded-2xl shadow-sm border border-slate-100">
-                  <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between">
-                    <h2 className="text-base font-bold text-slate-900">Équipe</h2>
-                    <span className="text-xs text-slate-400 bg-slate-50 px-2.5 py-1 rounded-full">{team.length} membre{team.length !== 1 ? "s" : ""}</span>
-                  </div>
-                  {team.length === 0 ? (
-                    <div className="flex flex-col items-center justify-center h-40 text-slate-300">
-                      <p className="text-sm">Aucun membre</p>
-                    </div>
-                  ) : (
-                    <div className="divide-y divide-slate-50">
-                      {team.map((a) => (
-                        <div key={a.id} className="flex items-center gap-3 px-6 py-3 hover:bg-slate-50/60 transition-colors">
-                          <AgentAvatar name={a.name} />
-                          <div className="flex-1 min-w-0">
-                            <p className="text-sm font-semibold text-slate-800 truncate">{a.name}</p>
-                            <p className="text-xs text-slate-400">{a.email}</p>
-                          </div>
-                          <span className={`text-xs font-semibold px-2 py-0.5 rounded-full shrink-0 ${a.role === "admin" ? "bg-blue-50 text-blue-600" : a.role === "agent" ? "bg-emerald-50 text-emerald-600" : "bg-slate-100 text-slate-400"}`}>
-                            {a.role}
-                          </span>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                  <div className="px-6 py-3 border-t border-slate-50">
-                    <a href="/equipe" className="text-xs text-blue-600 font-medium hover:underline">Gérer l&apos;équipe →</a>
-                  </div>
-                </div>
-              </div>
-
-              {/* ── Recent orders ── */}
-              <div className="bg-white rounded-2xl shadow-sm border border-slate-100">
-                <div className="px-4 lg:px-6 py-4 border-b border-slate-100 flex items-center justify-between">
-                  <h2 className="text-base font-bold text-slate-900">Dernières commandes — {PERIOD_LABELS[period]}</h2>
-                  <a href="/commandes" className="text-sm text-blue-600 font-medium hover:underline">Voir tout →</a>
-                </div>
-                {recentOrders.length === 0 ? (
-                  <div className="flex flex-col items-center justify-center h-40 text-slate-300">
-                    <p className="text-sm">Aucune commande pour cette période</p>
-                    <a href="/integrations" className="text-xs text-blue-500 mt-1 hover:underline">Configurer les intégrations →</a>
-                  </div>
-                ) : (
-                  <div className="overflow-x-auto">
-                    <table className="w-full text-sm min-w-[480px]">
-                      <thead>
-                        <tr className="text-xs text-slate-400 border-b border-slate-50">
-                          {["ID","Client","Ville","Montant","Statut","Date"].map(h => (
-                            <th key={h} className="text-left px-6 py-3 font-semibold uppercase tracking-wide">{h}</th>
-                          ))}
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {recentOrders.map((o) => (
-                          <tr key={o.id} className="border-b border-slate-50 hover:bg-slate-50/60 transition-colors">
-                            <td className="px-6 py-3.5 font-mono text-xs text-slate-400">#{o.order_number || o.id.slice(-5)}</td>
-                            <td className="px-6 py-3.5 font-semibold text-slate-800">{o.customer_name}</td>
-                            <td className="px-6 py-3.5 text-slate-500">{o.city || "—"}</td>
-                            <td className="px-6 py-3.5 font-bold text-slate-800">{parseFloat(o.total_price).toLocaleString("fr-MA")} MAD</td>
-                            <td className="px-6 py-3.5">
-                              <span className={`px-2.5 py-1 rounded-lg text-xs font-semibold ${STATUS_STYLE[o.status] ?? "bg-slate-100 text-slate-500"}`}>
-                                {statusLabel(o.status)}
-                              </span>
-                            </td>
-                            <td className="px-6 py-3.5 text-xs text-slate-400">
-                              {new Date(o.created_at).toLocaleDateString("fr-MA", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" })}
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
+      {/* ── How it works ── */}
+      <section id="how" className="py-20 bg-white">
+        <div className="max-w-4xl mx-auto px-4 sm:px-8">
+          <div className="text-center mb-14">
+            <span className="text-blue-600 font-bold text-sm uppercase tracking-widest">Démarrage rapide</span>
+            <h2 className="text-3xl sm:text-4xl font-extrabold text-slate-900 mt-2 mb-4">Opérationnel en 5 minutes</h2>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-8">
+            {STEPS.map((s, i) => (
+              <div key={s.step} className="text-center relative">
+                {i < STEPS.length - 1 && (
+                  <div className="hidden sm:block absolute top-8 left-[calc(50%+2.5rem)] w-[calc(100%-5rem)] h-px bg-blue-100" />
                 )}
+                <div className="w-16 h-16 rounded-2xl bg-blue-600 text-white text-xl font-extrabold flex items-center justify-center mx-auto mb-5 shadow-lg shadow-blue-200">
+                  {s.step}
+                </div>
+                <h3 className="text-base font-bold text-slate-900 mb-2">{s.title}</h3>
+                <p className="text-sm text-slate-500 leading-relaxed">{s.desc}</p>
               </div>
-            </>
-          )}
-        </main>
-      </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* ── Integrations ── */}
+      <section id="integrations" className="py-20 bg-[#F8FAFF]">
+        <div className="max-w-4xl mx-auto px-4 sm:px-8 text-center">
+          <span className="text-blue-600 font-bold text-sm uppercase tracking-widest">Intégrations</span>
+          <h2 className="text-3xl sm:text-4xl font-extrabold text-slate-900 mt-2 mb-4">Compatible avec votre stack</h2>
+          <p className="text-slate-500 text-lg max-w-xl mx-auto mb-12">Tous les outils des e-commerçants COD marocains, connectés en quelques clics.</p>
+          <div className="flex flex-wrap justify-center gap-3">
+            {INTEGRATIONS.map(integ => (
+              <div key={integ.name} className={`flex items-center gap-2 px-5 py-3 rounded-2xl border font-semibold text-sm ${integ.color}`}>
+                <span className="text-lg">{integ.icon}</span>
+                {integ.name}
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* ── CTA ── */}
+      <section className="py-20 bg-gradient-to-br from-blue-600 to-indigo-700">
+        <div className="max-w-3xl mx-auto px-4 sm:px-8 text-center">
+          <h2 className="text-3xl sm:text-4xl font-extrabold text-white mb-4">
+            Prêt à passer à la vitesse supérieure ?
+          </h2>
+          <p className="text-blue-100 text-lg mb-10 max-w-xl mx-auto">
+            Rejoignez des centaines de vendeurs COD marocains qui gèrent leur business avec COD CRM.
+          </p>
+          <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
+            <Link href="/login"
+              className="w-full sm:w-auto bg-white hover:bg-blue-50 text-blue-700 font-bold px-8 py-4 rounded-2xl transition-all shadow-xl text-lg">
+              Créer mon compte gratuitement →
+            </Link>
+            <Link href="/login"
+              className="w-full sm:w-auto bg-white/10 hover:bg-white/20 border border-white/30 text-white font-semibold px-8 py-4 rounded-2xl transition-all text-lg">
+              Se connecter
+            </Link>
+          </div>
+          <p className="text-blue-200 text-sm mt-6">Gratuit pour commencer · Aucune carte bancaire</p>
+        </div>
+      </section>
+
+      {/* ── Footer ── */}
+      <footer className="bg-slate-900 text-slate-400 py-10 px-4 sm:px-8">
+        <div className="max-w-6xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-6">
+          <div className="flex items-center gap-2.5">
+            <CodCrmLogo size={28} />
+            <span className="text-white font-bold text-base">COD CRM</span>
+          </div>
+          <div className="flex flex-wrap items-center justify-center gap-6 text-sm">
+            <a href="#features" className="hover:text-white transition-colors">Fonctionnalités</a>
+            <a href="#integrations" className="hover:text-white transition-colors">Intégrations</a>
+            <Link href="/privacy" className="hover:text-white transition-colors">Confidentialité</Link>
+            <Link href="/login" className="hover:text-white transition-colors">Connexion</Link>
+          </div>
+          <p className="text-xs text-slate-500">© {new Date().getFullYear()} COD CRM. Tous droits réservés.</p>
+        </div>
+      </footer>
     </div>
   );
 }

@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from "react";
 import Image from "next/image";
 import Sidebar from "@/components/Sidebar";
+import { useLang } from "@/lib/i18n";
 
 type User = {
   id: string;
@@ -33,6 +34,7 @@ function AvatarDisplay({ avatar, name, size = 88 }: { avatar: string | null; nam
 }
 
 export default function ComptePage() {
+  const { t } = useLang();
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -152,8 +154,8 @@ export default function ComptePage() {
     <div className="flex min-h-screen bg-[#F0F4FF]">
       <Sidebar />
       <div className="flex-1 flex flex-col">
-        <header className="bg-white border-b border-slate-100 px-4 lg:px-8 py-4 pl-14 lg:pl-8">
-          <h1 className="text-xl font-bold text-slate-900">Mon compte</h1>
+        <header className="sidebar-header-pl bg-white border-b border-slate-100 px-4 lg:px-8 py-4 pl-14 lg:pl-8">
+          <h1 className="text-xl font-bold text-slate-900">{t("my_account")}</h1>
           <p className="text-sm text-slate-400 hidden sm:block">Gérez votre profil et votre mot de passe</p>
         </header>
 
@@ -169,7 +171,7 @@ export default function ComptePage() {
 
               {/* Profile card */}
               <form onSubmit={handleSaveProfile} className="bg-white rounded-2xl border border-slate-100 shadow-sm p-6">
-                <h2 className="text-base font-bold text-slate-900 mb-5">Informations du profil</h2>
+                <h2 className="text-base font-bold text-slate-900 mb-5">{t("my_profile")}</h2>
 
                 {/* Avatar section */}
                 <div className="flex items-center gap-5 mb-6">
@@ -238,14 +240,14 @@ export default function ComptePage() {
                 <div className="mt-5 flex justify-end">
                   <button type="submit" disabled={profileSaving}
                     className="bg-blue-600 hover:bg-blue-700 disabled:opacity-60 text-white text-sm font-semibold px-6 py-2.5 rounded-xl shadow-md shadow-blue-200 transition-colors">
-                    {profileSaving ? "Enregistrement…" : "Enregistrer"}
+                    {profileSaving ? t("saving") : t("save")}
                   </button>
                 </div>
               </form>
 
               {/* Password card */}
               <form onSubmit={handleSavePassword} className="bg-white rounded-2xl border border-slate-100 shadow-sm p-6">
-                <h2 className="text-base font-bold text-slate-900 mb-5">Changer le mot de passe</h2>
+                <h2 className="text-base font-bold text-slate-900 mb-5">{t("change_password")}</h2>
                 <div className="flex flex-col gap-4">
                   <div>
                     <label className="text-xs font-semibold text-slate-600 mb-1.5 block">Mot de passe actuel</label>
@@ -254,13 +256,13 @@ export default function ComptePage() {
                       className="w-full text-sm border border-slate-200 rounded-xl px-4 py-2.5 outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-50" />
                   </div>
                   <div>
-                    <label className="text-xs font-semibold text-slate-600 mb-1.5 block">Nouveau mot de passe</label>
+                    <label className="text-xs font-semibold text-slate-600 mb-1.5 block">{t("new_password_label")}</label>
                     <input type="password" value={newPwd} onChange={e => setNewPwd(e.target.value)} required minLength={6}
                       placeholder="••••••••"
                       className="w-full text-sm border border-slate-200 rounded-xl px-4 py-2.5 outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-50" />
                   </div>
                   <div>
-                    <label className="text-xs font-semibold text-slate-600 mb-1.5 block">Confirmer le nouveau mot de passe</label>
+                    <label className="text-xs font-semibold text-slate-600 mb-1.5 block">{t("confirm_new_password")}</label>
                     <input type="password" value={confirmPwd} onChange={e => setConfirmPwd(e.target.value)} required minLength={6}
                       placeholder="••••••••"
                       className="w-full text-sm border border-slate-200 rounded-xl px-4 py-2.5 outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-50" />
@@ -276,7 +278,7 @@ export default function ComptePage() {
                 <div className="mt-5 flex justify-end">
                   <button type="submit" disabled={pwdSaving}
                     className="bg-blue-600 hover:bg-blue-700 disabled:opacity-60 text-white text-sm font-semibold px-6 py-2.5 rounded-xl shadow-md shadow-blue-200 transition-colors">
-                    {pwdSaving ? "Enregistrement…" : "Changer le mot de passe"}
+                    {pwdSaving ? t("saving") : t("save")}
                   </button>
                 </div>
               </form>

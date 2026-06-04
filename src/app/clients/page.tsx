@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import Sidebar from "@/components/Sidebar";
+import { useLang } from "@/lib/i18n";
 
 type ClientRow = {
   name: string;
@@ -14,6 +15,7 @@ type ClientRow = {
 };
 
 export default function ClientsPage() {
+  const { t } = useLang();
   const [clients, setClients] = useState<ClientRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
@@ -76,10 +78,10 @@ export default function ClientsPage() {
     <div className="flex min-h-screen bg-[#F0F4FF]">
       <Sidebar />
       <div className="flex-1 flex flex-col">
-        <header className="bg-white border-b border-slate-100 px-4 lg:px-8 py-4 pl-14 lg:pl-8 flex items-center justify-between shrink-0">
+        <header className="sidebar-header-pl bg-white border-b border-slate-100 px-4 lg:px-8 py-4 pl-14 lg:pl-8 flex items-center justify-between shrink-0">
           <div>
-            <h1 className="text-xl font-bold text-slate-900">Clients</h1>
-            <p className="text-sm text-slate-400">{loading ? "Chargement…" : `${clients.length} clients enregistrés`}</p>
+            <h1 className="text-xl font-bold text-slate-900">{t("clients_title")}</h1>
+            <p className="text-sm text-slate-400">{loading ? "Chargement…" : `${clients.length} ${t("clients_registered")}`}</p>
           </div>
         </header>
         <main className="flex-1 p-4 lg:p-8">
@@ -93,7 +95,7 @@ export default function ClientsPage() {
               <p className="text-slate-700 font-semibold text-lg">Aucun client pour le moment</p>
               <p className="text-slate-400 text-sm text-center">Les clients apparaissent automatiquement à partir de vos commandes importées.</p>
               <Link href="/integrations" className="bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold px-5 py-2.5 rounded-xl transition-colors shadow-md shadow-blue-200">
-                Configurer les intégrations
+                {t("configure_integrations")}
               </Link>
             </div>
           ) : (
@@ -101,7 +103,7 @@ export default function ClientsPage() {
               <div className="px-4 sm:px-6 py-4 border-b border-slate-100">
                 <input
                   type="text"
-                  placeholder="Rechercher un client..."
+                  placeholder={t("search_client")}
                   value={search}
                   onChange={e => setSearch(e.target.value)}
                   className="w-full sm:w-80 text-sm border border-slate-200 rounded-xl px-4 py-2.5 outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-50"
@@ -111,12 +113,12 @@ export default function ClientsPage() {
                 <table className="w-full text-sm min-w-[500px]">
                   <thead>
                     <tr className="text-xs text-slate-400 border-b border-slate-50">
-                      <th className="text-left px-4 sm:px-6 py-3 font-semibold uppercase tracking-wide">Nom</th>
-                      <th className="text-left px-4 sm:px-6 py-3 font-semibold uppercase tracking-wide hidden sm:table-cell">Ville</th>
-                      <th className="text-left px-4 sm:px-6 py-3 font-semibold uppercase tracking-wide">Téléphone</th>
-                      <th className="text-left px-4 sm:px-6 py-3 font-semibold uppercase tracking-wide">Cmds</th>
-                      <th className="text-left px-4 sm:px-6 py-3 font-semibold uppercase tracking-wide">Total</th>
-                      <th className="text-left px-4 sm:px-6 py-3 font-semibold uppercase tracking-wide hidden md:table-cell">Dernière</th>
+                      <th className="text-left px-4 sm:px-6 py-3 font-semibold uppercase tracking-wide">{t("col_name")}</th>
+                      <th className="text-left px-4 sm:px-6 py-3 font-semibold uppercase tracking-wide hidden sm:table-cell">{t("col_city")}</th>
+                      <th className="text-left px-4 sm:px-6 py-3 font-semibold uppercase tracking-wide">{t("col_phone")}</th>
+                      <th className="text-left px-4 sm:px-6 py-3 font-semibold uppercase tracking-wide">{t("col_orders_short")}</th>
+                      <th className="text-left px-4 sm:px-6 py-3 font-semibold uppercase tracking-wide">{t("col_total")}</th>
+                      <th className="text-left px-4 sm:px-6 py-3 font-semibold uppercase tracking-wide hidden md:table-cell">{t("col_last_order")}</th>
                     </tr>
                   </thead>
                   <tbody>
