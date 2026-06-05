@@ -297,12 +297,14 @@ export default function CommandesPage() {
           if (cities.length) setEagleCities(cities);
         } catch { /* keep fallback */ }
       }
-      // Ameex cities
+      // Ameex cities — response is { login, api: { cities: { "1": {...}, "2": {...} } } }
       if (s.ameex?.apiId) {
         try {
           const raw = await fetch("/api/ameex", { method: "POST", headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ action: "cities", apiId: s.ameex.apiId, apiKey: s.ameex.apiKey }) }).then(r => r.json());
-          const list: unknown[] = Array.isArray(raw) ? raw : Array.isArray(raw?.data) ? raw.data : Array.isArray(raw?.cities) ? raw.cities : [];
+          const citiesObj = raw?.api?.cities ?? raw?.cities ?? raw;
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          const list: any[] = Array.isArray(citiesObj) ? citiesObj : (typeof citiesObj === "object" && citiesObj ? Object.values(citiesObj) : []);
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
           const cities = list.map((c: any) => ({ id: String(c.id ?? c.ID ?? ""), name: String(c.name ?? c.label ?? c.ville ?? "") })).filter(c => c.name && c.id);
           if (cities.length) setAmeexCities(cities);
@@ -522,7 +524,7 @@ export default function CommandesPage() {
       }
     } catch { /* keep fallback */ }
 
-    // Load Ameex cities
+    // Load Ameex cities — response: { api: { cities: { "1": {id,name,...}, ... } } }
     try {
       const creds = settings.ameex ?? {};
       if (creds.apiId) {
@@ -530,12 +532,13 @@ export default function CommandesPage() {
           method: "POST", headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ action: "cities", apiId: creds.apiId, apiKey: creds.apiKey }),
         }).then(r => r.json());
+        const citiesObj = raw?.api?.cities ?? raw?.cities ?? raw;
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const list: unknown[] = Array.isArray(raw) ? raw : Array.isArray(raw?.data) ? raw.data : Array.isArray(raw?.cities) ? raw.cities : [];
+        const list: any[] = Array.isArray(citiesObj) ? citiesObj : (typeof citiesObj === "object" && citiesObj ? Object.values(citiesObj) : []);
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const cities = list.map((c: any) => ({
-          id: String(c.id ?? c.ID ?? c.city_id ?? ""),
-          name: String(c.name ?? c.label ?? c.ville ?? c.city ?? ""),
+          id: String(c.id ?? c.ID ?? ""),
+          name: String(c.name ?? c.label ?? c.ville ?? ""),
         })).filter(c => c.name && c.id);
         if (cities.length) setAmeexCities(cities);
       }

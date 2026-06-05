@@ -116,12 +116,15 @@ export default function IntegrationsPage() {
     if (!ameexSaved) return;
     const d = await fetch("/api/ameex", { method: "POST", headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ action: "cities", apiId: ameexSaved.apiId, apiKey: ameexSaved.apiKey }) }).then(r => r.json());
+    // Ameex returns { api: { cities: { "1": {id,name,...}, "2": {...} } } }
+    const citiesObj = d?.api?.cities ?? d?.cities ?? d;
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const list: unknown[] = Array.isArray(d) ? d : Array.isArray(d?.data) ? d.data : Array.isArray(d?.cities) ? d.cities : [];
+    const list: any[] = Array.isArray(citiesObj) ? citiesObj : (typeof citiesObj === "object" && citiesObj ? Object.values(citiesObj) : []);
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const cities = list.map((c: any) => ({ id: String(c.id ?? c.ID ?? ""), name: String(c.name ?? c.label ?? c.ville ?? "") })).filter(c => c.name && c.id);
     setAmeexCities(cities);
-    if (!cities.length) showToast("Aucune ville trouvée", false);
+    if (!cities.length) showToast("Aucune ville trouvée — vérifiez vos identifiants", false);
+    else showToast(`${cities.length} villes chargées ✓`);
   }
 
   /* LF state */
