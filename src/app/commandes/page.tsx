@@ -181,6 +181,8 @@ export default function CommandesPage() {
   // Ameex city state
   const [ameexCities, setAmeexCities] = useState<{ id: string; name: string }[]>([]);
   const [ameexCityOverrides, setAmeexCityOverrides] = useState<Record<string, string>>({}); // orderId → numeric city ID
+  const [modalCitySearch, setModalCitySearch] = useState<Record<string, string>>({}); // orderId → search text
+  const [modalCityOpen, setModalCityOpen] = useState<Record<string, boolean>>({}); // orderId → dropdown open
   // Merged city list for dropdowns: shows cities from all configured carriers with their logo
   const allCities: { id: string; name: string; carrier: "eagle" | "ameex" }[] = [
     ...eagleCities.map(c => ({ ...c, carrier: "eagle" as const })),
@@ -1544,9 +1546,12 @@ export default function CommandesPage() {
                     )}
                     {selectedOrders.map(o => {
                       const cityId = ameexCityOverrides[o.id] ?? "";
-                      // Auto-match by city name
                       const autoMatch = ameexCities.find(c => c.name.toLowerCase() === (o.city ?? "").toLowerCase());
                       const effectiveId = cityId || autoMatch?.id || "";
+                      const selectedCity = ameexCities.find(c => c.id === effectiveId);
+                      const search = modalCitySearch[o.id] ?? "";
+                      const isOpen = modalCityOpen[o.id] ?? false;
+                      const filtered = ameexCities.filter(c => !search || c.name.toLowerCase().includes(search.toLowerCase()));
                       return (
                         <div key={o.id} className="p-2 rounded-xl border border-slate-200 bg-slate-50 space-y-1.5">
                           <p className="text-xs font-semibold text-slate-700 truncate">{o.customer}</p>
@@ -1557,16 +1562,34 @@ export default function CommandesPage() {
                               {autoMatch && <span className="text-emerald-600">→ auto-détecté ✓</span>}
                             </p>
                           )}
-                          <select
-                            value={effectiveId}
-                            onChange={e => setAmeexCityOverrides(prev => ({ ...prev, [o.id]: e.target.value }))}
-                            className={`w-full text-xs border rounded-lg px-2 py-1.5 outline-none focus:border-blue-400 bg-white ${effectiveId ? "border-emerald-400 text-slate-800" : "border-red-300 text-slate-400"}`}
-                          >
-                            <option value="">— Choisissez une ville —</option>
-                            {ameexCities.map(c => (
-                              <option key={c.id} value={c.id}>{c.name}</option>
-                            ))}
-                          </select>
+                          <div className="relative">
+                            <button type="button"
+                              onClick={() => setModalCityOpen(p => ({ ...p, [o.id]: !p[o.id] }))}
+                              className={`w-full text-xs border rounded-lg px-2 py-1.5 bg-white flex items-center gap-2 text-left ${effectiveId ? "border-emerald-400" : "border-red-300"}`}>
+                              <img src="/ameex-logo.png" alt="" className="w-5 h-4 object-contain shrink-0" />
+                              <span className={effectiveId ? "text-slate-800 font-medium" : "text-slate-400"}>{selectedCity?.name || "— Choisissez une ville —"}</span>
+                              <svg className="w-3 h-3 ml-auto text-slate-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}><path d="M6 9l6 6 6-6"/></svg>
+                            </button>
+                            {isOpen && (
+                              <div className="absolute z-50 top-full mt-1 left-0 right-0 bg-white border border-slate-200 rounded-xl shadow-lg overflow-hidden">
+                                <div className="p-1.5 border-b border-slate-100">
+                                  <input autoFocus type="text" placeholder="Rechercher…" value={search}
+                                    onChange={e => setModalCitySearch(p => ({ ...p, [o.id]: e.target.value }))}
+                                    className="w-full text-xs px-2 py-1 border border-slate-200 rounded-lg outline-none focus:border-blue-400" />
+                                </div>
+                                <div className="max-h-40 overflow-y-auto">
+                                  {filtered.map(c => (
+                                    <button key={c.id} type="button"
+                                      onMouseDown={() => { setAmeexCityOverrides(p => ({ ...p, [o.id]: c.id })); setModalCityOpen(p => ({ ...p, [o.id]: false })); setModalCitySearch(p => ({ ...p, [o.id]: "" })); }}
+                                      className="w-full flex items-center gap-2 px-2 py-1.5 hover:bg-slate-50 text-left">
+                                      <img src="/ameex-logo.png" alt="" className="w-5 h-4 object-contain shrink-0" />
+                                      <span className="text-xs font-medium text-slate-800">{c.name}</span>
+                                    </button>
+                                  ))}
+                                </div>
+                              </div>
+                            )}
+                          </div>
                         </div>
                       );
                     })}
@@ -1591,16 +1614,39 @@ export default function CommandesPage() {
                               <span className="font-semibold text-slate-600 bg-yellow-50 border border-yellow-200 rounded px-1">{o.city}</span>
                             </p>
                           )}
-                          <select
-                            value={currentCity}
-                            onChange={e => setCityOverrides(prev => ({ ...prev, [o.id]: e.target.value }))}
-                            className={`w-full text-xs border rounded-lg px-2 py-1.5 outline-none focus:border-amber-400 bg-white ${currentCity ? "border-emerald-400 text-slate-800" : "border-red-300 text-slate-400"}`}
-                          >
-                            <option value="">— Choisissez une ville —</option>
-                            {eagleCities.map(c => (
-                              <option key={c.id || c.name} value={c.name}>{c.name}</option>
-                            ))}
-                          </select>
+                          {/* Eagle city custom dropdown with logo */}
+                          <div className="relative">
+                            <button type="button"
+                              onClick={() => setModalCityOpen(p => ({ ...p, [`e_${o.id}`]: !p[`e_${o.id}`] }))}
+                              className={`w-full text-xs border rounded-lg px-2 py-1.5 bg-white flex items-center gap-2 text-left ${currentCity ? "border-emerald-400" : "border-red-300"}`}>
+                              <img src="/eagle-logo.png" alt="" className="w-5 h-4 object-contain shrink-0" />
+                              <span className={currentCity ? "text-slate-800 font-medium" : "text-slate-400"}>{currentCity || "— Choisissez une ville —"}</span>
+                              <svg className="w-3 h-3 ml-auto text-slate-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}><path d="M6 9l6 6 6-6"/></svg>
+                            </button>
+                            {modalCityOpen[`e_${o.id}`] && (
+                              <div className="absolute z-50 top-full mt-1 left-0 right-0 bg-white border border-slate-200 rounded-xl shadow-lg overflow-hidden">
+                                <div className="p-1.5 border-b border-slate-100">
+                                  <input autoFocus type="text" placeholder="Rechercher…"
+                                    value={modalCitySearch[`e_${o.id}`] ?? ""}
+                                    onChange={e => setModalCitySearch(p => ({ ...p, [`e_${o.id}`]: e.target.value }))}
+                                    className="w-full text-xs px-2 py-1 border border-slate-200 rounded-lg outline-none focus:border-amber-400" />
+                                </div>
+                                <div className="max-h-40 overflow-y-auto">
+                                  {eagleCities.filter(c => {
+                                    const s = modalCitySearch[`e_${o.id}`] ?? "";
+                                    return !s || c.name.toLowerCase().includes(s.toLowerCase());
+                                  }).map(c => (
+                                    <button key={c.id || c.name} type="button"
+                                      onMouseDown={() => { setCityOverrides(p => ({ ...p, [o.id]: c.name })); setModalCityOpen(p => ({ ...p, [`e_${o.id}`]: false })); setModalCitySearch(p => ({ ...p, [`e_${o.id}`]: "" })); }}
+                                      className="w-full flex items-center gap-2 px-2 py-1.5 hover:bg-slate-50 text-left">
+                                      <img src="/eagle-logo.png" alt="" className="w-5 h-4 object-contain shrink-0" />
+                                      <span className="text-xs font-medium text-slate-800">{c.name}</span>
+                                    </button>
+                                  ))}
+                                </div>
+                              </div>
+                            )}
+                          </div>
                           <input
                             type="text"
                             placeholder="Adresse"
