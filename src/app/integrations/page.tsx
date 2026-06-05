@@ -106,11 +106,25 @@ export default function IntegrationsPage() {
   const [ameex, setAmeex] = useState({ apiId: "", apiKey: "", depotId: "" });
   const [ameexSaved, setAmeexSaved] = useState<{ apiId: string; apiKey: string; depotId: string } | null>(null);
   const [ameexCities, setAmeexCities] = useState<{ id: string; name: string }[]>([]);
+  const [ameexDepots, setAmeexDepots] = useState<{ id: string; name: string }[]>([]);
   const [ameexCitySearch, setAmeexCitySearch] = useState("");
   const [ameexTab, setAmeexTab] = useState<"config"|"cities">("config");
   function saveAmeex() {
     if (!ameex.apiId || !ameex.apiKey) { showToast("API ID et API Key requis.", false); return; }
     patchSettings({ ameex }).then(() => { setAmeexSaved(ameex); showToast("Ameex connecté ✓"); });
+  }
+  async function loadAmeexDepots(creds: { apiId: string; apiKey: string }) {
+    try {
+      const d = await fetch("/api/ameex", { method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "depots", apiId: creds.apiId, apiKey: creds.apiKey }) }).then(r => r.json());
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const raw = d?.api?.depots ?? d?.depots ?? d;
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const list: any[] = Array.isArray(raw) ? raw : (typeof raw === "object" && raw ? Object.values(raw) : []);
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const depots = list.map((x: any) => ({ id: String(x.id ?? x.ID ?? ""), name: String(x.name ?? x.label ?? x.ville ?? "") })).filter(x => x.id && x.name);
+      if (depots.length) setAmeexDepots(depots);
+    } catch { /* silent */ }
   }
   async function loadAmeexCities() {
     if (!ameexSaved) return;
@@ -156,7 +170,7 @@ export default function IntegrationsPage() {
     fetch("/api/settings").then(r => r.json()).then(d => {
       const s = d.settings ?? {};
       if (s.eagle)            { setEagleSaved(s.eagle);          setEagle(s.eagle); }
-      if (s.ameex)            { setAmeexSaved(s.ameex);          setAmeex(s.ameex); }
+      if (s.ameex)            { setAmeexSaved(s.ameex);          setAmeex(s.ameex); loadAmeexDepots(s.ameex); }
       if (s.shopify)          { setShopifySaved(s.shopify);      setShopify(s.shopify); }
       if (s.facebook)         { setFbAdsSaved(s.facebook);       setFbAds(s.facebook); }
       if (s.tiktok)           { setTiktokAdsSaved(s.tiktok);     setTiktokAds(s.tiktok); }
@@ -591,7 +605,6 @@ export default function IntegrationsPage() {
                       {[
                         { key: "apiId", label: "API ID *", placeholder: "Votre API ID Ameex" },
                         { key: "apiKey", label: "API Key *", placeholder: "Votre API Key Ameex" },
-                        { key: "depotId", label: "Depot ID (optionnel)", placeholder: "Ex: 34 (Casablanca)" },
                       ].map(f => (
                         <div key={f.key}>
                           <label className="text-xs font-semibold text-slate-600 mb-1 block">{f.label}</label>
@@ -601,6 +614,34 @@ export default function IntegrationsPage() {
                             className="w-full text-sm border border-slate-200 rounded-xl px-4 py-2.5 outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-50 font-mono bg-white" />
                         </div>
                       ))}
+                      {/* Depot picker */}
+                      <div>
+                        <label className="text-xs font-semibold text-slate-600 mb-1 block">🏭 Hub / Dépôt par défaut *</label>
+                        {ameexDepots.length > 0 ? (
+                          <select value={ameex.depotId}
+                            onChange={e => setAmeex(a => ({ ...a, depotId: e.target.value }))}
+                            className={`w-full text-sm border rounded-xl px-4 py-2.5 outline-none focus:border-blue-400 bg-white ${ameex.depotId ? "border-emerald-400 text-slate-800" : "border-red-300 text-slate-400"}`}>
+                            <option value="">— Choisissez votre hub —</option>
+                            {ameexDepots.map(d => (
+                              <option key={d.id} value={d.id}>{d.name} (ID: {d.id})</option>
+                            ))}
+                          </select>
+                        ) : (
+                          <div className="flex gap-2">
+                            <input type="text" placeholder="Ex: 34 (Casablanca Hub Principal)"
+                              value={ameex.depotId}
+                              onChange={e => setAmeex(a => ({ ...a, depotId: e.target.value }))}
+                              className="flex-1 text-sm border border-slate-200 rounded-xl px-4 py-2.5 outline-none focus:border-blue-400 font-mono bg-white" />
+                            {ameex.apiId && (
+                              <button onClick={() => loadAmeexDepots(ameex)}
+                                className="px-3 py-2 text-xs font-semibold bg-blue-50 text-blue-700 border border-blue-200 rounded-xl hover:bg-blue-100">
+                                Charger hubs
+                              </button>
+                            )}
+                          </div>
+                        )}
+                        {ameex.depotId && <p className="text-xs text-emerald-600 mt-1">✓ Hub ID {ameex.depotId} sélectionné</p>}
+                      </div>
                     </div>
                     <button onClick={saveAmeex}
                       className="w-full py-3 bg-blue-700 hover:bg-blue-800 text-white font-semibold text-sm rounded-xl shadow shadow-blue-200 transition-colors">

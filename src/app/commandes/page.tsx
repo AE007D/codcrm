@@ -1534,17 +1534,25 @@ export default function CommandesPage() {
                 </div>
               )}
 
-              {/* Ameex — shipment type toggle */}
+              {/* Ameex — shipment type + hub info */}
               {shipCarrier === "ameex" && !shipResults.length && (
-                <div className="flex gap-2">
-                  <button onClick={() => setAmeexShipType("STOCK")}
-                    className={`flex-1 flex items-center justify-center gap-2 py-2 rounded-xl border-2 text-xs font-bold transition-all ${ameexShipType === "STOCK" ? "border-blue-500 bg-blue-50 text-blue-700" : "border-slate-200 bg-white text-slate-500 hover:border-slate-300"}`}>
-                    🏭 Depuis stock Ameex
-                  </button>
-                  <button onClick={() => setAmeexShipType("SIMPLE")}
-                    className={`flex-1 flex items-center justify-center gap-2 py-2 rounded-xl border-2 text-xs font-bold transition-all ${ameexShipType === "SIMPLE" ? "border-blue-500 bg-blue-50 text-blue-700" : "border-slate-200 bg-white text-slate-500 hover:border-slate-300"}`}>
-                    🏠 Ramassage domicile
-                  </button>
+                <div className="space-y-2">
+                  <div className="flex gap-2">
+                    <button onClick={() => setAmeexShipType("STOCK")}
+                      className={`flex-1 flex items-center justify-center gap-2 py-2 rounded-xl border-2 text-xs font-bold transition-all ${ameexShipType === "STOCK" ? "border-blue-500 bg-blue-50 text-blue-700" : "border-slate-200 bg-white text-slate-500 hover:border-slate-300"}`}>
+                      🏭 Depuis stock Ameex
+                    </button>
+                    <button onClick={() => setAmeexShipType("SIMPLE")}
+                      className={`flex-1 flex items-center justify-center gap-2 py-2 rounded-xl border-2 text-xs font-bold transition-all ${ameexShipType === "SIMPLE" ? "border-blue-500 bg-blue-50 text-blue-700" : "border-slate-200 bg-white text-slate-500 hover:border-slate-300"}`}>
+                      🏠 Ramassage domicile
+                    </button>
+                  </div>
+                  {ameexShipType === "STOCK" && (
+                    <div className="text-xs text-blue-700 bg-blue-50 border border-blue-200 rounded-xl px-3 py-2 flex items-center gap-2">
+                      <span>🏭</span>
+                      <span>Hub configuré dans <strong>Intégrations → Ameex → Dépôt par défaut</strong></span>
+                    </div>
+                  )}
                 </div>
               )}
 
