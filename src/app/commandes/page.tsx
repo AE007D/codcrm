@@ -1362,9 +1362,9 @@ export default function CommandesPage() {
                       <button key={`${c.carrier}-${c.id}-${i}`} type="button" onMouseDown={() => { setForm(f => ({ ...f, city: c.name })); setCitySearch(c.name); setShowCityDrop(false); }}
                         className="w-full text-left px-3 py-2 text-sm hover:bg-slate-50 transition-colors flex items-center gap-3 border-b border-slate-50 last:border-0">
                         {c.carrier === "eagle" ? (
-                          <img src="https://eagleexpress.ma/assets/images/logo.png" alt="Eagle" className="w-8 h-5 object-contain shrink-0" onError={e => { (e.target as HTMLImageElement).style.display="none"; }} />
+                          <img src="/eagle-logo.png" alt="Eagle" className="w-8 h-5 object-contain shrink-0" />
                         ) : (
-                          <img src="https://ameex.app/assets/images/logo.png" alt="Ameex" className="w-8 h-5 object-contain shrink-0" onError={e => { (e.target as HTMLImageElement).style.display="none"; }} />
+                          <img src="/ameex-logo.png" alt="Ameex" className="w-8 h-5 object-contain shrink-0" />
                         )}
                         <span className="flex-1 font-medium text-slate-800">{c.name}</span>
                       </button>
