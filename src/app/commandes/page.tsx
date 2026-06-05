@@ -620,14 +620,6 @@ export default function CommandesPage() {
       const s = settingsData.settings ?? {};
       creds = s.eagle ?? {};
     } catch { /* no creds */ }
-    // Fallback: Eagle creds may have been saved in standalone /eagle page (localStorage)
-    if (!creds.tk) {
-      try {
-        const stored = localStorage.getItem("eagle_creds");
-        if (stored) { const parsed = JSON.parse(stored); if (parsed?.tk) creds = parsed; }
-      } catch { /* ignore */ }
-    }
-
     // Guard: Eagle Express requires tk + sk
     if (!creds.tk || !creds.sk) {
       setShipResults([{ id: "error", ok: false, msg: "Identifiants Eagle Express manquants — configurez tk et sk dans Intégrations → Eagle Express." }]);

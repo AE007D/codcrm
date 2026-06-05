@@ -122,6 +122,7 @@ export default function Sidebar() {
   const [open, setOpen] = useState(false);
   const [currentUser, setCurrentUser] = useState<CurrentUser | null>(null);
   const [loggingOut, setLoggingOut] = useState(false);
+  const [storeName, setStoreName] = useState<string | null>(null);
 
   // Close sidebar on route change (mobile)
   useEffect(() => { setOpen(false); }, [pathname]);
@@ -143,6 +144,12 @@ export default function Sidebar() {
       .then(data => { if (data) setCurrentUser(data); })
       .catch(() => {});
   }
+  useEffect(() => {
+    fetch("/api/settings").then(r => r.ok ? r.json() : null).then(d => {
+      if (d?.settings?.storeName) setStoreName(d.settings.storeName);
+    }).catch(() => {});
+  }, []);
+
   useEffect(() => {
     fetchMe();
     window.addEventListener("profile-updated", fetchMe);
@@ -358,7 +365,7 @@ export default function Sidebar() {
               <CodCrmLogo size={36} />
             </div>
             <div className="flex-1 min-w-0">
-              <span className="text-base font-extrabold text-slate-900 leading-none tracking-tight">COD CRM</span>
+              <span className="text-base font-extrabold text-slate-900 leading-none tracking-tight">{storeName || "COD CRM"}</span>
               <p className="text-[10px] text-slate-400 mt-0.5 font-medium">{t("tagline")}</p>
             </div>
 

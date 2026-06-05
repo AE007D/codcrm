@@ -230,7 +230,7 @@ export default function IntegrationsPage() {
   function saveShopify() { if (!shopify.store || !shopify.apiKey) { showToast("Store URL et API Key requis.", false); return; } patchSettings({ shopify }).then(() => { setShopifySaved(shopify); showToast("Shopify connecté ✓"); }); }
 
   /* Facebook Ads save */
-  function saveFbAds() { if (!fbAds.accessToken || !fbAds.adAccountId) { showToast("Access Token et Ad Account ID requis.", false); return; } patchSettings({ facebook: fbAds }).then(() => { setFbAdsSaved(fbAds); try { localStorage.setItem("fb_ads_creds", JSON.stringify(fbAds)); } catch { /* ignore */ } showToast("Facebook Ads connecté ✓"); }); }
+  function saveFbAds() { if (!fbAds.accessToken || !fbAds.adAccountId) { showToast("Access Token et Ad Account ID requis.", false); return; } patchSettings({ facebook: fbAds }).then(() => { setFbAdsSaved(fbAds); showToast("Facebook Ads connecté ✓"); }); }
 
   /* TikTok Ads save */
   function saveTiktokAds() { if (!tiktokAds.accessToken || !tiktokAds.advertiserId) { showToast("Access Token et Advertiser ID requis.", false); return; } patchSettings({ tiktok: tiktokAds }).then(() => { setTiktokAdsSaved(tiktokAds); showToast("TikTok Ads connecté ✓"); }); }

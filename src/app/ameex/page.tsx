@@ -40,8 +40,11 @@ export default function AmeexPage() {
   const [cities, setCities] = useState<Record<string, unknown>[]>([]);
 
   useEffect(() => {
-    const stored = localStorage.getItem(CREDS_KEY);
-    if (stored) { const c = JSON.parse(stored); setSavedCreds(c); setCreds(c); }
+    // Load from server (workspace-isolated), never from localStorage
+    fetch("/api/settings").then(r => r.ok ? r.json() : null).then(d => {
+      const c = d?.settings?.ameex;
+      if (c?.apiId) { setSavedCreds(c); setCreds(c); }
+    }).catch(() => {});
   }, []);
 
   function showToast(msg: string, ok = true) {
@@ -49,9 +52,9 @@ export default function AmeexPage() {
     setTimeout(() => setToast(null), 3500);
   }
 
-  function saveCreds() {
+  async function saveCreds() {
     if (!creds.apiId || !creds.apiKey) { showToast("API ID et API Key requis.", false); return; }
-    localStorage.setItem(CREDS_KEY, JSON.stringify(creds));
+    await fetch("/api/settings", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ameex: creds }) });
     setSavedCreds(creds);
     showToast("Identifiants sauvegardés ✓");
   }
