@@ -183,6 +183,7 @@ export default function CommandesPage() {
   const [ameexCityOverrides, setAmeexCityOverrides] = useState<Record<string, string>>({}); // orderId → numeric city ID
   const [modalCitySearch, setModalCitySearch] = useState<Record<string, string>>({}); // orderId → search text
   const [modalCityOpen, setModalCityOpen] = useState<Record<string, boolean>>({}); // orderId → dropdown open
+  const [ameexShipType, setAmeexShipType] = useState<"STOCK" | "SIMPLE">("STOCK"); // STOCK=from warehouse, SIMPLE=home pickup
   // Merged city list for dropdowns: shows cities from all configured carriers with their logo
   const allCities: { id: string; name: string; carrier: "eagle" | "ameex" }[] = [
     ...eagleCities.map(c => ({ ...c, carrier: "eagle" as const })),
@@ -711,7 +712,7 @@ export default function CommandesPage() {
               product: (order.product || "Produit").slice(0, 100),
               order_num: order.orderNumber || order.id.slice(-8),
               comment: order.orderNumber || "",
-              type: "SIMPLE",
+              type: ameexShipType,
               open: "NO",
               fragile: "0",
               replace: "false",
@@ -1530,6 +1531,20 @@ export default function CommandesPage() {
                       </div>
                     );
                   })}
+                </div>
+              )}
+
+              {/* Ameex — shipment type toggle */}
+              {shipCarrier === "ameex" && !shipResults.length && (
+                <div className="flex gap-2">
+                  <button onClick={() => setAmeexShipType("STOCK")}
+                    className={`flex-1 flex items-center justify-center gap-2 py-2 rounded-xl border-2 text-xs font-bold transition-all ${ameexShipType === "STOCK" ? "border-blue-500 bg-blue-50 text-blue-700" : "border-slate-200 bg-white text-slate-500 hover:border-slate-300"}`}>
+                    🏭 Depuis stock Ameex
+                  </button>
+                  <button onClick={() => setAmeexShipType("SIMPLE")}
+                    className={`flex-1 flex items-center justify-center gap-2 py-2 rounded-xl border-2 text-xs font-bold transition-all ${ameexShipType === "SIMPLE" ? "border-blue-500 bg-blue-50 text-blue-700" : "border-slate-200 bg-white text-slate-500 hover:border-slate-300"}`}>
+                    🏠 Ramassage domicile
+                  </button>
                 </div>
               )}
 
