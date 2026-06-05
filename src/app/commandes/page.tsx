@@ -109,7 +109,7 @@ function SourceBadge({ source }: { source: Order["source"] }) {
   );
 }
 
-type ShipCarrier = "eagle";
+type ShipCarrier = "eagle" | "ameex";
 
 type CatalogProduct = {
   id: string;
@@ -169,7 +169,7 @@ export default function CommandesPage() {
 
   // Shipping modal
   const [shipModal, setShipModal] = useState(false);
-  const shipCarrier: ShipCarrier = "eagle";
+  const [shipCarrier, setShipCarrier] = useState<ShipCarrier>("eagle");
   const [shipping, setShipping] = useState(false);
   const [shipResults, setShipResults] = useState<{ id: string; ok: boolean; msg: string }[]>([]);
   const [syncingEagle, setSyncingEagle] = useState(false);
@@ -178,6 +178,9 @@ export default function CommandesPage() {
   const [eagleCities, setEagleCities] = useState<{ id: string; name: string }[]>(AMEEX_CITIES_FALLBACK); // seeded with Moroccan cities; replaced by Eagle API data on load
   const [eagleCitySearch, setEagleCitySearch] = useState<Record<string, string>>({}); // orderId → search text
   const [carrierStatus, setCarrierStatus] = useState<{ loading: boolean; text: string | null; ok: boolean }>({ loading: false, text: null, ok: true });
+  // Ameex city state
+  const [ameexCities, setAmeexCities] = useState<{ id: string; name: string }[]>([]);
+  const [ameexCityOverrides, setAmeexCityOverrides] = useState<Record<string, string>>({}); // orderId → numeric city ID
 
 
   // Current user role — null while loading, so isAdmin is never wrong before fetch completes
@@ -460,33 +463,47 @@ export default function CommandesPage() {
   async function openShipModal(ids?: string[]) {
     setShipResults([]);
     setCityOverrides({});
+    setAmeexCityOverrides({});
     setEagleCitySearch({});
     if (ids) setSelected(new Set(ids));
     setShipModal(true);
-    // Load Eagle Express cities if not yet loaded
-    // Always try to load Eagle cities from API (overwrites fallback with Eagle's exact names)
+
+    const s = await fetch("/api/settings").then(r => r.json()).catch(() => ({}));
+    const settings = s.settings ?? {};
+
+    // Load Eagle cities
     try {
-      const s = await fetch("/api/settings").then(r => r.json());
-      const creds = s.settings?.eagle ?? {};
+      const creds = settings.eagle ?? {};
       if (creds.tk) {
         const raw = await fetch("/api/eagle", {
           method: "POST", headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ action: "cities", tk: creds.tk, sk: creds.sk }),
         }).then(r => r.json());
-        // Eagle cities.php may return: array, {data:[...]}, {cities:[...]}, {result:[...]}
-        const list: unknown[] = Array.isArray(raw) ? raw
-          : Array.isArray(raw?.data) ? raw.data
-          : Array.isArray(raw?.cities) ? raw.cities
-          : Array.isArray(raw?.result) ? raw.result
-          : [];
+        const list: unknown[] = Array.isArray(raw) ? raw : Array.isArray(raw?.data) ? raw.data : Array.isArray(raw?.cities) ? raw.cities : [];
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const cities = list.map((c: any) => ({
-          id: String(c.id ?? c.city_id ?? c.ID ?? ""),
-          name: String(c.name ?? c.city_name ?? c.ville ?? c.City ?? c.city ?? ""),
-        })).filter((c: { id: string; name: string }) => c.name);
+        const cities = list.map((c: any) => ({ id: String(c.id ?? ""), name: String(c.name ?? c.city_name ?? c.City ?? c.ville ?? "") })).filter(c => c.name);
         if (cities.length) setEagleCities(cities);
       }
     } catch { /* keep fallback */ }
+
+    // Load Ameex cities
+    try {
+      const creds = settings.ameex ?? {};
+      if (creds.apiId) {
+        const raw = await fetch("/api/ameex", {
+          method: "POST", headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ action: "cities", apiId: creds.apiId, apiKey: creds.apiKey }),
+        }).then(r => r.json());
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const list: unknown[] = Array.isArray(raw) ? raw : Array.isArray(raw?.data) ? raw.data : Array.isArray(raw?.cities) ? raw.cities : [];
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const cities = list.map((c: any) => ({
+          id: String(c.id ?? c.ID ?? c.city_id ?? ""),
+          name: String(c.name ?? c.label ?? c.ville ?? c.city ?? ""),
+        })).filter(c => c.name && c.id);
+        if (cities.length) setAmeexCities(cities);
+      }
+    } catch { /* no ameex */ }
   }
 
   async function checkCarrierStatus(order: Order) {
@@ -612,19 +629,21 @@ export default function CommandesPage() {
     setShipResults([]);
     const selectedOrders = orders.filter(o => (overrideIds ?? selected).has(o.id));
 
-    // Load credentials from server settings, with localStorage fallback
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     let creds: Record<string, any> = {};
     try {
       const settingsData = await fetch("/api/settings").then(r => r.json());
       const s = settingsData.settings ?? {};
-      creds = s.eagle ?? {};
+      creds = shipCarrier === "ameex" ? (s.ameex ?? {}) : (s.eagle ?? {});
     } catch { /* no creds */ }
-    // Guard: Eagle Express requires tk + sk
-    if (!creds.tk || !creds.sk) {
-      setShipResults([{ id: "error", ok: false, msg: "Identifiants Eagle Express manquants — configurez tk et sk dans Intégrations → Eagle Express." }]);
-      setShipping(false);
-      return;
+
+    if (shipCarrier === "eagle" && (!creds.tk || !creds.sk)) {
+      setShipResults([{ id: "error", ok: false, msg: "Identifiants Eagle Express manquants — configurez tk et sk dans Intégrations." }]);
+      setShipping(false); return;
+    }
+    if (shipCarrier === "ameex" && (!creds.apiId || !creds.apiKey)) {
+      setShipResults([{ id: "error", ok: false, msg: "Identifiants Ameex manquants — configurez apiId et apiKey dans Intégrations." }]);
+      setShipping(false); return;
     }
 
     const results: { id: string; ok: boolean; msg: string }[] = [];
@@ -632,6 +651,44 @@ export default function CommandesPage() {
     for (const order of selectedOrders) {
       try {
         let res: Response;
+
+        if (shipCarrier === "ameex") {
+          const cityId = ameexCityOverrides[order.id] || "";
+          if (!cityId) { results.push({ id: order.id, ok: false, msg: "Ville Ameex non sélectionnée" }); continue; }
+          res = await fetch("/api/ameex", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              action: "addParcel",
+              apiId: creds.apiId,
+              apiKey: creds.apiKey,
+              type: "HOME",
+              receiver_fullname: order.customer || "Client",
+              receiver_phone: (order.phone || "0600000000").replace(/\s+/g, ""),
+              receiver_city: cityId,
+              receiver_address: order.address || "",
+              cod: String(order.amount ?? "0"),
+              description: order.product || "Produit",
+              reference: order.orderNumber || order.id.slice(-8),
+              weight: 1,
+              open_package: 0,
+            }),
+          });
+          const data = await res.json();
+          const trackingCode = data?.parcel?.code ?? data?.code ?? data?.id ?? null;
+          const ok = res.ok && (trackingCode || data?.success || data?.status === "success");
+          if (ok) {
+            const patchBody: Record<string, unknown> = { id: order.id, status: "expédié", carrierName: "ameex" };
+            if (trackingCode) patchBody.carrierTracking = String(trackingCode);
+            fetch("/api/orders", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(patchBody) }).catch(() => {});
+            setOrders(prev => prev.map(o => o.id === order.id ? { ...o, status: "expédié", carrierName: "ameex", ...(trackingCode ? { carrierTracking: String(trackingCode) } : {}) } : o));
+            setDrawer(prev => prev?.id === order.id ? { ...prev, status: "expédié", carrierName: "ameex", ...(trackingCode ? { carrierTracking: String(trackingCode) } : {}) } : prev);
+          }
+          results.push({ id: order.id, ok: !!ok, msg: ok ? `✓ Envoyé${trackingCode ? ` · ${trackingCode}` : ""}` : (data?.message ?? data?.error ?? "Erreur Ameex") });
+          continue;
+        }
+
+        // Eagle path
         {
           const eagleCity = cityOverrides[order.id] || order.city || "";
           const eagleAddress = eagleAddressOverrides[order.id] || order.address || eagleCity;
@@ -659,11 +716,9 @@ export default function CommandesPage() {
         }
         const data = await res.json();
         const trackingCode = data.code ?? data.CODE ?? data.tracking ?? data.barcode ?? data.id ?? data.parcel_id ?? null;
-        // Eagle returns {message:"success"} or similar on success
         const eagleOk = data?.message?.toLowerCase?.()?.includes("success") || data?.status?.toLowerCase?.()?.includes("success");
         const ok = res.ok && (trackingCode != null || eagleOk);
         if (ok) {
-          // Single atomic PATCH: status + tracking + carrierName together
           const patchBody: Record<string, unknown> = { id: order.id, status: "expédié", carrierName: "eagle" };
           if (trackingCode) patchBody.carrierTracking = String(trackingCode);
           fetch("/api/orders", {
@@ -1385,22 +1440,29 @@ export default function CommandesPage() {
             </div>
 
             <div className="p-6 space-y-5">
-              <div className="flex items-center gap-3 px-4 py-3 bg-amber-50 border border-amber-200 rounded-2xl">
-                <span className="text-2xl">🦅</span>
-                <div className="flex-1">
-                  <p className="text-sm font-bold text-amber-800">Eagle Express</p>
-                  <p className="text-xs text-amber-600">{selected.size} colis → Expédié</p>
-                </div>
-                <div className="text-right">
-                  <p className="text-xs text-amber-500 font-medium">38 MAD / colis</p>
-                  <p className="text-sm font-black text-amber-800">{selected.size * 38} MAD</p>
-                </div>
+              {/* Carrier selector */}
+              <div className="grid grid-cols-2 gap-2">
+                <button onClick={() => setShipCarrier("eagle")}
+                  className={`flex items-center gap-2 px-4 py-3 rounded-2xl border-2 transition-all ${shipCarrier === "eagle" ? "border-amber-400 bg-amber-50" : "border-slate-200 bg-white hover:border-slate-300"}`}>
+                  <span className="text-2xl">🦅</span>
+                  <div className="text-left">
+                    <p className={`text-sm font-bold ${shipCarrier === "eagle" ? "text-amber-800" : "text-slate-700"}`}>Eagle Express</p>
+                    <p className={`text-xs ${shipCarrier === "eagle" ? "text-amber-600" : "text-slate-400"}`}>Nom de ville</p>
+                  </div>
+                </button>
+                <button onClick={() => setShipCarrier("ameex")}
+                  className={`flex items-center gap-2 px-4 py-3 rounded-2xl border-2 transition-all ${shipCarrier === "ameex" ? "border-blue-400 bg-blue-50" : "border-slate-200 bg-white hover:border-slate-300"}`}>
+                  <span className="text-2xl">📦</span>
+                  <div className="text-left">
+                    <p className={`text-sm font-bold ${shipCarrier === "ameex" ? "text-blue-800" : "text-slate-700"}`}>Ameex</p>
+                    <p className={`text-xs ${shipCarrier === "ameex" ? "text-blue-600" : "text-slate-400"}`}>ID Ville auto</p>
+                  </div>
+                </button>
               </div>
 
-              {/* Depuis stock badge */}
-              <div className="flex items-center gap-2 px-3 py-2 bg-emerald-50 border border-emerald-200 rounded-xl">
-                <span className="text-emerald-600 text-base">✅</span>
-                <span className="text-xs font-semibold text-emerald-700">Depuis stock activé</span>
+              <div className={`flex items-center gap-3 px-4 py-2.5 rounded-xl ${shipCarrier === "eagle" ? "bg-amber-50 border border-amber-200" : "bg-blue-50 border border-blue-200"}`}>
+                <span className="text-lg">{shipCarrier === "eagle" ? "🦅" : "📦"}</span>
+                <p className={`text-xs font-semibold ${shipCarrier === "eagle" ? "text-amber-700" : "text-blue-700"}`}>{selected.size} colis → Expédié via {shipCarrier === "eagle" ? "Eagle Express" : "Ameex"}</p>
               </div>
 
               {/* Results */}
@@ -1420,6 +1482,49 @@ export default function CommandesPage() {
                   })}
                 </div>
               )}
+
+              {/* Ameex — city select per order (uses numeric ID) */}
+              {shipCarrier === "ameex" && !shipResults.length && (() => {
+                const selectedOrders = orders.filter(o => selected.has(o.id));
+                return (
+                  <div className="space-y-2">
+                    <p className="text-xs font-semibold text-slate-500">🏙 Ville Ameex :</p>
+                    {ameexCities.length === 0 && (
+                      <p className="text-xs text-amber-600 bg-amber-50 px-3 py-2 rounded-xl border border-amber-200">
+                        ⚠️ Villes non chargées — vérifiez vos identifiants Ameex dans Intégrations
+                      </p>
+                    )}
+                    {selectedOrders.map(o => {
+                      const cityId = ameexCityOverrides[o.id] ?? "";
+                      // Auto-match by city name
+                      const autoMatch = ameexCities.find(c => c.name.toLowerCase() === (o.city ?? "").toLowerCase());
+                      const effectiveId = cityId || autoMatch?.id || "";
+                      return (
+                        <div key={o.id} className="p-2 rounded-xl border border-slate-200 bg-slate-50 space-y-1.5">
+                          <p className="text-xs font-semibold text-slate-700 truncate">{o.customer}</p>
+                          {o.city && (
+                            <p className="text-[10px] text-slate-400 flex items-center gap-1">
+                              <span className="font-medium text-slate-500">Ville client :</span>
+                              <span className="font-semibold text-slate-600 bg-yellow-50 border border-yellow-200 rounded px-1">{o.city}</span>
+                              {autoMatch && <span className="text-emerald-600">→ auto-détecté ✓</span>}
+                            </p>
+                          )}
+                          <select
+                            value={effectiveId}
+                            onChange={e => setAmeexCityOverrides(prev => ({ ...prev, [o.id]: e.target.value }))}
+                            className={`w-full text-xs border rounded-lg px-2 py-1.5 outline-none focus:border-blue-400 bg-white ${effectiveId ? "border-emerald-400 text-slate-800" : "border-red-300 text-slate-400"}`}
+                          >
+                            <option value="">— Choisissez une ville —</option>
+                            {ameexCities.map(c => (
+                              <option key={c.id} value={c.id}>{c.name}</option>
+                            ))}
+                          </select>
+                        </div>
+                      );
+                    })}
+                  </div>
+                );
+              })()}
 
               {/* Eagle Express — city select + address per order */}
               {shipCarrier === "eagle" && !shipResults.length && (() => {
@@ -1462,7 +1567,7 @@ export default function CommandesPage() {
                 );
               })()}
               <p className="text-xs text-slate-400">
-                Les identifiants API de Eagle Express doivent être configurés dans la page Intégrations.
+                Configurez vos identifiants Eagle / Ameex dans la page Intégrations.
               </p>
             </div>
 
