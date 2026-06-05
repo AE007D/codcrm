@@ -181,6 +181,13 @@ export default function CommandesPage() {
   // Ameex city state
   const [ameexCities, setAmeexCities] = useState<{ id: string; name: string }[]>([]);
   const [ameexCityOverrides, setAmeexCityOverrides] = useState<Record<string, string>>({}); // orderId → numeric city ID
+  // Merged city list for dropdowns: shows cities from all configured carriers with their logo
+  const allCities: { id: string; name: string; carrier: "eagle" | "ameex" }[] = [
+    ...eagleCities.map(c => ({ ...c, carrier: "eagle" as const })),
+    ...ameexCities
+      .filter(a => !eagleCities.some(e => e.name.toLowerCase() === a.name.toLowerCase()))
+      .map(c => ({ ...c, carrier: "ameex" as const })),
+  ];
 
 
   // Current user role — null while loading, so isAdmin is never wrong before fetch completes
@@ -274,6 +281,35 @@ export default function CommandesPage() {
     const t = setInterval(fetchOrders, 30_000);
     return () => clearInterval(t);
   }, [fetchOrders]);
+
+  // Load cities from both carriers on mount
+  useEffect(() => {
+    fetch("/api/settings").then(r => r.json()).then(async d => {
+      const s = d.settings ?? {};
+      // Eagle cities
+      if (s.eagle?.tk) {
+        try {
+          const raw = await fetch("/api/eagle", { method: "POST", headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ action: "cities", tk: s.eagle.tk, sk: s.eagle.sk }) }).then(r => r.json());
+          const list: unknown[] = Array.isArray(raw) ? raw : Array.isArray(raw?.data) ? raw.data : [];
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          const cities = list.map((c: any) => ({ id: String(c.id ?? ""), name: String(c.name ?? c.city_name ?? c.City ?? "") })).filter(c => c.name);
+          if (cities.length) setEagleCities(cities);
+        } catch { /* keep fallback */ }
+      }
+      // Ameex cities
+      if (s.ameex?.apiId) {
+        try {
+          const raw = await fetch("/api/ameex", { method: "POST", headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ action: "cities", apiId: s.ameex.apiId, apiKey: s.ameex.apiKey }) }).then(r => r.json());
+          const list: unknown[] = Array.isArray(raw) ? raw : Array.isArray(raw?.data) ? raw.data : Array.isArray(raw?.cities) ? raw.cities : [];
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          const cities = list.map((c: any) => ({ id: String(c.id ?? c.ID ?? ""), name: String(c.name ?? c.label ?? c.ville ?? "") })).filter(c => c.name && c.id);
+          if (cities.length) setAmeexCities(cities);
+        } catch { /* no ameex */ }
+      }
+    }).catch(() => {});
+  }, []);
 
   // Clear carrier status when drawer changes order
   useEffect(() => { setCarrierStatus({ loading: false, text: null, ok: true }); }, [drawer?.id]);
@@ -1320,12 +1356,17 @@ export default function CommandesPage() {
                   onFocus={() => setShowCityDrop(true)}
                   onBlur={() => setTimeout(() => setShowCityDrop(false), 150)}
                   className="w-full text-sm border border-slate-200 rounded-xl px-4 py-2.5 outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-50" />
-                {showCityDrop && eagleCities.filter(c => c.name.toLowerCase().includes(citySearch.toLowerCase())).length > 0 && (
-                  <div className="absolute z-50 top-full mt-1 left-0 right-0 bg-white border border-slate-200 rounded-xl shadow-lg overflow-hidden max-h-44 overflow-y-auto">
-                    {eagleCities.filter(c => !citySearch || c.name.toLowerCase().includes(citySearch.toLowerCase())).map(c => (
-                      <button key={c.id} type="button" onMouseDown={() => { setForm(f => ({ ...f, city: c.name })); setCitySearch(c.name); setShowCityDrop(false); }}
-                        className="w-full text-left px-3 py-2 text-sm hover:bg-blue-50 transition-colors flex items-center justify-between">
-                        <span>{c.name}</span><span className="text-xs text-slate-400">#{c.id}</span>
+                {showCityDrop && allCities.filter(c => c.name.toLowerCase().includes(citySearch.toLowerCase())).length > 0 && (
+                  <div className="absolute z-50 top-full mt-1 left-0 right-0 bg-white border border-slate-200 rounded-xl shadow-lg overflow-hidden max-h-52 overflow-y-auto">
+                    {allCities.filter(c => !citySearch || c.name.toLowerCase().includes(citySearch.toLowerCase())).map((c, i) => (
+                      <button key={`${c.carrier}-${c.id}-${i}`} type="button" onMouseDown={() => { setForm(f => ({ ...f, city: c.name })); setCitySearch(c.name); setShowCityDrop(false); }}
+                        className="w-full text-left px-3 py-2 text-sm hover:bg-slate-50 transition-colors flex items-center gap-3 border-b border-slate-50 last:border-0">
+                        {c.carrier === "eagle" ? (
+                          <img src="https://eagleexpress.ma/assets/images/logo.png" alt="Eagle" className="w-8 h-5 object-contain shrink-0" onError={e => { (e.target as HTMLImageElement).style.display="none"; }} />
+                        ) : (
+                          <img src="https://ameex.app/assets/images/logo.png" alt="Ameex" className="w-8 h-5 object-contain shrink-0" onError={e => { (e.target as HTMLImageElement).style.display="none"; }} />
+                        )}
+                        <span className="flex-1 font-medium text-slate-800">{c.name}</span>
                       </button>
                     ))}
                   </div>
@@ -1643,12 +1684,17 @@ export default function CommandesPage() {
                       onFocus={() => { setEditCitySearch(editForm.city); setShowEditCityDrop(true); }}
                       onBlur={() => setTimeout(() => setShowEditCityDrop(false), 150)}
                       className="w-full text-sm border border-slate-200 rounded-xl px-3 py-2 outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-50 bg-white" />
-                    {showEditCityDrop && eagleCities.filter(c => !editCitySearch || c.name.toLowerCase().includes(editCitySearch.toLowerCase())).length > 0 && (
-                      <div className="absolute z-50 top-full mt-1 left-0 right-0 bg-white border border-slate-200 rounded-xl shadow-lg overflow-hidden max-h-40 overflow-y-auto">
-                        {eagleCities.filter(c => !editCitySearch || c.name.toLowerCase().includes(editCitySearch.toLowerCase())).map(c => (
-                          <button key={c.id} type="button" onMouseDown={() => { setEditForm(f => ({ ...f, city: c.name })); setEditCitySearch(c.name); setShowEditCityDrop(false); }}
-                            className="w-full text-left px-3 py-2 text-sm hover:bg-blue-50 transition-colors flex items-center justify-between">
-                            <span>{c.name}</span><span className="text-xs text-slate-400">#{c.id}</span>
+                    {showEditCityDrop && allCities.filter(c => !editCitySearch || c.name.toLowerCase().includes(editCitySearch.toLowerCase())).length > 0 && (
+                      <div className="absolute z-50 top-full mt-1 left-0 right-0 bg-white border border-slate-200 rounded-xl shadow-lg overflow-hidden max-h-48 overflow-y-auto">
+                        {allCities.filter(c => !editCitySearch || c.name.toLowerCase().includes(editCitySearch.toLowerCase())).map((c, i) => (
+                          <button key={`${c.carrier}-${c.id}-${i}`} type="button" onMouseDown={() => { setEditForm(f => ({ ...f, city: c.name })); setEditCitySearch(c.name); setShowEditCityDrop(false); }}
+                            className="w-full text-left px-3 py-2 text-sm hover:bg-slate-50 transition-colors flex items-center gap-3 border-b border-slate-50 last:border-0">
+                            {c.carrier === "eagle" ? (
+                              <img src="https://eagleexpress.ma/assets/images/logo.png" alt="Eagle" className="w-8 h-5 object-contain shrink-0" onError={e => { (e.target as HTMLImageElement).style.display="none"; }} />
+                            ) : (
+                              <img src="https://ameex.app/assets/images/logo.png" alt="Ameex" className="w-8 h-5 object-contain shrink-0" onError={e => { (e.target as HTMLImageElement).style.display="none"; }} />
+                            )}
+                            <span className="flex-1 font-medium text-slate-800">{c.name}</span>
                           </button>
                         ))}
                       </div>
