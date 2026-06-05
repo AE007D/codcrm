@@ -442,6 +442,10 @@ export default function WhatsAppPage() {
   async function handleLogout() {
     await fetch("/api/whatsapp", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "logout" }) });
     setWaStatus("disconnected"); setQr(null); setJid(null);
+    // Keep polling — QR will appear within ~10s when server reinitializes
+    setTimeout(fetchWaStatus, 5000);
+    setTimeout(fetchWaStatus, 10000);
+    setTimeout(fetchWaStatus, 15000);
   }
 
   async function handleReply() {
@@ -571,9 +575,14 @@ export default function WhatsAppPage() {
           </div>
         )}
         {waStatus === "disconnected" && (
-          <div className="mx-6 mt-4 border border-slate-200 rounded-2xl p-4 bg-slate-50 shrink-0 flex items-center gap-3">
-            <span className="w-2 h-2 rounded-full bg-slate-300 shrink-0" />
-            <p className="text-sm text-slate-500">Déconnecté — démarrage du serveur en cours…</p>
+          <div className="mx-6 mt-4 border border-slate-200 rounded-2xl p-4 bg-slate-50 shrink-0 flex items-center justify-between gap-3">
+            <div className="flex items-center gap-3">
+              <span className="w-2 h-2 rounded-full bg-slate-300 shrink-0 animate-pulse" />
+              <p className="text-sm text-slate-500">Déconnecté — en attente du QR code…</p>
+            </div>
+            <button onClick={fetchWaStatus} className="text-xs font-semibold text-emerald-600 hover:text-emerald-800 px-3 py-1.5 rounded-xl hover:bg-emerald-50 border border-emerald-200 transition-colors">
+              🔄 Actualiser
+            </button>
           </div>
         )}
 

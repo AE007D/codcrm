@@ -447,9 +447,11 @@ app.get("/pending", (req, res) => {
 });
 
 app.post("/logout", async (req, res) => {
-  try { await client.logout(); } catch {}
   status = "disconnected"; qrBase64 = null; connectedJid = null;
   res.json({ ok: true });
+  // Destroy and reinitialize to show QR for new connection
+  try { await client.logout(); } catch {}
+  setTimeout(() => restartClient("logout"), 1000);
 });
 
 app.listen(3001, "0.0.0.0", () => console.log("[WA] Server running on :3001"));

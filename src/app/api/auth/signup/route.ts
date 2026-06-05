@@ -5,16 +5,17 @@ import {
   hashPassword,
 } from "@/lib/authStore";
 import { syncToSupabaseAuth } from "@/lib/supabaseAuthSync";
+import { saveSettings } from "@/lib/supabaseSettingsStore";
 
 export async function POST(request: NextRequest) {
-  let body: { name?: string; email?: string; password?: string; role?: string; workspaceId?: string };
+  let body: { name?: string; email?: string; password?: string; role?: string; workspaceId?: string; storeName?: string };
   try {
     body = await request.json();
   } catch {
     return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
   }
 
-  const { name, email, password, role, workspaceId } = body;
+  const { name, email, password, role, workspaceId, storeName } = body;
   if (!name || !email || !password) {
     return NextResponse.json({ error: "Nom, email et mot de passe requis." }, { status: 400 });
   }
@@ -38,6 +39,11 @@ export async function POST(request: NextRequest) {
       active: true,
       ...(workspaceId ? { workspaceId } : {}), // omit = own workspace (set in createUser)
     });
+
+    // Save store name in workspace settings
+    if (!workspaceId && storeName) {
+      saveSettings(user.workspaceId, { storeName }).catch(() => {});
+    }
 
     // Sync to Supabase Auth so user appears in Authentication → Users
     syncToSupabaseAuth({ email: user.email, password, name: user.name, role: user.role })
