@@ -614,33 +614,17 @@ export default function IntegrationsPage() {
                             className="w-full text-sm border border-slate-200 rounded-xl px-4 py-2.5 outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-50 font-mono bg-white" />
                         </div>
                       ))}
-                      {/* Depot picker */}
+                      {/* Depot ID */}
                       <div>
-                        <label className="text-xs font-semibold text-slate-600 mb-1 block">🏭 Hub / Dépôt par défaut *</label>
-                        {ameexDepots.length > 0 ? (
-                          <select value={ameex.depotId}
-                            onChange={e => setAmeex(a => ({ ...a, depotId: e.target.value }))}
-                            className={`w-full text-sm border rounded-xl px-4 py-2.5 outline-none focus:border-blue-400 bg-white ${ameex.depotId ? "border-emerald-400 text-slate-800" : "border-red-300 text-slate-400"}`}>
-                            <option value="">— Choisissez votre hub —</option>
-                            {ameexDepots.map(d => (
-                              <option key={d.id} value={d.id}>{d.name} (ID: {d.id})</option>
-                            ))}
-                          </select>
-                        ) : (
-                          <div className="flex gap-2">
-                            <input type="text" placeholder="Ex: 34 (Casablanca Hub Principal)"
-                              value={ameex.depotId}
-                              onChange={e => setAmeex(a => ({ ...a, depotId: e.target.value }))}
-                              className="flex-1 text-sm border border-slate-200 rounded-xl px-4 py-2.5 outline-none focus:border-blue-400 font-mono bg-white" />
-                            {ameex.apiId && (
-                              <button onClick={() => loadAmeexDepots(ameex)}
-                                className="px-3 py-2 text-xs font-semibold bg-blue-50 text-blue-700 border border-blue-200 rounded-xl hover:bg-blue-100">
-                                Charger hubs
-                              </button>
-                            )}
-                          </div>
-                        )}
-                        {ameex.depotId && <p className="text-xs text-emerald-600 mt-1">✓ Hub ID {ameex.depotId} sélectionné</p>}
+                        <label className="text-xs font-semibold text-slate-600 mb-1 block">🏭 Hub ID par défaut *</label>
+                        <input type="text" placeholder="Ex: 129"
+                          value={ameex.depotId}
+                          onChange={e => setAmeex(a => ({ ...a, depotId: e.target.value }))}
+                          className={`w-full text-sm border rounded-xl px-4 py-2.5 outline-none focus:border-blue-400 font-mono bg-white ${ameex.depotId ? "border-emerald-400" : "border-slate-200"}`} />
+                        <p className="text-xs text-slate-400 mt-1">
+                          Trouvez votre Hub ID dans <strong>Ameex → Produits</strong> (colonne &quot;Hub&quot;).
+                          {ameex.depotId && <span className="text-emerald-600 ml-1">✓ Hub {ameex.depotId} configuré</span>}
+                        </p>
                       </div>
                     </div>
                     <button onClick={saveAmeex}
