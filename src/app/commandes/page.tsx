@@ -701,21 +701,25 @@ export default function CommandesPage() {
               action: "addParcel",
               apiId: creds.apiId,
               apiKey: creds.apiKey,
-              type: "HOME",
-              receiver_fullname: order.customer || "Client",
-              receiver_phone: (order.phone || "0600000000").replace(/\s+/g, ""),
-              receiver_city: cityId,
-              receiver_address: order.address || "",
+              receiver: order.customer || "Client",
+              phone: (order.phone || "0600000000").replace(/\s+/g, ""),
+              city: cityId,
+              address: order.address || order.city || "",
               cod: String(order.amount ?? "0"),
-              description: order.product || "Produit",
-              reference: order.orderNumber || order.id.slice(-8),
-              weight: 1,
-              open_package: 0,
+              product: (order.product || "Produit").slice(0, 100),
+              order_num: order.orderNumber || order.id.slice(-8),
+              comment: order.orderNumber || "",
+              type: "SIMPLE",
+              open: "NO",
+              fragile: "0",
+              replace: "false",
             }),
           });
           const data = await res.json();
-          const trackingCode = data?.parcel?.code ?? data?.code ?? data?.id ?? null;
-          const ok = res.ok && (trackingCode || data?.success || data?.status === "success");
+          // Ameex success: data.message includes "success" or data.api.parcel.code
+          const apiMsg = data?.message ?? data?.api?.message ?? data?.msg ?? JSON.stringify(data);
+          const trackingCode = data?.api?.parcel?.code ?? data?.parcel?.code ?? data?.code ?? null;
+          const ok = res.ok && (String(apiMsg).toLowerCase().includes("success") || !!trackingCode || data?.success);
           if (ok) {
             const patchBody: Record<string, unknown> = { id: order.id, status: "expédié", carrierName: "ameex" };
             if (trackingCode) patchBody.carrierTracking = String(trackingCode);
@@ -723,7 +727,7 @@ export default function CommandesPage() {
             setOrders(prev => prev.map(o => o.id === order.id ? { ...o, status: "expédié", carrierName: "ameex", ...(trackingCode ? { carrierTracking: String(trackingCode) } : {}) } : o));
             setDrawer(prev => prev?.id === order.id ? { ...prev, status: "expédié", carrierName: "ameex", ...(trackingCode ? { carrierTracking: String(trackingCode) } : {}) } : prev);
           }
-          results.push({ id: order.id, ok: !!ok, msg: ok ? `✓ Envoyé${trackingCode ? ` · ${trackingCode}` : ""}` : (data?.message ?? data?.error ?? "Erreur Ameex") });
+          results.push({ id: order.id, ok: !!ok, msg: ok ? `✓ Envoyé${trackingCode ? ` · ${trackingCode}` : ""}` : (apiMsg ?? "Erreur Ameex") });
           continue;
         }
 
