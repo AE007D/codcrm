@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef, useCallback } from "react";
+import { Package } from "lucide-react";
 import Image from "next/image";
 import Sidebar from "@/components/Sidebar";
 import { useLang } from "@/lib/i18n";
@@ -517,7 +518,7 @@ export default function ProduitsPage() {
                     className="w-full text-sm border border-slate-200 rounded-xl px-4 py-2.5 outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-50" />
                 </div>
                 <div>
-                  <label className="text-xs font-semibold text-slate-600 mb-1.5 block">📦 Ameex Réf <span className="text-slate-400 font-normal">(ex: 23336-0-39853-6257-XA)</span></label>
+                  <label className="text-xs font-semibold text-slate-600 mb-1.5 flex items-center gap-1"><Package size={14} strokeWidth={1.5} /> Ameex Réf <span className="text-slate-400 font-normal">(ex: 23336-0-39853-6257-XA)</span></label>
                   <input type="text" placeholder="Référence Ameex warehouse" value={form.sku} onChange={e => setForm(f => ({ ...f, sku: e.target.value }))}
                     className="w-full text-sm border border-slate-200 rounded-xl px-4 py-2.5 outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-50 font-mono" />
                 </div>

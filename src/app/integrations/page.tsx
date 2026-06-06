@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
+import { CheckCircle2, Save, Warehouse, Package } from "lucide-react";
 import Sidebar from "@/components/Sidebar";
 import { useLang } from "@/lib/i18n";
 
@@ -598,7 +599,7 @@ export default function IntegrationsPage() {
                   <div className="space-y-4">
                     {ameexSaved && (
                       <div className="flex items-center gap-2 px-3 py-2 bg-emerald-50 border border-emerald-200 rounded-xl text-xs font-semibold text-emerald-700">
-                        ✅ Ameex connecté
+                        <CheckCircle2 size={14} strokeWidth={1.5} className="text-emerald-600" /> Ameex connecté
                       </div>
                     )}
                     <div className="space-y-3 bg-slate-50 rounded-2xl p-4 border border-slate-200">
@@ -616,7 +617,7 @@ export default function IntegrationsPage() {
                       ))}
                       {/* Depot ID */}
                       <div>
-                        <label className="text-xs font-semibold text-slate-600 mb-1 block">🏭 Hub ID par défaut *</label>
+                        <label className="text-xs font-semibold text-slate-600 mb-1 block flex items-center gap-1"><Warehouse size={14} strokeWidth={1.5} /> Hub ID par défaut *</label>
                         <input type="text" placeholder="Ex: 129"
                           value={ameex.depotId}
                           onChange={e => setAmeex(a => ({ ...a, depotId: e.target.value }))}
@@ -629,7 +630,7 @@ export default function IntegrationsPage() {
                     </div>
                     <button onClick={saveAmeex}
                       className="w-full py-3 bg-blue-700 hover:bg-blue-800 text-white font-semibold text-sm rounded-xl shadow shadow-blue-200 transition-colors">
-                      💾 Sauvegarder Ameex
+                      <Save size={14} strokeWidth={1.5} className="inline mr-1" /> Sauvegarder Ameex
                     </button>
                   </div>
                 )}

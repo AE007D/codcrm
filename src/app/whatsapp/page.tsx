@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useEffect, useCallback, useRef } from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
+import { Settings, CheckCircle2, PhoneOff, Truck, Undo2, Save } from "lucide-react";
 import Sidebar from "@/components/Sidebar";
 
 type WAStatus = "disconnected" | "qr" | "connecting" | "connected";
@@ -257,15 +258,15 @@ function TrackOrderRow({ order, lang, onSent }: { order: Order; lang: Lang; onSe
       <div className="flex gap-2 flex-wrap">
         <button onClick={() => send("shipping_attempt")} disabled={!!sending}
           className="flex items-center gap-1.5 text-xs font-semibold px-3 py-2 rounded-xl bg-amber-50 hover:bg-amber-100 text-amber-700 border border-amber-200 transition-colors disabled:opacity-50">
-          {sending === "shipping_attempt" ? "…" : "📵 Transporteur a appelé"}
+          {sending === "shipping_attempt" ? "…" : <><PhoneOff size={14} strokeWidth={1.5} /> Transporteur a appelé</>}
         </button>
         <button onClick={() => send("shipped")} disabled={!!sending}
           className="flex items-center gap-1.5 text-xs font-semibold px-3 py-2 rounded-xl bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 transition-colors disabled:opacity-50">
-          {sending === "shipped" ? "…" : "🚚 En route"}
+          {sending === "shipped" ? "…" : <><Truck size={14} strokeWidth={1.5} /> En route</>}
         </button>
         <button onClick={() => send("return")} disabled={!!sending}
           className="flex items-center gap-1.5 text-xs font-semibold px-3 py-2 rounded-xl bg-orange-50 hover:bg-orange-100 text-orange-700 border border-orange-200 transition-colors disabled:opacity-50">
-          {sending === "return" ? "…" : "↩️ Retourné"}
+          {sending === "return" ? "…" : <><Undo2 size={14} strokeWidth={1.5} /> Retourné</>}
         </button>
       </div>
     </div>
@@ -510,11 +511,11 @@ export default function WhatsAppPage() {
     amount: parseFloat(composeAmount) || 0, currency: "MAD", status: "", attempts: 0, noAnswer: 0,
   });
 
-  const TABS: { id: Tab; label: string; count?: number }[] = [
+  const TABS: { id: Tab; label: string; count?: number; isSettings?: boolean }[] = [
     { id: "inbox", label: "Conversations", count: conversations.length },
     { id: "confirm", label: "À confirmer", count: nouveauOrders.length },
     { id: "track", label: "À suivre", count: expedieOrders.length },
-    { id: "settings", label: "⚙️ Paramètres" },
+    { id: "settings", label: "Paramètres", isSettings: true },
   ];
 
   return (
@@ -593,7 +594,7 @@ export default function WhatsAppPage() {
             {TABS.map(t => (
               <button key={t.id} onClick={() => setTab(t.id)}
                 className={`flex items-center gap-2 px-4 py-3 text-sm font-semibold border-b-2 transition-colors ${tab === t.id ? "border-emerald-500 text-emerald-700" : "border-transparent text-slate-400 hover:text-slate-600"}`}>
-                {t.label}
+                {t.isSettings ? <Settings size={14} strokeWidth={1.5} /> : null}{t.label}
                 {t.count !== undefined && t.count > 0 && (
                   <span className={`text-xs px-1.5 py-0.5 rounded-full ${tab === t.id ? "bg-emerald-100 text-emerald-700" : "bg-slate-100 text-slate-500"}`}>{t.count}</span>
                 )}
@@ -917,11 +918,16 @@ export default function WhatsAppPage() {
 
                   {/* Template editor */}
                   {(["confirm", "shipping_attempt", "shipped", "return"] as const).map(tplKey => {
-                    const icons: Record<string, string> = { confirm: "✅", shipping_attempt: "📵", shipped: "🚚", return: "↩️" };
+                    const icons: Record<string, React.ReactNode> = {
+                      confirm: <CheckCircle2 size={14} strokeWidth={1.5} className="text-emerald-600 inline" />,
+                      shipping_attempt: <PhoneOff size={14} strokeWidth={1.5} className="text-amber-600 inline" />,
+                      shipped: <Truck size={14} strokeWidth={1.5} className="text-indigo-600 inline" />,
+                      return: <Undo2 size={14} strokeWidth={1.5} className="text-orange-600 inline" />,
+                    };
                     const labels: Record<string, string> = { confirm: "Confirmation commande", shipping_attempt: "Transporteur a appelé", shipped: "En cours de livraison", return: "Retour colis" };
                     return (
                       <div key={tplKey} className="bg-white border border-slate-200 rounded-2xl p-5 space-y-3">
-                        <h3 className="font-bold text-slate-800 text-sm">{icons[tplKey]} {labels[tplKey]}</h3>
+                        <h3 className="font-bold text-slate-800 text-sm flex items-center gap-1.5">{icons[tplKey]} {labels[tplKey]}</h3>
                         <p className="text-xs text-slate-400">Variables : <code className="bg-slate-100 px-1 rounded">{"{{name}}"}</code> <code className="bg-slate-100 px-1 rounded">{"{{product}}"}</code> <code className="bg-slate-100 px-1 rounded">{"{{amount}}"}</code> <code className="bg-slate-100 px-1 rounded">{"{{currency}}"}</code> <code className="bg-slate-100 px-1 rounded">{"{{city}}"}</code></p>
                         <div className="grid grid-cols-2 gap-3">
                           {(["ar", "fr"] as const).map(l => (
@@ -946,7 +952,7 @@ export default function WhatsAppPage() {
 
                   <button onClick={saveWaSettings} disabled={settingsSaving}
                     className="w-full py-3 rounded-2xl bg-emerald-500 hover:bg-emerald-600 disabled:opacity-50 text-white font-bold text-sm shadow shadow-emerald-200 transition-colors">
-                    {settingsSaving ? "Sauvegarde…" : "💾 Sauvegarder les paramètres"}
+                    {settingsSaving ? "Sauvegarde…" : <><Save size={14} strokeWidth={1.5} className="inline mr-1" /> Sauvegarder les paramètres</>}
                   </button>
 
                   {!settingsLoaded && (

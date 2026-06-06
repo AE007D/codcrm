@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback, useMemo, useRef } from "react";
+import { Package, Warehouse, Home, AlertTriangle } from "lucide-react";
 import { AMEEX_CITIES_FALLBACK } from "@/lib/moroccanCities";
 import { cachedFetch, invalidateCache } from "@/lib/clientCache";
 import Sidebar from "@/components/Sidebar";
@@ -1506,7 +1507,7 @@ export default function CommandesPage() {
                 </button>
                 <button onClick={() => setShipCarrier("ameex")}
                   className={`flex items-center gap-2 px-4 py-3 rounded-2xl border-2 transition-all ${shipCarrier === "ameex" ? "border-blue-400 bg-blue-50" : "border-slate-200 bg-white hover:border-slate-300"}`}>
-                  <span className="text-2xl">📦</span>
+                  <Package size={24} strokeWidth={1.5} className={shipCarrier === "ameex" ? "text-blue-700" : "text-slate-400"} />
                   <div className="text-left">
                     <p className={`text-sm font-bold ${shipCarrier === "ameex" ? "text-blue-800" : "text-slate-700"}`}>Ameex</p>
                     <p className={`text-xs ${shipCarrier === "ameex" ? "text-blue-600" : "text-slate-400"}`}>ID Ville auto</p>
@@ -1515,7 +1516,7 @@ export default function CommandesPage() {
               </div>
 
               <div className={`flex items-center gap-3 px-4 py-2.5 rounded-xl ${shipCarrier === "eagle" ? "bg-amber-50 border border-amber-200" : "bg-blue-50 border border-blue-200"}`}>
-                <span className="text-lg">{shipCarrier === "eagle" ? "🦅" : "📦"}</span>
+                {shipCarrier === "ameex" && <Package size={18} strokeWidth={1.5} className="text-blue-700" />}
                 <p className={`text-xs font-semibold ${shipCarrier === "eagle" ? "text-amber-700" : "text-blue-700"}`}>{selected.size} colis → Expédié via {shipCarrier === "eagle" ? "Eagle Express" : "Ameex"}</p>
               </div>
 
@@ -1543,16 +1544,16 @@ export default function CommandesPage() {
                   <div className="flex gap-2">
                     <button onClick={() => setAmeexShipType("STOCK")}
                       className={`flex-1 flex items-center justify-center gap-2 py-2 rounded-xl border-2 text-xs font-bold transition-all ${ameexShipType === "STOCK" ? "border-blue-500 bg-blue-50 text-blue-700" : "border-slate-200 bg-white text-slate-500 hover:border-slate-300"}`}>
-                      🏭 Depuis stock Ameex
+                      <Warehouse size={14} strokeWidth={1.5} /> Depuis stock Ameex
                     </button>
                     <button onClick={() => setAmeexShipType("SIMPLE")}
                       className={`flex-1 flex items-center justify-center gap-2 py-2 rounded-xl border-2 text-xs font-bold transition-all ${ameexShipType === "SIMPLE" ? "border-blue-500 bg-blue-50 text-blue-700" : "border-slate-200 bg-white text-slate-500 hover:border-slate-300"}`}>
-                      🏠 Ramassage domicile
+                      <Home size={14} strokeWidth={1.5} /> Ramassage domicile
                     </button>
                   </div>
                   {ameexShipType === "STOCK" && (
                     <div className="text-xs text-blue-700 bg-blue-50 border border-blue-200 rounded-xl px-3 py-2 flex items-center gap-2">
-                      <span>🏭</span>
+                      <Warehouse size={14} strokeWidth={1.5} />
                       <span>Hub configuré dans <strong>Intégrations → Ameex → Dépôt par défaut</strong></span>
                     </div>
                   )}
@@ -1587,7 +1588,7 @@ export default function CommandesPage() {
                               return cp?.sku ? (
                                 <span className="text-[10px] font-mono bg-blue-50 text-blue-700 border border-blue-200 rounded px-1.5 py-0.5 shrink-0">📦 {cp.sku}</span>
                               ) : (
-                                <span className="text-[10px] text-red-500 shrink-0">⚠️ Réf manquante</span>
+                                <span className="flex items-center gap-0.5 text-[10px] text-red-500 shrink-0"><AlertTriangle size={12} strokeWidth={1.5} /> Réf manquante</span>
                               );
                             })()}
                           </div>
