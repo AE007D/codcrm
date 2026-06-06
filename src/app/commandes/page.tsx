@@ -697,6 +697,9 @@ export default function CommandesPage() {
         if (shipCarrier === "ameex") {
           const cityId = ameexCityOverrides[order.id] || "";
           if (!cityId) { results.push({ id: order.id, ok: false, msg: "Ville Ameex non sélectionnée" }); continue; }
+          // Find Ameex SKU (réf) from catalog — needed for STOCK type
+          const catalogMatch = catalog.find(p => p.name.toLowerCase() === (order.product || "").toLowerCase());
+          const ameexRef = catalogMatch?.sku || order.product || "Produit";
           res = await fetch("/api/ameex", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
@@ -709,7 +712,7 @@ export default function CommandesPage() {
               city: cityId,
               address: order.address || order.city || "",
               cod: String(order.amount ?? "0"),
-              product: (order.product || "Produit").slice(0, 100),
+              product: ameexRef,
               order_num: order.orderNumber || order.id.slice(-8),
               comment: order.orderNumber || "",
               type: ameexShipType,
@@ -1577,7 +1580,17 @@ export default function CommandesPage() {
                       const filtered = ameexCities.filter(c => !search || c.name.toLowerCase().includes(search.toLowerCase()));
                       return (
                         <div key={o.id} className="p-2 rounded-xl border border-slate-200 bg-slate-50 space-y-1.5">
-                          <p className="text-xs font-semibold text-slate-700 truncate">{o.customer}</p>
+                          <div className="flex items-center justify-between gap-2">
+                            <p className="text-xs font-semibold text-slate-700 truncate">{o.customer}</p>
+                            {(() => {
+                              const cp = catalog.find(p => p.name.toLowerCase() === (o.product || "").toLowerCase());
+                              return cp?.sku ? (
+                                <span className="text-[10px] font-mono bg-blue-50 text-blue-700 border border-blue-200 rounded px-1.5 py-0.5 shrink-0">📦 {cp.sku}</span>
+                              ) : (
+                                <span className="text-[10px] text-red-500 shrink-0">⚠️ Réf manquante</span>
+                              );
+                            })()}
+                          </div>
                           {o.city && (
                             <p className="text-[10px] text-slate-400 flex items-center gap-1">
                               <span className="font-medium text-slate-500">Ville client :</span>
