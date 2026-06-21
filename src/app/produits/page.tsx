@@ -628,53 +628,6 @@ export default function ProduitsPage() {
                 </div>
               </div>
 
-              {/* Boutique + Commission */}
-              <div className="bg-emerald-50 rounded-2xl p-4">
-                <p className="text-xs font-bold text-emerald-700 uppercase tracking-wider mb-3">Boutique & Commission</p>
-                <div className="flex flex-col gap-3">
-                  <div>
-                    <label className="text-xs font-semibold text-slate-600 mb-1.5 block">Boutique (store)</label>
-                    <input
-                      type="text"
-                      placeholder="Ex: Layanpromo, Atlas Store…"
-                      value={form.boutiqueNom}
-                      onChange={e => setForm(f => ({ ...f, boutiqueNom: e.target.value }))}
-                      className="w-full text-sm border border-emerald-200 rounded-xl px-4 py-2.5 outline-none focus:border-emerald-400 focus:ring-2 focus:ring-emerald-50 bg-white"
-                    />
-                  </div>
-                  <div className="grid grid-cols-2 gap-3">
-                    <div>
-                      <label className="text-xs font-semibold text-slate-600 mb-1.5 block">Agent assigné</label>
-                      <select
-                        value={form.agentId}
-                        onChange={e => {
-                          const agent = agents.find(a => a.id === e.target.value);
-                          setForm(f => ({ ...f, agentId: e.target.value, agentName: agent?.name ?? "" }));
-                        }}
-                        className="w-full text-sm border border-emerald-200 rounded-xl px-4 py-2.5 outline-none focus:border-emerald-400 bg-white"
-                      >
-                        <option value="">— Aucun —</option>
-                        {agents.map(a => (
-                          <option key={a.id} value={a.id}>{a.name}</option>
-                        ))}
-                      </select>
-                    </div>
-                    <div>
-                      <label className="text-xs font-semibold text-slate-600 mb-1.5 block">Commission / livraison (MAD)</label>
-                      <input
-                        type="number"
-                        placeholder="15"
-                        min="0"
-                        value={form.commissionAmount}
-                        onChange={e => setForm(f => ({ ...f, commissionAmount: e.target.value }))}
-                        className="w-full text-sm border border-emerald-200 rounded-xl px-4 py-2.5 outline-none focus:border-emerald-400 focus:ring-2 focus:ring-emerald-50 bg-white"
-                      />
-                    </div>
-                  </div>
-                  <p className="text-xs text-slate-400">La commission est créditée automatiquement à l&apos;agent dès qu&apos;une commande est marquée Livrée.</p>
-                </div>
-              </div>
-
               {/* Margin preview */}
               {(form.sellPrice || form.purchasePrice) && (
                 <div className="flex items-center gap-3 bg-blue-50 rounded-2xl px-4 py-3">
