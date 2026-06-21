@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
+import { useRouter } from "next/navigation";
 import Sidebar from "@/components/Sidebar";
 import { BarChart3, ShoppingCart, AlertTriangle, TrendingUp, CheckCircle2, RefreshCw, PhoneOff, Flame } from "lucide-react";
 import { useLang } from "@/lib/i18n";
@@ -42,6 +43,7 @@ function relTime(iso: string) {
 
 export default function FunnelsPage() {
   const { t } = useLang();
+  const router = useRouter();
   const [leads, setLeads] = useState<FunnelLead[]>([]);
   const [filter, setFilter] = useState<Filter>("tous");
   const [search, setSearch] = useState("");
@@ -83,8 +85,24 @@ export default function FunnelsPage() {
     }).catch(() => {});
   }
 
-  function markRecovered(lead: FunnelLead) {
+  async function markRecovered(lead: FunnelLead) {
     patchLead(lead.id, { recovered: true, notes: lead.notes || "Récupéré via appel" });
+    // Create a confirmed order in commandes
+    await fetch("/api/orders", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        customer: lead.customer,
+        phone: lead.phone,
+        city: lead.city,
+        address: lead.address,
+        product: lead.product,
+        amount: lead.amount,
+        notes: lead.notes || "Récupéré via appel (panier abandonné)",
+        source: "manuel",
+      }),
+    }).catch(() => {});
+    router.push("/commandes");
   }
 
   function incrementCall(lead: FunnelLead) {
