@@ -15,12 +15,24 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
     .eq("id", id)
     .maybeSingle();
 
-  if (error || !data) return NextResponse.json({ error: "Produit introuvable." }, { status: 404 });
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  let row: any = data;
+
+  // If query failed (e.g. compare_price column missing), retry without it
+  if (error || !row) {
+    const { data: data2, error: err2 } = await supabase
+      .from("crm_products")
+      .select("id, name, image, sell_price, owner_id")
+      .eq("id", id)
+      .maybeSingle();
+    if (err2 || !data2) return NextResponse.json({ error: "Produit introuvable." }, { status: 404 });
+    row = data2;
+  }
 
   // Increment page views (silently ignored if column doesn't exist yet)
   void supabase.rpc("increment_page_views", { product_id: id });
 
-  const settings = await getSettings(data.owner_id);
+  const settings = await getSettings(row.owner_id);
   const productPixels = (settings.productPixels as Record<string, string>) ?? {};
 
   // Per-product pixel takes priority; fall back to first workspace FB pixel
@@ -29,19 +41,19 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
   if (!facebookPixelId) {
     type PixelEntry = { pixelId: string; platform: string; productName: string };
     const pixels: PixelEntry[] = Array.isArray(settings.pixels) ? (settings.pixels as PixelEntry[]) : [];
-    const productName = (data.name as string).trim().toLowerCase();
+    const productName = (row.name as string).trim().toLowerCase();
     const matched = pixels.find(p => p.platform === "facebook" && p.productName.trim().toLowerCase() === productName)
       ?? pixels.find(p => p.platform === "facebook");
     if (matched) facebookPixelId = matched.pixelId;
   }
 
   return NextResponse.json({
-    id: data.id,
-    name: data.name,
-    image: data.image ?? "",
-    price: parseFloat(data.sell_price ?? "0"),
-    comparePrice: data.compare_price ? parseFloat(data.compare_price) : null,
-    ownerId: data.owner_id,
+    id: row.id,
+    name: row.name,
+    image: row.image ?? "",
+    price: parseFloat(row.sell_price ?? "0"),
+    comparePrice: row.compare_price ? parseFloat(row.compare_price) : null,
+    ownerId: row.owner_id,
     facebookPixelId,
   });
 }
