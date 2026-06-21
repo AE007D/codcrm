@@ -45,7 +45,7 @@ export default function FunnelsPage() {
   const { t } = useLang();
   const router = useRouter();
   const [leads, setLeads] = useState<FunnelLead[]>([]);
-  const [filter, setFilter] = useState<Filter>("tous");
+  const [filter, setFilter] = useState<Filter>("abandoned");
   const [search, setSearch] = useState("");
   const [noteModal, setNoteModal] = useState<FunnelLead | null>(null);
   const [noteText, setNoteText] = useState("");
