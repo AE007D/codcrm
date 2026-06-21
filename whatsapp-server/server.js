@@ -91,16 +91,31 @@ function createClient() {
     authStrategy: new LocalAuth({ dataPath: path.join(__dirname, "auth_info_wwjs") }),
     puppeteer: {
       headless: true,
-      args: ["--no-sandbox", "--disable-setuid-sandbox", "--disable-dev-shm-usage", "--disable-gpu"],
+      args: [
+        "--no-sandbox",
+        "--disable-setuid-sandbox",
+        "--disable-dev-shm-usage",
+        "--disable-accelerated-2d-canvas",
+        "--no-first-run",
+        "--no-zygote",
+        "--single-process",
+        "--disable-extensions",
+      ],
     },
   });
 }
 
 let client = createClient();
 let restarting = false;
+let everConnected = false; // true once we've had a successful connection
 
 async function restartClient(reason) {
   if (restarting) return;
+  // If we've never connected and we're just waiting for QR, don't restart on disconnect
+  if (!everConnected && status === "qr") {
+    console.log("[WA] Skipping restart — waiting for QR scan");
+    return;
+  }
   restarting = true;
   status = "disconnected";
   connectedJid = null;
@@ -122,6 +137,7 @@ function attachClientEvents() {
   });
 
   client.on("ready", async () => {
+    everConnected = true;
     status = "connected";
     qrBase64 = null;
     connectedJid = client.info?.wid?.user ?? null;
@@ -449,8 +465,10 @@ app.get("/pending", (req, res) => {
 app.post("/logout", async (req, res) => {
   status = "disconnected"; qrBase64 = null; connectedJid = null;
   res.json({ ok: true });
-  // Destroy and reinitialize to show QR for new connection
-  try { await client.logout(); } catch {}
+  // Destroy client and wipe saved session so next init always shows a fresh QR
+  try { await client.destroy(); } catch {}
+  const authDir = path.join(__dirname, "auth_info_wwjs");
+  try { fs.rmSync(authDir, { recursive: true, force: true }); } catch {}
   setTimeout(() => restartClient("logout"), 1000);
 });
 
