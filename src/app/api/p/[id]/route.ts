@@ -11,7 +11,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
   const { id } = await params;
   const { data, error } = await supabase
     .from("crm_products")
-    .select("id, name, image, sell_price, owner_id")
+    .select("id, name, image, sell_price, compare_price, owner_id")
     .eq("id", id)
     .maybeSingle();
 
@@ -40,6 +40,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
     name: data.name,
     image: data.image ?? "",
     price: parseFloat(data.sell_price ?? "0"),
+    comparePrice: data.compare_price ? parseFloat(data.compare_price) : null,
     ownerId: data.owner_id,
     facebookPixelId,
   });

@@ -12,6 +12,7 @@ type ProductInfo = {
   name: string;
   image: string;
   price: number;
+  comparePrice?: number | null;
   ownerId?: string;
   facebookPixelId?: string;
 };
@@ -163,7 +164,15 @@ export default function ProductPage() {
             <h1 className="text-2xl font-black text-slate-900 mb-3 leading-tight">{product.name}</h1>
             <div className="flex items-center gap-3 flex-wrap">
               <span className="text-3xl font-black text-blue-600">{product.price.toLocaleString("ar-MA")} درهم</span>
+              {product.comparePrice && product.comparePrice > product.price && (
+                <span className="text-xl text-slate-400 line-through font-semibold">{product.comparePrice.toLocaleString("ar-MA")} درهم</span>
+              )}
               <span className="bg-emerald-100 text-emerald-700 text-sm font-bold px-3 py-1 rounded-xl">الدفع عند الاستلام</span>
+              {product.comparePrice && product.comparePrice > product.price && (
+                <span className="bg-red-100 text-red-600 text-sm font-bold px-3 py-1 rounded-xl">
+                  -{Math.round((1 - product.price / product.comparePrice) * 100)}%
+                </span>
+              )}
             </div>
 
             {/* Trust badges */}

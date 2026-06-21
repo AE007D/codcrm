@@ -51,7 +51,7 @@ export async function POST(request: NextRequest) {
 
   try {
     const body = await request.json();
-    const { name, sku, image, sellPrice, purchasePrice, stock, minStock, facebookPixelId, boutiqueNom, agentId, agentName, commissionAmount } = body;
+    const { name, sku, image, sellPrice, comparePrice, purchasePrice, stock, minStock, facebookPixelId, boutiqueNom, agentId, agentName, commissionAmount } = body;
     if (!name) return NextResponse.json({ error: "Le nom est requis." }, { status: 400 });
 
     const product = await createProduct({
@@ -60,6 +60,7 @@ export async function POST(request: NextRequest) {
       sku: String(sku ?? "").trim(),
       image: String(image ?? ""),
       sellPrice: parseFloat(sellPrice) || 0,
+      comparePrice: comparePrice ? parseFloat(comparePrice) : undefined,
       purchasePrice: parseFloat(purchasePrice) || 0,
       stock: parseInt(stock) || 0,
       minStock: parseInt(minStock) || 5,
@@ -120,6 +121,7 @@ export async function PATCH(request: NextRequest) {
     if (rest.sku !== undefined) patch.sku = rest.sku;
     if (rest.image !== undefined) patch.image = rest.image;
     if (rest.sellPrice !== undefined) patch.sellPrice = parseFloat(rest.sellPrice) || 0;
+    if (rest.comparePrice !== undefined) patch.comparePrice = rest.comparePrice ? parseFloat(rest.comparePrice) : undefined;
     if (rest.purchasePrice !== undefined) patch.purchasePrice = parseFloat(rest.purchasePrice) || 0;
     if (rest.stock !== undefined) patch.stock = parseInt(rest.stock) || 0;
     if (rest.minStock !== undefined) patch.minStock = parseInt(rest.minStock) || 5;

@@ -9,6 +9,7 @@ export type Product = {
   sku: string;
   image: string;
   sellPrice: number;
+  comparePrice?: number; // old/crossed-out price shown on landing page
   purchasePrice: number;
   stock: number;
   minStock: number;
@@ -26,6 +27,7 @@ function rowToProduct(row: any): Product {
     sku: row.sku ?? "",
     image: row.image ?? "",
     sellPrice: parseFloat(row.sell_price ?? "0"),
+    comparePrice: row.compare_price ? parseFloat(row.compare_price) : undefined,
     purchasePrice: parseFloat(row.purchase_price ?? "0"),
     stock: row.stock ?? 0,
     minStock: row.min_stock ?? 5,
@@ -54,6 +56,7 @@ export async function createProduct(p: Omit<Product, "id" | "createdAt">): Promi
       sku: p.sku,
       image: p.image,
       sell_price: p.sellPrice,
+      compare_price: p.comparePrice ?? null,
       purchase_price: p.purchasePrice,
       stock: p.stock,
       min_stock: p.minStock,
@@ -71,6 +74,7 @@ export async function updateProduct(id: string, ownerId: string, patch: Partial<
   if (patch.sku !== undefined) dbPatch.sku = patch.sku;
   if (patch.image !== undefined) dbPatch.image = patch.image;
   if (patch.sellPrice !== undefined) dbPatch.sell_price = patch.sellPrice;
+  if (patch.comparePrice !== undefined) dbPatch.compare_price = patch.comparePrice || null;
   if (patch.purchasePrice !== undefined) dbPatch.purchase_price = patch.purchasePrice;
   if (patch.stock !== undefined) dbPatch.stock = patch.stock;
   if (patch.minStock !== undefined) dbPatch.min_stock = patch.minStock;

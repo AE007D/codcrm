@@ -28,7 +28,7 @@ type Product = {
 type OrderProduct = { name: string; unitsSold: number; orderCount: number; revenue: number };
 
 const emptyForm = {
-  name: "", sku: "", image: "", sellPrice: "", purchasePrice: "", stock: "", minStock: "5", facebookPixelId: "",
+  name: "", sku: "", image: "", sellPrice: "", comparePrice: "", purchasePrice: "", stock: "", minStock: "5", facebookPixelId: "",
   boutiqueNom: "", agentId: "", agentName: "", commissionAmount: "",
 };
 
@@ -149,7 +149,7 @@ export default function ProduitsPage() {
     setEditProduct(p);
     setForm({
       name: p.name, sku: p.sku, image: p.image,
-      sellPrice: String(p.sellPrice), purchasePrice: String(p.purchasePrice),
+      sellPrice: String(p.sellPrice), comparePrice: p.comparePrice ? String(p.comparePrice) : "", purchasePrice: String(p.purchasePrice),
       stock: String(p.stock), minStock: String(p.minStock),
       facebookPixelId: p.facebookPixelId ?? "",
       boutiqueNom: p.boutiqueNom ?? "",
@@ -203,10 +203,10 @@ export default function ProduitsPage() {
     setSaving(true); setFormError("");
     try {
       if (editProduct) {
-        const res = await fetch("/api/products", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id: editProduct.id, ...form, sellPrice: parseFloat(form.sellPrice) || 0, purchasePrice: parseFloat(form.purchasePrice) || 0, stock: parseInt(form.stock) || 0, minStock: parseInt(form.minStock) || 5 }) });
+        const res = await fetch("/api/products", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id: editProduct.id, ...form, sellPrice: parseFloat(form.sellPrice) || 0, comparePrice: parseFloat(form.comparePrice) || null, purchasePrice: parseFloat(form.purchasePrice) || 0, stock: parseInt(form.stock) || 0, minStock: parseInt(form.minStock) || 5 }) });
         if (!res.ok) { const d = await res.json(); setFormError(d.error || "Erreur."); return; }
       } else {
-        const res = await fetch("/api/products", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ...form, sellPrice: parseFloat(form.sellPrice) || 0, purchasePrice: parseFloat(form.purchasePrice) || 0, stock: parseInt(form.stock) || 0, minStock: parseInt(form.minStock) || 5 }) });
+        const res = await fetch("/api/products", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ...form, sellPrice: parseFloat(form.sellPrice) || 0, comparePrice: parseFloat(form.comparePrice) || null, purchasePrice: parseFloat(form.purchasePrice) || 0, stock: parseInt(form.stock) || 0, minStock: parseInt(form.minStock) || 5 }) });
         if (!res.ok) { const d = await res.json(); setFormError(d.error || "Erreur."); return; }
       }
       setShowModal(false);
@@ -526,6 +526,11 @@ export default function ProduitsPage() {
                   <label className="text-xs font-semibold text-slate-600 mb-1.5 block">Prix de vente (MAD)</label>
                   <input type="number" placeholder="350" min="0" value={form.sellPrice} onChange={e => setForm(f => ({ ...f, sellPrice: e.target.value }))}
                     className="w-full text-sm border border-slate-200 rounded-xl px-4 py-2.5 outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-50" />
+                </div>
+                <div>
+                  <label className="text-xs font-semibold text-slate-600 mb-1.5 block">Ancien prix / barré (MAD) <span className="text-slate-400 font-normal">— affiché sur la page produit</span></label>
+                  <input type="number" placeholder="450" min="0" value={form.comparePrice} onChange={e => setForm(f => ({ ...f, comparePrice: e.target.value }))}
+                    className="w-full text-sm border border-slate-200 rounded-xl px-4 py-2.5 outline-none focus:border-red-300 focus:ring-2 focus:ring-red-50" />
                 </div>
                 <div>
                   <label className="text-xs font-semibold text-slate-600 mb-1.5 block">Prix d&apos;achat (MAD)</label>
