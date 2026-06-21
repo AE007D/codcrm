@@ -4,7 +4,7 @@ import { getUsers } from "@/lib/authStore";
 import { getOrdersByWorkspace } from "@/lib/supabaseOrderStore";
 import { getSettings } from "@/lib/supabaseSettingsStore";
 import { getProducts } from "@/lib/supabaseProductStore";
-import { getAiMemory } from "@/lib/supabaseAiMemoryStore";
+import { getAiMemory, type AiMemory } from "@/lib/supabaseAiMemoryStore";
 
 export const dynamic = "force-dynamic";
 
@@ -46,7 +46,7 @@ async function analyzeAndSend(workspaceId: string) {
     getSettings(workspaceId).catch(() => null),
     getOrdersByWorkspace(workspaceId).catch(() => []),
     getProducts(workspaceId).catch(() => []),
-    getAiMemory(workspaceId).catch(() => ({})),
+    getAiMemory(workspaceId).catch(() => ({} as AiMemory)),
   ]);
 
   const tg = (settings as Record<string, unknown>)?.telegram as { botToken?: string; chatId?: string } | undefined;
