@@ -83,7 +83,7 @@ export default function AdsPage() {
   useEffect(() => {
     Promise.all([
       fetch("/api/settings").then(r => r.ok ? r.json() : null),
-      fetch("/api/products").then(r => r.ok ? r.json() : { products: [] }),
+      fetch("/api/products", { cache: "no-store" }).then(r => r.ok ? r.json() : { products: [] }),
       fetch("/api/orders").then(r => r.ok ? r.json() : { orders: [] }),
     ]).then(([settingsData, productsData, ordersData]) => {
       const saved = settingsData?.settings?.adCampaigns;
