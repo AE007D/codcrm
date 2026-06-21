@@ -12,6 +12,7 @@ type Product = {
   sku: string;
   image: string;
   sellPrice: number;
+  comparePrice?: number;
   purchasePrice: number;
   stock: number;
   minStock: number;
