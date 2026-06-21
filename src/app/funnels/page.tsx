@@ -56,13 +56,13 @@ export default function FunnelsPage() {
       const res = await fetch("/api/lf-leads");
       const data = await res.json();
       const serverLeads: FunnelLead[] = data.leads ?? [];
-      // Preserve local notes/callAttempts/recovered for existing leads
+      // Use server data as source of truth; preserve only local UI state (notes, callAttempts)
       setLeads(prev => {
         const localById = new Map(prev.map(l => [l.id, l]));
         return serverLeads.map(l => {
           const existing = localById.get(l.id);
           return existing
-            ? { ...l, notes: existing.notes, callAttempts: existing.callAttempts, recovered: existing.recovered }
+            ? { ...l, notes: existing.notes, callAttempts: existing.callAttempts }
             : l;
         });
       });
