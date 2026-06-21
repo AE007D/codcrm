@@ -8,14 +8,14 @@ import { syncToSupabaseAuth } from "@/lib/supabaseAuthSync";
 import { saveSettings } from "@/lib/supabaseSettingsStore";
 
 export async function POST(request: NextRequest) {
-  let body: { name?: string; email?: string; password?: string; role?: string; workspaceId?: string; storeName?: string };
+  let body: { name?: string; email?: string; password?: string; storeName?: string; shippingCompanies?: string[] };
   try {
     body = await request.json();
   } catch {
     return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
   }
 
-  const { name, email, password, role, workspaceId, storeName } = body;
+  const { name, email, password, storeName, shippingCompanies } = body;
   if (!name || !email || !password) {
     return NextResponse.json({ error: "Nom, email et mot de passe requis." }, { status: 400 });
   }
@@ -26,23 +26,22 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Cet email est déjà utilisé." }, { status: 409 });
     }
 
-    const validRoles = ["admin", "agent", "viewer"];
-    const assignedRole = validRoles.includes(role ?? "") ? (role as "admin" | "agent" | "viewer") : "agent";
-
-    // Fresh signup (no workspaceId passed) → admin of their own new workspace
-    // Invited by admin (workspaceId passed) → member of that workspace
+    // Public signup always creates a fresh admin with their own isolated workspace.
+    // Team member creation goes through POST /api/auth/users (requires admin auth).
     const user = await createUser({
       name,
       email,
       passwordHash: hashPassword(password),
-      role: workspaceId ? assignedRole : "admin", // fresh = always admin
+      role: "admin",
       active: true,
-      ...(workspaceId ? { workspaceId } : {}), // omit = own workspace (set in createUser)
     });
 
-    // Save store name in workspace settings
-    if (!workspaceId && storeName) {
-      saveSettings(user.workspaceId, { storeName }).catch(() => {});
+    // Save store name and shipping companies in workspace settings
+    if (storeName || shippingCompanies) {
+      saveSettings(user.workspaceId, {
+        ...(storeName ? { storeName } : {}),
+        ...(shippingCompanies?.length ? { shippingCompanies } : {}),
+      }).catch(() => {});
     }
 
     // Sync to Supabase Auth so user appears in Authentication → Users

@@ -5,6 +5,7 @@ import Image from "next/image";
 import { useParams } from "next/navigation";
 import LiveTracker from "@/components/LiveTracker";
 import { initFBPixel, trackFBEvent } from "@/lib/pixelEvents";
+import { HelpCircle, Truck, DollarSign, CheckCircle2, Phone, Package, AlertTriangle, ShoppingCart } from "lucide-react";
 
 type ProductInfo = {
   id: string;
@@ -108,7 +109,7 @@ export default function ProductPage() {
   if (notFound || !product) return (
     <div dir="rtl" className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 flex items-center justify-center p-4">
       <div className="bg-white rounded-3xl shadow-xl p-10 text-center max-w-sm w-full">
-        <div className="text-6xl mb-4">😕</div>
+        <HelpCircle size={60} className="text-slate-300 mx-auto mb-4" />
         <h1 className="text-xl font-bold text-slate-800 mb-2">المنتج غير موجود</h1>
         <p className="text-slate-400 text-sm">هذا الرابط غير صحيح أو انتهت صلاحيته.</p>
       </div>
@@ -124,7 +125,7 @@ export default function ProductPage() {
         <div className="w-20 h-20 bg-emerald-100 rounded-full flex items-center justify-center mx-auto mb-5">
           <svg viewBox="0 0 24 24" fill="none" stroke="#059669" strokeWidth={2.5} className="w-10 h-10"><polyline points="20 6 9 17 4 12"/></svg>
         </div>
-        <h1 className="text-2xl font-black text-slate-900 mb-3">تم تأكيد طلبك! 🎉</h1>
+        <h1 className="text-2xl font-black text-slate-900 mb-3">تم تأكيد طلبك!</h1>
         <p className="text-slate-500 text-sm leading-relaxed mb-6">
           شكراً على طلبك لـ <strong className="text-slate-700">{product.name}</strong>.<br />
           سيتصل بك فريقنا قريباً لتأكيد التوصيل.
@@ -147,7 +148,7 @@ export default function ProductPage() {
       />
       {/* Sticky urgency bar */}
       <div className="sticky top-0 z-50 bg-red-600 text-white text-center text-sm font-bold py-2.5 px-4 shadow-lg">
-        🔥 عرض محدود — اطلب الآن قبل نفاد الكمية!
+        عرض محدود — اطلب الآن قبل نفاد الكمية!
       </div>
 
       <div className="max-w-lg mx-auto px-4 py-6">
@@ -168,13 +169,13 @@ export default function ProductPage() {
             {/* Trust badges */}
             <div className="grid grid-cols-2 gap-2 mt-5">
               {[
-                { icon: "🚚", text: "توصيل سريع لجميع المدن" },
-                { icon: "💰", text: "الدفع عند الاستلام" },
-                { icon: "✅", text: "جودة مضمونة 100%" },
-                { icon: "📞", text: "خدمة عملاء متاحة" },
+                { Icon: Truck, text: "توصيل سريع لجميع المدن" },
+                { Icon: DollarSign, text: "الدفع عند الاستلام" },
+                { Icon: CheckCircle2, text: "جودة مضمونة 100%" },
+                { Icon: Phone, text: "خدمة عملاء متاحة" },
               ].map(b => (
                 <div key={b.text} className="flex items-center gap-2 bg-slate-50 rounded-xl px-3 py-2.5">
-                  <span className="text-lg">{b.icon}</span>
+                  <b.Icon size={18} className="text-blue-500 shrink-0" />
                   <span className="text-xs font-semibold text-slate-600">{b.text}</span>
                 </div>
               ))}
@@ -184,12 +185,12 @@ export default function ProductPage() {
 
         {/* Order form */}
         <div className="bg-white rounded-3xl shadow-xl p-6">
-          <h2 className="text-xl font-black text-slate-900 mb-1">📦 أكمل طلبك الآن</h2>
+          <h2 className="text-xl font-black text-slate-900 mb-1 flex items-center gap-2"><Package size={20} /> أكمل طلبك الآن</h2>
           <p className="text-sm text-slate-400 mb-5">أدخل معلوماتك وسنتصل بك لتأكيد التوصيل</p>
 
           {error && (
             <div className="bg-red-50 border border-red-200 text-red-700 text-sm rounded-2xl px-4 py-3 mb-4 font-medium">
-              ⚠️ {error}
+              <AlertTriangle size={14} className="inline mr-1" />{error}
             </div>
           )}
 
@@ -244,7 +245,7 @@ export default function ProductPage() {
 
             <button type="submit" disabled={submitting}
               className="w-full bg-blue-600 hover:bg-blue-700 active:scale-[0.98] disabled:opacity-60 text-white font-black text-lg py-4 rounded-2xl shadow-lg shadow-blue-200 transition-all">
-              {submitting ? "جارٍ إرسال الطلب..." : "🛒 تأكيد الطلب الآن"}
+              {submitting ? "جارٍ إرسال الطلب..." : <span className="flex items-center justify-center gap-2"><ShoppingCart size={18} /> تأكيد الطلب الآن</span>}
             </button>
 
             <p className="text-center text-xs text-slate-400">

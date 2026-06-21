@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import Sidebar from "@/components/Sidebar";
+import { BarChart3, ShoppingCart, AlertTriangle, TrendingUp, CheckCircle2, RefreshCw, PhoneOff, Flame } from "lucide-react";
 import { useLang } from "@/lib/i18n";
 
 type LeadType = "purchase" | "abandoned";
@@ -133,15 +134,15 @@ export default function FunnelsPage() {
           {/* KPIs */}
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 lg:gap-5 mb-6">
             {[
-              { label: "Total", value: leads.length, sub: `${funnelNames.length} source(s)`, color: "text-slate-900", icon: "📊" },
-              { label: "Achetés ✅", value: purchases.length, sub: `${totalRevenue.toLocaleString()} MAD encaissés`, color: "text-emerald-600", icon: "🛒" },
-              { label: "Abandonnés 📵", value: abandoned.filter(l => !l.recovered).length, sub: `${potentialRevenue.toLocaleString()} MAD à récupérer`, color: "text-red-500", icon: "⚠️" },
-              { label: "Taux conv.", value: `${conversionRate}%`, sub: `${recoveryRate}% récupérés`, color: conversionRate >= 50 ? "text-emerald-600" : conversionRate >= 30 ? "text-amber-600" : "text-red-500", icon: "📈" },
+              { label: "Total", value: leads.length, sub: `${funnelNames.length} source(s)`, color: "text-slate-900", Icon: BarChart3 },
+              { label: "Achetés", value: purchases.length, sub: `${totalRevenue.toLocaleString()} MAD encaissés`, color: "text-emerald-600", Icon: ShoppingCart },
+              { label: "Abandonnés", value: abandoned.filter(l => !l.recovered).length, sub: `${potentialRevenue.toLocaleString()} MAD à récupérer`, color: "text-red-500", Icon: AlertTriangle },
+              { label: "Taux conv.", value: `${conversionRate}%`, sub: `${recoveryRate}% récupérés`, color: conversionRate >= 50 ? "text-emerald-600" : conversionRate >= 30 ? "text-amber-600" : "text-red-500", Icon: TrendingUp },
             ].map(k => (
               <div key={k.label} className="bg-white rounded-2xl p-4 lg:p-5 shadow-sm border border-slate-100">
                 <div className="flex items-center justify-between mb-2">
                   <p className="text-sm text-slate-500 font-medium leading-tight">{k.label}</p>
-                  <span className="text-xl">{k.icon}</span>
+                  <k.Icon size={18} className={k.color} />
                 </div>
                 <p className={`text-2xl font-black ${k.color}`}>{k.value}</p>
                 <p className="text-xs text-slate-400 mt-1">{k.sub}</p>
@@ -152,7 +153,7 @@ export default function FunnelsPage() {
           {/* Recovery opportunity banner */}
           {abandoned.filter(l => !l.recovered && l.callAttempts === 0).length > 0 && (
             <div className="bg-gradient-to-r from-amber-500 to-orange-500 rounded-2xl px-5 py-4 mb-5 flex items-center gap-4">
-              <span className="text-3xl">🔥</span>
+              <Flame size={28} className="text-white shrink-0" />
               <div className="flex-1">
                 <p className="text-white font-bold text-base">
                   {abandoned.filter(l => !l.recovered && l.callAttempts === 0).length} panier(s) abandonné(s) jamais rappelés
@@ -231,7 +232,7 @@ export default function FunnelsPage() {
                     <div className="flex items-start gap-4">
                       {/* Type icon */}
                       <div className={`w-10 h-10 rounded-xl flex items-center justify-center text-xl shrink-0 ${isPurchase ? "bg-emerald-50" : isRecovered ? "bg-blue-50" : "bg-amber-50"}`}>
-                        {isPurchase ? "✅" : isRecovered ? "🔄" : "📵"}
+                        {isPurchase ? <CheckCircle2 size={20} className="text-emerald-500" /> : isRecovered ? <RefreshCw size={20} className="text-blue-500" /> : <PhoneOff size={20} className="text-amber-500" />}
                       </div>
 
                       {/* Main info */}
@@ -251,7 +252,7 @@ export default function FunnelsPage() {
 
                         <div className="flex flex-wrap gap-x-4 gap-y-0.5 text-sm text-slate-500 mb-2">
                           {lead.city && <span>📍 {lead.city}</span>}
-                          {lead.product && <span className="font-medium text-slate-700">🛍️ {lead.product}</span>}
+                          {lead.product && <span className="font-medium text-slate-700">{lead.product}</span>}
                           {lead.funnel && <span className="truncate max-w-[180px]">🔗 {lead.funnel}</span>}
                         </div>
 

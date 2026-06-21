@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback, useRef } from "react";
 import Sidebar from "@/components/Sidebar";
+import { Package, TrendingDown, TrendingUp, Trophy, AlertTriangle, Calendar, Target, Ruler, Bird, CheckCircle2, XCircle } from "lucide-react";
 import { useLang } from "@/lib/i18n";
 
 type Order = {
@@ -401,14 +402,14 @@ export default function FinancesPage() {
               {/* ── Main KPIs ── */}
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4 mb-5">
                 {[
-                  { label: "Chiffre d'affaires", value: `${fmt(revenue)} MAD`, sub: `${delivered.length} cmds livrées`, color: "text-emerald-600", bg: "bg-emerald-50", icon: "📦" },
-                  { label: "Total investi", value: `${fmt(totalCost)} MAD`, sub: `produits + pub + conf. + livraison`, color: "text-red-500", bg: "bg-red-50", icon: "💸" },
-                  { label: "Bénéfice net", value: `${netProfit >= 0 ? "+" : ""}${fmt(netProfit)} MAD`, sub: `ROI ${roi >= 0 ? "+" : ""}${roi.toFixed(0)}%`, color: netProfit >= 0 ? "text-blue-600" : "text-red-600", bg: netProfit >= 0 ? "bg-blue-50" : "bg-red-50", icon: netProfit >= 0 ? "🏆" : "⚠️" },
-                  { label: "Bénéfice / jour", value: `${profitPerDay >= 0 ? "+" : ""}${fmt(profitPerDay)} MAD`, sub: `${profitPerWeek >= 0 ? "+" : ""}${fmt(profitPerWeek)} MAD / semaine`, color: profitPerDay >= 0 ? "text-violet-600" : "text-red-500", bg: profitPerDay >= 0 ? "bg-violet-50" : "bg-red-50", icon: "📅" },
+                  { label: "Chiffre d'affaires", value: `${fmt(revenue)} MAD`, sub: `${delivered.length} cmds livrées`, color: "text-emerald-600", bg: "bg-emerald-50", Icon: Package },
+                  { label: "Total investi", value: `${fmt(totalCost)} MAD`, sub: `produits + pub + conf. + livraison`, color: "text-red-500", bg: "bg-red-50", Icon: TrendingDown },
+                  { label: "Bénéfice net", value: `${netProfit >= 0 ? "+" : ""}${fmt(netProfit)} MAD`, sub: `ROI ${roi >= 0 ? "+" : ""}${roi.toFixed(0)}%`, color: netProfit >= 0 ? "text-blue-600" : "text-red-600", bg: netProfit >= 0 ? "bg-blue-50" : "bg-red-50", Icon: netProfit >= 0 ? Trophy : AlertTriangle },
+                  { label: "Bénéfice / jour", value: `${profitPerDay >= 0 ? "+" : ""}${fmt(profitPerDay)} MAD`, sub: `${profitPerWeek >= 0 ? "+" : ""}${fmt(profitPerWeek)} MAD / semaine`, color: profitPerDay >= 0 ? "text-violet-600" : "text-red-500", bg: profitPerDay >= 0 ? "bg-violet-50" : "bg-red-50", Icon: Calendar },
                 ].map(k => (
                   <div key={k.label} className="bg-white rounded-2xl p-5 shadow-sm border border-slate-100">
                     <div className="flex items-center gap-2 mb-3">
-                      <span className="text-xl">{k.icon}</span>
+                      <k.Icon size={18} className={k.color} />
                       <p className="text-xs text-slate-500 font-medium">{k.label}</p>
                     </div>
                     <p className={`text-xl lg:text-2xl font-black ${k.color}`}>{k.value}</p>
@@ -421,7 +422,7 @@ export default function FinancesPage() {
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-5">
                 <div className="bg-white rounded-2xl p-5 shadow-sm border border-slate-100">
                   <div className="flex items-center gap-2 mb-3">
-                    <span className="text-xl">🎯</span>
+                    <Target size={18} className="text-orange-500" />
                     <p className="text-xs text-slate-500 font-medium">Coût par lead</p>
                   </div>
                   <p className="text-2xl font-black text-orange-600">{fmt(costPerLead)} MAD</p>
@@ -429,10 +430,10 @@ export default function FinancesPage() {
                   {costPerLead > 0 && avgRevPerDelivery > 0 && (
                     <p className="text-xs mt-2">
                       {costPerLead < avgRevPerDelivery * 0.2
-                        ? <span className="text-emerald-600 font-semibold">✅ CPL excellent</span>
+                        ? <span className="text-emerald-600 font-semibold flex items-center gap-1"><CheckCircle2 size={13} /> CPL excellent</span>
                         : costPerLead < avgRevPerDelivery * 0.4
-                        ? <span className="text-amber-600 font-semibold">⚠️ CPL acceptable</span>
-                        : <span className="text-red-600 font-semibold">❌ CPL élevé — réduire pub</span>
+                        ? <span className="text-amber-600 font-semibold flex items-center gap-1"><AlertTriangle size={13} /> CPL acceptable</span>
+                        : <span className="text-red-600 font-semibold flex items-center gap-1"><XCircle size={13} /> CPL élevé — réduire pub</span>
                       }
                     </p>
                   )}
@@ -441,7 +442,7 @@ export default function FinancesPage() {
 
                 <div className="bg-white rounded-2xl p-5 shadow-sm border border-slate-100">
                   <div className="flex items-center gap-2 mb-3">
-                    <span className="text-xl">📐</span>
+                    <Ruler size={18} className="text-slate-500" />
                     <p className="text-xs text-slate-500 font-medium">Seuil de rentabilité</p>
                   </div>
                   {marginPerDelivery > 0 && breakEvenOrders > 0 ? (
@@ -452,7 +453,7 @@ export default function FinancesPage() {
                         <div className="flex justify-between text-xs mb-1">
                           <span className="text-slate-500">{delivered.length} livrées</span>
                           <span className={breakEvenRemaining === 0 ? "text-emerald-600 font-bold" : "text-slate-500"}>
-                            {breakEvenRemaining === 0 ? "✅ Rentable!" : `encore ${breakEvenRemaining}`}
+                            {breakEvenRemaining === 0 ? "Rentable!" : `encore ${breakEvenRemaining}`}
                           </span>
                         </div>
                         <div className="h-2 bg-slate-100 rounded-full overflow-hidden">
@@ -471,13 +472,13 @@ export default function FinancesPage() {
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-5">
                 {/* Investment breakdown */}
                 <div className="bg-white rounded-2xl p-5 shadow-sm border border-slate-100">
-                  <h2 className="text-sm font-bold text-slate-700 mb-4">💸 Détail des coûts</h2>
+                  <h2 className="text-sm font-bold text-slate-700 mb-4 flex items-center gap-1.5"><TrendingDown size={15} /> Détail des coûts</h2>
                   <div className="space-y-3">
                     {[
                       { label: "Achats produits", value: productCost, sub: `${confirmed.length} cmds confirmées`, color: "bg-orange-500" },
                       { label: "Budget publicité", value: adsCost, sub: campaignAdSpend > 0 ? `${campaignsInPeriod.length} campagne(s) — Ads Manager` : `${costs.dailyAdsBudget} MAD × ${days} jours`, color: "bg-blue-500" },
                       { label: "Centre confirmation", value: confirmCost, sub: `${shipped.length} expédiées × ${costs.confirmationCostPerOrder} MAD`, color: "bg-violet-500" },
-                      { label: "🦅 Livraison Eagle Express", value: shippingCost, sub: `${shipped.length} colis expédiés × ${costs.shippingCostPerOrder} MAD`, color: "bg-amber-500" },
+                      { label: "Livraison Eagle Express", value: shippingCost, sub: `${shipped.length} colis expédiés × ${costs.shippingCostPerOrder} MAD`, color: "bg-amber-500" },
                       { label: "Frais retour", value: returnCost, sub: `${returned.length} × ${costs.returnShippingCost} MAD`, color: "bg-red-400" },
                     ].map(item => {
                       const pct = totalCost > 0 ? (item.value / totalCost) * 100 : 0;
@@ -512,8 +513,8 @@ export default function FinancesPage() {
                       { label: "Total commandes", value: filtered.length, color: "text-slate-800" },
                       { label: "Confirmées (centre conf.)", value: confirmed.length, color: "text-blue-600" },
                       { label: "Expédiées (Eagle)", value: shipped.length, color: "text-amber-600" },
-                      { label: "Livrées ✅", value: delivered.length, color: "text-emerald-600" },
-                      { label: "Retournées ❌", value: returned.length, color: "text-red-500" },
+                      { label: "Livrées", value: delivered.length, color: "text-emerald-600" },
+                      { label: "Retournées", value: returned.length, color: "text-red-500" },
                     ].map(r => (
                       <div key={r.label} className="flex justify-between items-center py-1.5 border-b border-slate-50 last:border-0">
                         <span className="text-sm text-slate-500">{r.label}</span>
@@ -543,7 +544,7 @@ export default function FinancesPage() {
               {/* ── Daily chart ── */}
               {chartDays.length > 0 && (
                 <div className="bg-white rounded-2xl p-5 shadow-sm border border-slate-100 mb-5">
-                  <h2 className="text-sm font-bold text-slate-700 mb-1">📈 Revenu vs Coûts (14 derniers jours)</h2>
+                  <h2 className="text-sm font-bold text-slate-700 mb-1 flex items-center gap-1.5"><TrendingUp size={15} /> Revenu vs Coûts (14 derniers jours)</h2>
                   <p className="text-xs text-slate-400 mb-4">Bleu = revenu livré · Rouge = coûts estimés</p>
                   <div className="flex items-end gap-1 h-28">
                     {chartDays.map(day => {
@@ -571,7 +572,7 @@ export default function FinancesPage() {
                   {/* Return rate by city */}
                   {cityStats.length > 0 && (
                     <div className="bg-white rounded-2xl p-5 shadow-sm border border-slate-100">
-                      <h2 className="text-sm font-bold text-slate-700 mb-4">🏙 Taux retour par ville</h2>
+                      <h2 className="text-sm font-bold text-slate-700 mb-4">Taux retour par ville</h2>
                       <div className="space-y-2">
                         {cityStats.map(c => (
                           <div key={c.city}>
@@ -594,7 +595,7 @@ export default function FinancesPage() {
                   {/* Return rate by product */}
                   {productStats.length > 0 && (
                     <div className="bg-white rounded-2xl p-5 shadow-sm border border-slate-100">
-                      <h2 className="text-sm font-bold text-slate-700 mb-4">📦 Taux retour par produit</h2>
+                      <h2 className="text-sm font-bold text-slate-700 mb-4 flex items-center gap-1.5"><Package size={15} /> Taux retour par produit</h2>
                       <div className="space-y-2">
                         {productStats.map(p => (
                           <div key={p.product}>
@@ -619,7 +620,7 @@ export default function FinancesPage() {
 
               {/* ── Profit projection ── */}
               <div className="bg-gradient-to-br from-blue-600 to-violet-600 rounded-2xl p-5 text-white shadow-lg">
-                <h2 className="text-sm font-bold opacity-80 mb-4">🎯 Projection bénéfice</h2>
+                <h2 className="text-sm font-bold opacity-80 mb-4 flex items-center gap-1.5"><Target size={15} /> Projection bénéfice</h2>
                 <div className="grid grid-cols-3 gap-2 sm:gap-3">
                   {[
                     { label: "/ Jour", value: fmt(profitPerDay) },
@@ -639,7 +640,7 @@ export default function FinancesPage() {
               <div className="bg-white rounded-2xl p-5 shadow-sm border border-slate-100 mt-5">
                 <div className="flex items-center justify-between mb-4">
                   <div>
-                    <h2 className="text-sm font-bold text-slate-700">💰 Suivi des virements Eagle Express</h2>
+                    <h2 className="text-sm font-bold text-slate-700 flex items-center gap-1.5"><Bird size={15} /> Suivi des virements Eagle Express</h2>
                     <p className="text-xs text-slate-400 mt-0.5">Enregistrez les paiements reçus d&apos;Eagle Express</p>
                   </div>
                   <button onClick={() => setShowAddVirement(v => !v)}

@@ -1,8 +1,9 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import React, { useState, useEffect } from "react";
 import Image from "next/image";
 import Sidebar from "@/components/Sidebar";
+import { Truck, Factory, Store } from "lucide-react";
 import { useLang } from "@/lib/i18n";
 
 type ShippingMode = "ramassage" | "stock";
@@ -19,18 +20,18 @@ type Store = {
   status: "Active" | "Inactive";
 };
 
-const SHIPPING_MODE_LABELS: Record<ShippingMode, { label: string; sub: string; icon: string; color: string; bg: string }> = {
+const SHIPPING_MODE_LABELS: Record<ShippingMode, { label: string; sub: string; icon: React.ElementType; color: string; bg: string }> = {
   ramassage: {
     label: "Ramassage",
     sub: "Le transporteur vient récupérer",
-    icon: "🚚",
+    icon: Truck,
     color: "text-blue-700",
     bg: "bg-blue-50",
   },
   stock: {
     label: "Stock transporteur",
     sub: "Stock déposé chez le livreur",
-    icon: "🏭",
+    icon: Factory,
     color: "text-violet-700",
     bg: "bg-violet-50",
   },
@@ -202,8 +203,8 @@ export default function BoutiquesPage() {
             {[
               { label: "Total boutiques", value: stores.length, color: "text-slate-900" },
               { label: "Actives", value: activeCount, color: "text-emerald-600" },
-              { label: "Ramassage 🚚", value: ramassageCount, color: "text-blue-700" },
-              { label: "Stock transporteur 🏭", value: stockCount, color: "text-violet-700" },
+              { label: "Ramassage", value: ramassageCount, color: "text-blue-700" },
+              { label: "Stock transporteur", value: stockCount, color: "text-violet-700" },
             ].map(k => (
               <div key={k.label} className="bg-white rounded-2xl p-5 shadow-sm border border-slate-100">
                 <p className="text-sm text-slate-500 font-medium mb-1">{k.label}</p>
@@ -226,7 +227,7 @@ export default function BoutiquesPage() {
           {/* Cards grid */}
           {filtered.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-24 gap-4">
-              <div className="w-20 h-20 bg-blue-50 rounded-3xl flex items-center justify-center text-4xl">🏪</div>
+              <div className="w-20 h-20 bg-blue-50 rounded-3xl flex items-center justify-center"><Store size={36} className="text-blue-400" /></div>
               <p className="text-slate-700 font-bold text-lg">Aucune boutique</p>
               <p className="text-slate-400 text-sm text-center">Ajoutez votre première boutique pour commencer à gérer vos expéditions.</p>
               <button onClick={openAdd} className="bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold px-6 py-3 rounded-xl shadow-md shadow-blue-200 transition-colors">
@@ -255,7 +256,7 @@ export default function BoutiquesPage() {
 
                     {/* Shipping mode badge — prominent */}
                     <div className={`mx-5 mt-4 flex items-center gap-3 rounded-xl px-4 py-3 ${mode.bg}`}>
-                      <span className="text-xl">{mode.icon}</span>
+                      <mode.icon size={18} className={mode.color} />
                       <div>
                         <p className={`text-sm font-bold ${mode.color}`}>{mode.label}</p>
                         <p className={`text-xs ${mode.color} opacity-75`}>{mode.sub}</p>
@@ -405,7 +406,7 @@ export default function BoutiquesPage() {
                       <button key={mode} type="button" onClick={() => setForm(f => ({ ...f, shippingMode: mode }))}
                         className={`flex flex-col items-center gap-2 rounded-2xl border-2 p-4 text-center transition-all cursor-pointer
                           ${active ? "border-blue-500 bg-blue-50 shadow-sm" : "border-slate-200 bg-white hover:border-slate-300"}`}>
-                        <span className="text-3xl">{m.icon}</span>
+                        <m.icon size={28} className={active ? m.color : "text-slate-400"} />
                         <div>
                           <p className={`text-sm font-bold ${active ? m.color : "text-slate-700"}`}>{m.label}</p>
                           <p className="text-xs text-slate-400 mt-0.5 leading-snug">{m.sub}</p>

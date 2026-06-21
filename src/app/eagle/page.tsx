@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import Sidebar from "@/components/Sidebar";
+import { AlertTriangle } from "lucide-react";
 
 type Creds = { tk: string; sk: string };
 type City = { ID?: string; City?: string; Delivered_Fees?: string; Returned_Fees?: string; Refused_Fees?: string; Changed_Fees?: string; [k: string]: unknown };
@@ -120,11 +121,11 @@ export default function EaglePage() {
   const filteredCities = cities.filter(c => String(c.City ?? "").toLowerCase().includes(citySearch.toLowerCase()));
 
   const tabs = [
-    { key: "config", label: "⚙️ Config" },
-    { key: "add", label: "➕ Ajouter colis" },
-    { key: "packages", label: `📦 Mes colis${packages.length ? ` (${packages.length})` : ""}` },
-    { key: "track", label: "🔍 Tracking" },
-    { key: "cities", label: `🏙️ Villes & Tarifs` },
+    { key: "config", label: "Config" },
+    { key: "add", label: "+ Ajouter colis" },
+    { key: "packages", label: `Mes colis${packages.length ? ` (${packages.length})` : ""}` },
+    { key: "track", label: "Tracking" },
+    { key: "cities", label: `Villes & Tarifs` },
   ] as const;
 
   return (
@@ -202,7 +203,7 @@ export default function EaglePage() {
             <div className="max-w-xl">
               {!isConnected && (
                 <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4 mb-5 text-sm text-amber-700 font-medium">
-                  ⚠️ Configurez vos identifiants d&apos;abord dans l&apos;onglet Config.
+                  <AlertTriangle size={15} className="inline mr-1 text-amber-600" />Configurez vos identifiants d&apos;abord dans l&apos;onglet Config.
                 </div>
               )}
               <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-6">

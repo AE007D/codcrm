@@ -6,6 +6,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { useState, useEffect, useRef } from "react";
 import { CodCrmLogo } from "@/components/CodCrmLogo";
 import { useLang, type Lang } from "@/lib/i18n";
+import { Phone, Truck, CheckCircle2 } from "lucide-react";
 
 type CurrentUser = {
   id: string;
@@ -111,6 +112,12 @@ const navItems: NavItem[] = [
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="w-5 h-5">
       <line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/>
       <line x1="6" y1="20" x2="6" y2="14"/><line x1="2" y1="20" x2="22" y2="20"/>
+    </svg>
+  )},
+  { labelKey: "nav_ai", href: "/ai", adminOnly: true, icon: (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="w-5 h-5">
+      <path d="M12 2a7 7 0 017 7c0 2.5-1.3 4.7-3.3 6L15 21H9l-.7-6A7 7 0 0112 2z"/>
+      <path d="M9 21h6"/><path d="M12 12v3"/>
     </svg>
   )},
 ];
@@ -401,7 +408,7 @@ export default function Sidebar() {
                       <div>
                         <div className="px-4 py-2 bg-amber-50 border-b border-amber-100">
                           <span className="text-xs font-bold text-amber-700 uppercase tracking-wide">
-                            📞 {t("to_confirm")} ({nouveauOrders.length})
+                            <Phone size={12} className="inline mr-1" />{t("to_confirm")} ({nouveauOrders.length})
                           </span>
                         </div>
                         {nouveauOrders.slice(0, 5).map(o => (
@@ -429,7 +436,7 @@ export default function Sidebar() {
                       <div>
                         <div className="px-4 py-2 bg-blue-50 border-b border-blue-100">
                           <span className="text-xs font-bold text-blue-700 uppercase tracking-wide">
-                            🚚 {t("to_ship")} ({confirmedOrders.length})
+                            <Truck size={12} className="inline mr-1" />{t("to_ship")} ({confirmedOrders.length})
                           </span>
                         </div>
                         {confirmedOrders.slice(0, 5).map(o => (
@@ -454,7 +461,7 @@ export default function Sidebar() {
 
                     {notifTotal === 0 && (
                       <div className="px-4 py-8 text-center">
-                        <p className="text-2xl mb-2">✅</p>
+                        <CheckCircle2 size={28} className="text-emerald-400 mx-auto mb-2" />
                         <p className="text-sm text-slate-500">{t("no_pending_orders")}</p>
                       </div>
                     )}
@@ -513,7 +520,7 @@ export default function Sidebar() {
               <circle cx="12" cy="12" r="10"/><path d="M2 12h20M12 2a15.3 15.3 0 010 20M12 2a15.3 15.3 0 000 20"/>
             </svg>
             <div className="flex gap-0.5 ml-1">
-              {(["fr", "ar", "en"] as Lang[]).map(l => (
+              {(["fr", "ar", "en", "dz"] as Lang[]).map(l => (
                 <button key={l} onClick={() => setLang(l)}
                   className={`text-xs font-bold px-2 py-1 rounded-lg transition-colors uppercase ${
                     lang === l ? "bg-blue-600 text-white" : "text-slate-400 hover:text-slate-700 hover:bg-slate-100"

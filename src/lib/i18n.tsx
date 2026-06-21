@@ -2,7 +2,7 @@
 
 import { createContext, useContext, useState, useEffect, ReactNode } from "react";
 
-export type Lang = "fr" | "ar" | "en";
+export type Lang = "fr" | "ar" | "en" | "dz";
 
 const T: Record<Lang, Record<string, string>> = {
   fr: {
@@ -44,6 +44,7 @@ const T: Record<Lang, Record<string, string>> = {
     nav_telegram: "Telegram",
     nav_integrations: "Intégrations",
     nav_reports: "Rapports",
+    nav_ai: "Conseiller IA",
 
     // ── Statuses ─────────────────────────────────────────────────────────────
     status_nouveau: "Nouveau",
@@ -298,10 +299,10 @@ const T: Record<Lang, Record<string, string>> = {
     // ── Ameex page ────────────────────────────────────────────────────────────
     ameex_title: "Ameex",
     ameex_subtitle: "ameex.ma · Livraison & Logistique COD",
-    tab_config: "⚙️ Config",
-    tab_add_parcel: "➕ Ajouter colis",
-    tab_my_parcels: "📦 Mes colis",
-    tab_tracking: "🔍 Tracking",
+    tab_config: "Config",
+    tab_add_parcel: "+ Ajouter colis",
+    tab_my_parcels: "Mes colis",
+    tab_tracking: "Tracking",
     new_parcel: "Nouveau colis Ameex",
 
     // ── Integrations page ─────────────────────────────────────────────────────
@@ -381,6 +382,7 @@ const T: Record<Lang, Record<string, string>> = {
     nav_telegram: "تيليغرام",
     nav_integrations: "التكاملات",
     nav_reports: "التقارير",
+    nav_ai: "مستشار الذكاء الاصطناعي",
 
     // ── Statuses ─────────────────────────────────────────────────────────────
     status_nouveau: "جديد",
@@ -635,10 +637,10 @@ const T: Record<Lang, Record<string, string>> = {
     // ── Ameex page ────────────────────────────────────────────────────────────
     ameex_title: "Ameex",
     ameex_subtitle: "ameex.ma · توصيل ولوجستيك COD",
-    tab_config: "⚙️ الإعداد",
-    tab_add_parcel: "➕ إضافة طرد",
-    tab_my_parcels: "📦 طرودي",
-    tab_tracking: "🔍 تتبع",
+    tab_config: "الإعداد",
+    tab_add_parcel: "+ إضافة طرد",
+    tab_my_parcels: "طرودي",
+    tab_tracking: "تتبع",
     new_parcel: "طرد Ameex جديد",
 
     // ── Integrations page ─────────────────────────────────────────────────────
@@ -718,6 +720,7 @@ const T: Record<Lang, Record<string, string>> = {
     nav_telegram: "Telegram",
     nav_integrations: "Integrations",
     nav_reports: "Reports",
+    nav_ai: "AI Advisor",
 
     // ── Statuses ─────────────────────────────────────────────────────────────
     status_nouveau: "New",
@@ -972,10 +975,10 @@ const T: Record<Lang, Record<string, string>> = {
     // ── Ameex page ────────────────────────────────────────────────────────────
     ameex_title: "Ameex",
     ameex_subtitle: "ameex.ma · COD Delivery & Logistics",
-    tab_config: "⚙️ Config",
-    tab_add_parcel: "➕ Add parcel",
-    tab_my_parcels: "📦 My parcels",
-    tab_tracking: "🔍 Tracking",
+    tab_config: "Config",
+    tab_add_parcel: "+ Add parcel",
+    tab_my_parcels: "My parcels",
+    tab_tracking: "Tracking",
     new_parcel: "New Ameex parcel",
 
     // ── Integrations page ─────────────────────────────────────────────────────
@@ -1014,6 +1017,344 @@ const T: Record<Lang, Record<string, string>> = {
     pw_good: "Good",
     pw_strong: "Strong",
   },
+
+  // ════════════════════════════════════════════════════════════════════════════
+  dz: {
+    // ── Sidebar ──────────────────────────────────────────────────────────────
+    tagline: "Oder. Sifet. Qbed.",
+    notifications: "Notifications",
+    all_up_to_date: "Kol chi mzyan ✓",
+    n_pending: "f attente",
+    to_confirm: "Khassek tconfirmi",
+    to_ship: "Khassek tsifet",
+    no_pending_orders: "Ma kayn ta commande",
+    view_all_orders: "Chouf kol commandes →",
+    menu: "Menu",
+    sound_on: "Son mfetch",
+    sound_off: "Son msakker",
+    logging_out: "Khrouj…",
+    log_out: "Khroj",
+    role_admin: "Admin",
+    role_agent: "Agent",
+    role_viewer: "Viewer",
+    language: "Lugha",
+
+    // ── Nav ──────────────────────────────────────────────────────────────────
+    nav_dashboard: "Dashboard",
+    nav_orders: "Commandes",
+    nav_payments: "Paiements",
+    nav_checkouts: "Paniers abandonnés",
+    nav_clients: "Clients",
+    nav_products: "Produits",
+    nav_boutiques: "Boutiques",
+    nav_team: "Équipe",
+    nav_finances: "Finances",
+    nav_calculator: "Calculateur",
+    nav_transit: "F Route",
+    nav_ameex: "Ameex",
+    nav_visitors: "Visiteurs live",
+    nav_ads: "Ads Manager",
+    nav_whatsapp: "WhatsApp",
+    nav_telegram: "Telegram",
+    nav_integrations: "Intégrations",
+    nav_reports: "Rapports",
+    nav_ai: "Moustacher IA",
+
+    // ── Statuses ─────────────────────────────────────────────────────────────
+    status_nouveau: "Jdid",
+    status_confirme: "Mconfirmi",
+    status_expedie: "Msifte",
+    status_livre: "Wsel",
+    status_retourne: "Rja3",
+    status_annule: "Annulé",
+    status_injoignable: "Ma kayrdch",
+    status_fausse: "Commande kahba",
+
+    // ── Common actions ────────────────────────────────────────────────────────
+    save: "Sauvegardi",
+    saving: "Kaytsakhar…",
+    cancel: "Annuli",
+    delete: "Hayed",
+    search: "Qlab…",
+    add: "Zid",
+    edit: "Bdel",
+    close: "Sakker",
+    confirm: "Confirmi",
+    loading: "Kaycharg…",
+    sending: "Kaytb3at…",
+    today: "Lyoum",
+    week: "7 iyam",
+    month: "30 yom",
+    all: "Kol chi",
+    show: "Wri",
+    hide: "Khbbi",
+    configure: "Config",
+    test: "Tester",
+    no_data: "Ma kayn data",
+    back: "Rja3",
+    send: "B3at",
+    year: "3am",
+    export: "Exporter",
+    import: "Importer",
+    refresh: "Refresh",
+
+    // ── Dashboard ────────────────────────────────────────────────────────────
+    dashboard: "Dashboard",
+    new_order_btn: "+ Commande jdida",
+    kpi_orders: "Commandes",
+    kpi_confirmed: "Mconfimyin",
+    kpi_cancelled: "Annulyin",
+    kpi_delivered: "Wslow",
+    kpi_pending: "F attente",
+    kpi_revenue: "CA (درهم)",
+    kpi_confirm_rate: "Taux confirmation",
+    kpi_delivery_rate: "Taux livraison",
+    today_placed: "Placées",
+    chart_evolution: "Évolution",
+    no_chart_data: "Ma kayn data lhal",
+    top_products: "🏆 Mzyan produits",
+    no_products_period: "Ma kayn produits",
+    top_cities: "Mzyan mudun",
+    team: "Équipe",
+    manage_team: "Gestion équipe →",
+    recent_orders_title: "Lakharin commandes",
+    see_all: "Chouf kol chi →",
+    no_orders_period: "Ma kayn commandes",
+    updated_at: "Mj3ad",
+    period_today: "Lyoum",
+    period_week: "Had simana",
+    period_month: "Had shhar",
+    period_year: "Had 3am",
+    col_id: "ID",
+    col_amount: "Mablagh",
+    col_date: "Data",
+    col_client: "Client",
+    chart_orders: "Commandes",
+    chart_revenue: "CA",
+    sold: "mba3",
+    members: "membre",
+    status_confirmed: "Mconfirmi",
+    status_delivered: "Wsel",
+    status_shipped: "Msifte",
+    status_cancelled: "Annulé",
+    status_pending: "F attente",
+    status_returned: "Rja3",
+
+    // ── Orders page ───────────────────────────────────────────────────────────
+    orders_title: "Commandes",
+    orders_subtitle: "Gestion dyal commandes",
+    new_order: "+ Commande jdida",
+    ship_order: "Sifet",
+    ship_via_eagle: "Sifet b Eagle Express",
+    tracking_number: "Numéro suivi",
+    customer_name: "Smiyat client",
+    phone: "Téléphone",
+    city: "Mdina",
+    address: "Adresse",
+    product: "Produit",
+    quantity: "Kammiya",
+    price: "Prix (درهم)",
+    notes: "Notes",
+    no_orders: "Ma kayn ta commande",
+    sync_eagle: "Sync Eagle",
+    filter_all: "Kol chi",
+    search_orders: "Qlab smiya, mdina, produit…",
+
+    // ── Finances page ──────────────────────────────────────────────────────────
+    finances_title: "Finances",
+    finances_subtitle: "Investissement · CA · Rbah",
+    revenue: "Chiffre d'affaires",
+    total_invested: "Total investissement",
+    net_profit: "Rbah safi",
+    profit_per_day: "Rbah / yom",
+    cost_breakdown: "Tafssil takalif",
+    orders_summary: "Mulakhas commandes",
+    modify_costs: "Bdel takalif",
+    telegram_report: "Rapport Telegram",
+
+    // ── Products page ─────────────────────────────────────────────────────────
+    products_title: "Produits",
+    products_subtitle: "produit f catalogue",
+    add_product: "Zid produit",
+    edit_product: "Bdel produit",
+    product_name: "Smiyat produit",
+    purchase_price: "Prix chira (درهم)",
+    sell_price: "Prix bi3 (درهم)",
+    uploading_img: "Kaychahrg image…",
+    search_product: "Qlab smiya wla SKU…",
+    col_product: "Produit",
+    col_sku: "SKU",
+    col_buy: "Chira",
+    col_sell: "Bi3",
+    col_stock: "Stock",
+    no_products: "Ma kayn produits f catalogue",
+
+    // ── Clients page ──────────────────────────────────────────────────────────
+    clients_title: "Clients",
+    clients_registered: "clients msajlin",
+    configure_integrations: "Config intégrations",
+    col_name: "Smiya",
+    col_city: "Mdina",
+    col_phone: "Téléphone",
+    col_orders_short: "Cmds",
+    col_total: "Total",
+    col_last_order: "Lakhir",
+    no_clients: "Ma kayn clients",
+    search_client: "Qlab client…",
+
+    // ── Rapports page ─────────────────────────────────────────────────────────
+    reports_title: "Rapports",
+    real_performance: "Performance haqiqiya",
+    monthly_report: "Rapport shhari",
+    col_month: "Shhar",
+    col_revenue_short: "CA",
+    col_delivery_rate: "Taux livraison",
+    col_returned: "Rj3u",
+    export_csv: "Export CSV",
+
+    // ── Compte page ───────────────────────────────────────────────────────────
+    my_account: "Hesabi",
+    my_profile: "Profil dyali",
+    change_password: "Bdel mot de passe",
+    current_password_label: "Mot de passe daba",
+    new_password_label: "Mot de passe jdid",
+    confirm_new_password: "Akked mot de passe jdid",
+    profile_updated: "Profil mj3ad ✓",
+    password_updated: "Mot de passe tbdel ✓",
+
+    // ── Equipe page ───────────────────────────────────────────────────────────
+    team_title: "Équipe",
+    active_members: "membre nachet",
+    invite_member: "D3u",
+    no_members: "Ma kayn membres",
+    assign_products_btn: "Assign produits",
+    col_role: "Rôle",
+    col_email: "Email",
+    col_status: "Halat",
+    active: "Nachet",
+    inactive: "Ma nachetch",
+
+    // ── Boutiques page ────────────────────────────────────────────────────────
+    stores_title: "Boutiques",
+    stores_count: "boutique msajla",
+    add_store: "Zid boutique",
+    store_name_label: "Smiyat boutique",
+    pickup_mode: "Ramassage",
+    stock_mode: "Stock transporteur",
+    no_stores: "Ma kayn boutiques",
+    assign_products_store: "Assign produits l boutique",
+
+    // ── Calculateur page ──────────────────────────────────────────────────────
+    calculator_title: "Calculateur produits",
+    calculator_subtitle: "Hlel rbahiya dyal produits dyalek",
+    add_to_calculator: "Zid produit",
+    profitability: "Rbahiya",
+    break_even: "Noqtat tawazun",
+    search_catalog: "Qlab produit f catalogue…",
+    roi: "ROI",
+
+    // ── Visiteurs page ────────────────────────────────────────────────────────
+    live_view: "Vue direct",
+    live_subtitle: "Activité f waqt haqiqi f Maghrib",
+    active_visitors: "visiteurs nachin",
+    recent_orders_live: "Commandes lakhirin",
+
+    // ── Ads page ──────────────────────────────────────────────────────────────
+    ads_title: "Ads Manager",
+    ads_subtitle: "Facebook & TikTok — CPP / CPD / ROAS b produit",
+    campaigns_view: "Campagnes",
+    daily_view: "Youmi",
+    col_platform: "Plateforme",
+    col_spend: "Infaq",
+    col_cpp: "CPP",
+    col_cpd: "CPD",
+    col_roas: "ROAS",
+    add_campaign: "Zid campagne",
+    no_campaigns: "Ma kayn campagnes",
+
+    // ── Telegram page ─────────────────────────────────────────────────────────
+    telegram_search_title: "Bhath Telegram",
+    telegram_search_subtitle: "Charger photo produit — lqat groupes COD Maghrib",
+    upload_image: "Charger image",
+    search_btn: "Qlab",
+    drag_drop: "Jarr image wla klik bach tkhtar",
+
+    // ── Paiements page ────────────────────────────────────────────────────────
+    payments_admin_title: "Paiements équipe",
+    payments_agent_title: "Paiements dyali",
+    status_pending_pay: "F attente",
+    status_paid: "Mkhlas ✓",
+    status_refused: "Marfoud",
+    total_earned: "Total rbah",
+    already_paid: "Deja mkhlas",
+    available_balance: "Disponible",
+    request_payment: "Tlab paiement",
+
+    // ── Funnels page ──────────────────────────────────────────────────────────
+    checkouts_title: "Paniers abandonnés",
+    checkouts_subtitle: "Paniers mhaydin · Tzkir w tstirja3",
+    purchased: "Shtraw",
+    abandoned_tab: "Mhaydin",
+    recovered: "Mstirj3in",
+    conv_rate: "Taux conv.",
+    search_funnel: "Qlab smiya, tel, produit…",
+
+    // ── Transit page ──────────────────────────────────────────────────────────
+    transit_title: "F Route · Ameex",
+    transit_subtitle: "Taba3 colis li mazalin f route",
+    in_progress: "F khedma",
+    col_total_parcels: "Total colis",
+    col_in_delivery: "F tawsil",
+    type_all: "Kol chi",
+    type_simple: "SIMPLE",
+    type_stock: "STOCK",
+    search_transit: "Qlab code, client, mdina…",
+
+    // ── Ameex page ────────────────────────────────────────────────────────────
+    ameex_title: "Ameex",
+    ameex_subtitle: "ameex.ma · Tawsil w logistique COD",
+    tab_config: "Config",
+    tab_add_parcel: "+ Zid colis",
+    tab_my_parcels: "Colis dyali",
+    tab_tracking: "Tracking",
+    new_parcel: "Colis jdid Ameex",
+
+    // ── Integrations page ─────────────────────────────────────────────────────
+    integrations_title: "Intégrations",
+    integrations_subtitle: "Wassel les outils dyalek",
+    integ_sources: "Sources",
+    integ_shipping: "Tawsil",
+    integ_ads: "Pub",
+    integ_notif: "Notifications",
+    api_key_label: "Clé API",
+    test_api: "Tester API",
+    api_ok: "API khdama ✓",
+    connected: "Mwassel",
+    not_connected: "Mawasalch",
+
+    // ── Login ──────────────────────────────────────────────────────────────────
+    welcome_back: "Mrhba bik 👋",
+    sign_in_subtitle: "Dkhol l espace CRM dyalek",
+    create_account: "Nsha compte",
+    create_subtitle: "Ibda bla flous, bla carte bancaire",
+    email: "Email",
+    password: "Mot de passe",
+    sign_in: "Dkhol",
+    signing_in: "Kaydkhol…",
+    creating: "Kaynsha…",
+    no_account: "Ma 3andakch compte?",
+    create_free: "Nsha compte bla flous",
+    already_account: "3andak compte?",
+    full_name: "Smiya kamla",
+    store_name: "Smiyat boutique",
+    confirm_password: "Akked mot de passe",
+    create_my_account: "Nsha hesabi →",
+    or_with_email: "wla b email",
+    pw_weak: "D3if",
+    pw_medium: "Moyen",
+    pw_good: "Mzyan",
+    pw_strong: "Qawi",
+  },
 };
 
 type LangCtx = {
@@ -1033,7 +1374,7 @@ export function LangProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     const stored = localStorage.getItem("codcrm_lang") as Lang | null;
-    if (stored && (stored === "fr" || stored === "ar" || stored === "en")) {
+    if (stored && (stored === "fr" || stored === "ar" || stored === "en" || stored === "dz")) {
       setLangState(stored);
     }
   }, []);

@@ -11,6 +11,8 @@ export type UserSettings = {
   pagePixels?: Record<string, string>;
   productCommissions?: Record<string, { boutiqueNom: string; agentId: string; agentName: string; commissionAmount: number }>;
   boutiques?: string[];
+  storeName?: string;
+  shippingCompanies?: string[];
   [key: string]: unknown;
 };
 

@@ -16,7 +16,7 @@ const PUBLIC_API_PREFIXES = [
   "/api/wa-auto-check", // called by WA server scheduler
 ];
 
-export default function proxy(request: NextRequest) {
+export function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
   // Always allow static assets

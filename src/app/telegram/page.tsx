@@ -3,6 +3,7 @@
 import { useState, useRef } from "react";
 import Sidebar from "@/components/Sidebar";
 import { useLang } from "@/lib/i18n";
+import { Search } from "lucide-react";
 
 type TelegramResult = { url: string; title: string; snippet: string; channel: string };
 
@@ -146,7 +147,7 @@ export default function TelegramPage() {
             {/* Reverse image search link */}
             {reverseImageUrl && (
               <div className="bg-amber-50 border border-amber-200 rounded-2xl px-5 py-4 flex items-center gap-3">
-                <span className="text-2xl">🔍</span>
+                <Search size={22} className="text-amber-600 shrink-0" />
                 <div className="flex-1">
                   <p className="text-sm font-semibold text-amber-800">Recherche inversée par image</p>
                   <p className="text-xs text-amber-600 mt-0.5">Yandex peut trouver des résultats Telegram supplémentaires à partir de l&apos;image</p>

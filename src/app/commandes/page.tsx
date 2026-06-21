@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback, useMemo, useRef } from "react";
-import { Package, Warehouse, Home, AlertTriangle } from "lucide-react";
+import { Package, Warehouse, Home, AlertTriangle, PhoneOff, RefreshCw, Bird } from "lucide-react";
 import { AMEEX_CITIES_FALLBACK } from "@/lib/moroccanCities";
 import { cachedFetch, invalidateCache } from "@/lib/clientCache";
 import Sidebar from "@/components/Sidebar";
@@ -1063,11 +1063,11 @@ export default function CommandesPage() {
                         <p className="font-bold text-slate-900">{o.customer}</p>
                         {repeatCount > 1 && (
                           <span className="inline-flex items-center gap-1 text-xs font-semibold bg-indigo-100 text-indigo-700 px-2 py-0.5 rounded-full">
-                            🔁 {repeatCount} commandes
+                            <RefreshCw size={11} /> {repeatCount} commandes
                           </span>
                         )}
                         {o.status !== "retourné" && returnedPhones.has((o.phone ?? "").replace(/\s+/g, "")) && (
-                          <span className="text-[10px] font-bold px-1.5 py-0.5 bg-red-100 text-red-600 rounded-lg">⚠️ Retour passé</span>
+                          <span className="text-[10px] font-bold px-1.5 py-0.5 bg-red-100 text-red-600 rounded-lg flex items-center gap-0.5"><AlertTriangle size={10} /> Retour passé</span>
                         )}
                       </div>
                       <a href={`tel:${o.phone}`} onClick={e => { e.stopPropagation(); incrementAttempt(o.id); }}
@@ -1077,7 +1077,7 @@ export default function CommandesPage() {
                       </a>
                       {o.noAnswer > 0 && (
                         <span className={`mt-1 inline-flex items-center gap-1 text-xs font-semibold px-2 py-0.5 rounded-lg ${o.noAnswer >= 3 ? "bg-amber-100 text-amber-700" : "bg-slate-100 text-slate-500"}`}>
-                          📵 {o.noAnswer}× sans réponse
+                          <PhoneOff size={11} className="shrink-0" /> {o.noAnswer}× sans réponse
                           {o.noAnswer >= 3 && o.status !== "annulé" && o.status !== "livré" && (
                             <button onClick={e => { e.stopPropagation(); setStatus(o.id, "annulé"); }}
                               className="ml-1 text-[10px] font-bold px-1.5 py-0.5 bg-red-100 text-red-600 rounded hover:bg-red-200">
@@ -1153,7 +1153,7 @@ export default function CommandesPage() {
                     {o.status === "retourné" && isAdmin && (
                       <button onClick={() => openShipModal([o.id])}
                         className="flex items-center gap-1 bg-amber-100 hover:bg-amber-200 text-amber-700 text-xs font-bold px-2.5 py-1.5 rounded-xl transition-colors">
-                        🔄 Ré-expédier
+                        <RefreshCw size={12} /> Ré-expédier
                       </button>
                     )}
                     <button onClick={() => setDrawer(o)}
@@ -1230,7 +1230,7 @@ export default function CommandesPage() {
                           </a>
                           {o.noAnswer > 0 && (
                             <span className={`mt-1 inline-flex items-center gap-1 text-xs font-semibold px-2 py-0.5 rounded-lg ${o.noAnswer >= 3 ? "bg-amber-100 text-amber-700" : "bg-slate-100 text-slate-500"}`}>
-                              📵 {o.noAnswer}× sans réponse
+                              <PhoneOff size={11} className="shrink-0" /> {o.noAnswer}× sans réponse
                             </span>
                           )}
                         </td>
@@ -1258,10 +1258,9 @@ export default function CommandesPage() {
                                           isRam     ? "bg-indigo-100 text-indigo-700" :
                                           isCours   ? "bg-blue-100 text-blue-700" :
                                                       "bg-slate-100 text-slate-600";
-                            const icon = isLivr ? "✓" : isRetour ? "↩" : isRam ? "📦" : "🚚";
                             return (
                               <span className={`mt-1 flex items-center gap-1 text-xs font-semibold px-2 py-0.5 rounded-lg ${style}`}>
-                                {icon} {o.carrierStatus.split(/[\n,]+/)[0].trim().slice(0, 20)}
+                                {o.carrierStatus.split(/[\n,]+/)[0].trim().slice(0, 20)}
                               </span>
                             );
                           })()}
@@ -1499,7 +1498,7 @@ export default function CommandesPage() {
               <div className="grid grid-cols-2 gap-2">
                 <button onClick={() => setShipCarrier("eagle")}
                   className={`flex items-center gap-2 px-4 py-3 rounded-2xl border-2 transition-all ${shipCarrier === "eagle" ? "border-amber-400 bg-amber-50" : "border-slate-200 bg-white hover:border-slate-300"}`}>
-                  <span className="text-2xl">🦅</span>
+                  <Bird size={22} className={shipCarrier === "eagle" ? "text-amber-600" : "text-slate-400"} />
                   <div className="text-left">
                     <p className={`text-sm font-bold ${shipCarrier === "eagle" ? "text-amber-800" : "text-slate-700"}`}>Eagle Express</p>
                     <p className={`text-xs ${shipCarrier === "eagle" ? "text-amber-600" : "text-slate-400"}`}>Nom de ville</p>
@@ -1565,10 +1564,10 @@ export default function CommandesPage() {
                 const selectedOrders = orders.filter(o => selected.has(o.id));
                 return (
                   <div className="space-y-2">
-                    <p className="text-xs font-semibold text-slate-500">🏙 Ville Ameex :</p>
+                    <p className="text-xs font-semibold text-slate-500">Ville Ameex :</p>
                     {ameexCities.length === 0 && (
                       <p className="text-xs text-amber-600 bg-amber-50 px-3 py-2 rounded-xl border border-amber-200">
-                        ⚠️ Villes non chargées — vérifiez vos identifiants Ameex dans Intégrations
+                        Villes non chargées — vérifiez vos identifiants Ameex dans Intégrations
                       </p>
                     )}
                     {selectedOrders.map(o => {
@@ -1816,19 +1815,19 @@ export default function CommandesPage() {
                       </a>
                       <button onClick={() => markNoAnswer(drawer.id)}
                         className={`flex items-center gap-1.5 text-sm font-semibold px-4 py-2 rounded-xl transition-colors ${drawer.noAnswer >= 3 ? "bg-amber-500 hover:bg-amber-600 text-white" : "bg-slate-200 hover:bg-slate-300 text-slate-700"}`}>
-                        📵 Pas dispo
+                        <PhoneOff size={14} /> Pas dispo
                       </button>
                     </div>
                     {drawer.noAnswer > 0 && (
                       <div className={`flex items-center gap-2 text-xs font-semibold px-3 py-2 rounded-xl ${drawer.noAnswer >= 3 ? "bg-amber-100 text-amber-700" : "bg-slate-100 text-slate-500"}`}>
-                        📵 {drawer.noAnswer} sans réponse · {drawer.attempts} appel(s)
+                        <PhoneOff size={12} className="shrink-0" /> {drawer.noAnswer} sans réponse · {drawer.attempts} appel(s)
                       </div>
                     )}
                     {/* WhatsApp quick-send buttons */}
                     <div className="flex gap-2 flex-wrap">
-                      <WAButton order={drawer} templateId="confirm" label="✅ Confirmée" onSent={msg => showToast(msg)} />
-                      <WAButton order={drawer} templateId="shipping_attempt" label="📵 Transporteur a appelé" onSent={msg => showToast(msg)} />
-                      <WAButton order={drawer} templateId="shipped" label="🚚 Expédié" onSent={msg => showToast(msg)} />
+                      <WAButton order={drawer} templateId="confirm" label="Confirmée" onSent={msg => showToast(msg)} />
+                      <WAButton order={drawer} templateId="shipping_attempt" label="Transporteur a appelé" onSent={msg => showToast(msg)} />
+                      <WAButton order={drawer} templateId="shipped" label="Expédié" onSent={msg => showToast(msg)} />
                     </div>
                   </div>
                   <div className="bg-slate-50 rounded-2xl p-4">
@@ -1941,7 +1940,7 @@ export default function CommandesPage() {
                           </div>
                           {cs && (
                             <span className={`text-xs font-bold px-2.5 py-1 rounded-xl ${bgColor} ${textColor} border`}>
-                              {isLivr ? "✓" : isRetour ? "↩" : isPasRep ? "📵" : isReport ? "📅" : "📦"} {cs.split(/[\n,]+/)[0].trim().slice(0, 22)}
+                              {cs.split(/[\n,]+/)[0].trim().slice(0, 22)}
                             </span>
                           )}
                         </div>

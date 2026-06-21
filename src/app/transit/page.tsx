@@ -2,6 +2,7 @@
 
 import { useState, useCallback, useEffect } from "react";
 import Sidebar from "@/components/Sidebar";
+import { AlertTriangle } from "lucide-react";
 import { useLang } from "@/lib/i18n";
 
 type Parcel = Record<string, unknown>;
@@ -182,7 +183,7 @@ export default function TransitPage() {
         <main className="flex-1 p-4 lg:p-8 overflow-y-auto">
           {error && (
             <div className="bg-amber-50 border border-amber-200 rounded-2xl px-5 py-4 mb-6 flex items-center gap-3">
-              <span className="text-amber-500 text-lg">⚠️</span>
+              <AlertTriangle size={18} className="text-amber-500 shrink-0" />
               <p className="text-sm text-amber-700">{error}</p>
             </div>
           )}

@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useCallback, useRef } from "react";
-import { Settings, CheckCircle2, PhoneOff, Truck, Undo2, Save } from "lucide-react";
+import { Settings, CheckCircle2, PhoneOff, Truck, Undo2, Save, RefreshCw, Package, Bot } from "lucide-react";
 import Sidebar from "@/components/Sidebar";
 
 type WAStatus = "disconnected" | "qr" | "connecting" | "connected";
@@ -63,7 +63,7 @@ function normalizeOrder(o: RawOrder): Order {
 const TPLS = {
   confirm: {
     label: "تأكيد الطلب",
-    icon: "✅",
+    icon: <CheckCircle2 size={14} className="text-emerald-500 inline shrink-0" />,
     ar: (n: string, p: string, c: string, a: string, cur: string) =>
       `السلام عليكم ${n} 👋\n\nتم تأكيد طلبكم بنجاح ✅\n\n📦 المنتج : ${p}\n💵 المبلغ : ${a} ${cur}\n📍 المدينة : ${c}\n\nسنتواصل معكم قبل التوصيل.\n\nشكراً على ثقتكم 🙏`,
     fr: (n: string, p: string, c: string, a: string, cur: string) =>
@@ -71,7 +71,7 @@ const TPLS = {
   },
   shipping_attempt: {
     label: "محاولة التوصيل",
-    icon: "📵",
+    icon: <PhoneOff size={14} className="text-amber-500 inline shrink-0" />,
     ar: (n: string) =>
       `السلام عليكم ${n} 👋\n\nحاول مندوب التوصيل الاتصال بكم اليوم 📦\n\nيرجى الاتصال به في أقرب وقت أو راسلونا لتحديد موعد آخر.\n\nشكراً 🙏`,
     fr: (n: string) =>
@@ -79,7 +79,7 @@ const TPLS = {
   },
   shipped: {
     label: "تم الشحن",
-    icon: "🚚",
+    icon: <Truck size={14} className="text-blue-500 inline shrink-0" />,
     ar: (n: string, p: string, c: string) =>
       `السلام عليكم ${n} 👋\n\nطلبكم *${p}* في الطريق إلى *${c}* 🚚\n\nسيتصل بكم المندوب قبل التسليم.\n\nشكراً 🙏`,
     fr: (n: string, p: string, c: string) =>
@@ -87,13 +87,13 @@ const TPLS = {
   },
   return: {
     label: "إرجاع الطلب",
-    icon: "↩️",
+    icon: <Undo2 size={14} className="text-orange-500 inline shrink-0" />,
     ar: (n: string) =>
       `السلام عليكم ${n} 👋\n\nتم إرجاع طردكم إلينا ↩️\n\nيرجى التواصل معنا لإعادة جدولة التوصيل.\n\nشكراً 🙏`,
     fr: (n: string) =>
       `Bonjour ${n} 👋\n\nVotre colis nous a été retourné ↩️\n\nContactez-nous pour reprogrammer la livraison 🙏`,
   },
-} as const;
+};
 
 type TplKey = keyof typeof TPLS;
 
@@ -186,7 +186,7 @@ function ConfirmOrderRow({
               </span>
             )}
           </div>
-          <p className="text-xs font-semibold text-slate-700 mt-0.5">📦 {order.product}</p>
+          <p className="text-xs font-semibold text-slate-700 mt-0.5"><Package size={11} className="inline mr-0.5" />{order.product}</p>
           <p className="text-xs text-slate-500">{order.phone} · {order.city} · {order.amount} {order.currency}</p>
         </div>
         <span className="text-xs font-mono text-slate-400 shrink-0">#{order.orderNumber}</span>
@@ -246,13 +246,13 @@ function TrackOrderRow({ order, lang, onSent }: { order: Order; lang: Lang; onSe
           <p className="font-bold text-slate-900 text-sm">{order.customer}</p>
           <p className="text-xs text-slate-500">{order.phone} · {order.city}</p>
           <p className="text-xs text-slate-400 mt-0.5">{order.product} · {order.amount} {order.currency}</p>
-          {order.carrierTracking && <p className="text-xs font-mono text-indigo-600 mt-0.5">📦 {order.carrierTracking}</p>}
+          {order.carrierTracking && <p className="text-xs font-mono text-indigo-600 mt-0.5"><Package size={11} className="inline mr-0.5" />{order.carrierTracking}</p>}
         </div>
         <span className="text-xs font-mono text-slate-400 shrink-0">#{order.orderNumber}</span>
       </div>
       {order.noAnswer > 0 && (
         <div className="text-xs text-amber-600 font-semibold bg-amber-50 px-3 py-1.5 rounded-xl">
-          📵 {order.noAnswer} sans réponse
+          <PhoneOff size={11} className="inline mr-1" />{order.noAnswer} sans réponse
         </div>
       )}
       <div className="flex gap-2 flex-wrap">
@@ -582,7 +582,7 @@ export default function WhatsAppPage() {
               <p className="text-sm text-slate-500">Déconnecté — en attente du QR code…</p>
             </div>
             <button onClick={fetchWaStatus} className="text-xs font-semibold text-emerald-600 hover:text-emerald-800 px-3 py-1.5 rounded-xl hover:bg-emerald-50 border border-emerald-200 transition-colors">
-              🔄 Actualiser
+              <RefreshCw size={12} className="inline mr-1" />Actualiser
             </button>
           </div>
         )}
@@ -621,7 +621,7 @@ export default function WhatsAppPage() {
                 </div>
                 {nouveauOrders.length === 0 ? (
                   <div className="bg-white border border-slate-200 rounded-2xl p-8 text-center text-slate-400">
-                    <p className="text-3xl mb-2">🎉</p>
+                    <CheckCircle2 size={32} className="text-emerald-400 mx-auto mb-2" />
                     <p className="font-semibold">Tout est confirmé !</p>
                     <p className="text-sm">Aucune commande en attente</p>
                   </div>
@@ -645,7 +645,7 @@ export default function WhatsAppPage() {
                 </p>
                 {expedieOrders.length === 0 ? (
                   <div className="bg-white border border-slate-200 rounded-2xl p-8 text-center text-slate-400">
-                    <p className="text-3xl mb-2">📦</p>
+                    <Package size={32} className="text-slate-300 mx-auto mb-2" />
                     <p className="font-semibold">Aucun colis en livraison</p>
                   </div>
                 ) : expedieOrders.map(o => (
@@ -879,7 +879,7 @@ export default function WhatsAppPage() {
                   <div className="bg-white border border-slate-200 rounded-2xl p-5 space-y-4">
                     <div className="flex items-center justify-between">
                       <div>
-                        <h2 className="font-bold text-slate-900">🤖 Confirmation automatique</h2>
+                        <h2 className="font-bold text-slate-900 flex items-center gap-1.5"><Bot size={16} /> Confirmation automatique</h2>
                         <p className="text-xs text-slate-400 mt-0.5">Envoie automatiquement le sondage de confirmation après une nouvelle commande</p>
                       </div>
                       <button onClick={() => setWaSettings(p => ({ ...p, autoConfirmEnabled: !p.autoConfirmEnabled }))}

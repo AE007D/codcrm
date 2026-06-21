@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { CheckCircle2, Save, Warehouse, Package } from "lucide-react";
+import { CheckCircle2, Save, Warehouse, Package, PhoneOff, XCircle, Search } from "lucide-react";
 import Sidebar from "@/components/Sidebar";
 import { useLang } from "@/lib/i18n";
 
@@ -347,7 +347,7 @@ export default function IntegrationsPage() {
                 <div className="flex gap-2 mb-4">
                   {(["setup","orders"] as const).map(t => (
                     <button key={t} onClick={() => setLfTab(t)} className={`text-sm font-semibold px-4 py-2 rounded-xl transition-colors ${lfTab === t ? "bg-blue-600 text-white shadow-md shadow-blue-200" : "bg-white text-slate-500 border border-slate-200 hover:bg-slate-50"}`}>
-                      {t === "setup" ? "⚙️ Configuration" : `📦 Commandes (${lfOrders.length})`}
+                      {t === "setup" ? "Configuration" : `Commandes (${lfOrders.length})`}
                     </button>
                   ))}
                 </div>
@@ -376,7 +376,7 @@ export default function IntegrationsPage() {
                     </div>
                     <div className="bg-amber-50 border border-amber-200 rounded-2xl p-5">
                       <div className="flex items-center gap-2 mb-3">
-                        <span className="text-xl">📵</span>
+                        <PhoneOff size={18} className="text-amber-700 shrink-0" />
                         <h3 className="font-bold text-amber-800">Paniers abandonnés (optionnel)</h3>
                       </div>
                       <p className="text-sm text-amber-700 mb-3">Ajoutez un 2ème webhook avec l&apos;événement <strong>checkout/abandoned</strong> sur la même URL pour recevoir les prospects qui n&apos;ont pas finalisé leur commande.</p>
@@ -471,7 +471,7 @@ export default function IntegrationsPage() {
                 <div className="flex gap-2 flex-wrap">
                   {(["config","add","parcels","track","cities"] as const).map(t => (
                     <button key={t} onClick={() => setEagleTab(t)} className={`text-sm font-semibold px-4 py-2 rounded-xl transition-colors ${eagleTab === t ? "bg-amber-500 text-white shadow-md shadow-amber-200" : "bg-white text-slate-500 border border-slate-200 hover:bg-slate-50"}`}>
-                      {t === "config" ? "⚙️ Config" : t === "add" ? "➕ Ajouter" : t === "parcels" ? `📦 Colis${eagleParcels.length ? ` (${eagleParcels.length})` : ""}` : t === "track" ? "🔍 Track" : "🏙️ Villes"}
+                      {t === "config" ? "Config" : t === "add" ? "+ Ajouter" : t === "parcels" ? `Colis${eagleParcels.length ? ` (${eagleParcels.length})` : ""}` : t === "track" ? "Tracking" : "Villes"}
                     </button>
                   ))}
                 </div>
@@ -486,7 +486,7 @@ export default function IntegrationsPage() {
                     {/* API Status Diagnostic */}
                     {eagleSaved && (
                       <div className={`rounded-xl p-3 text-sm flex items-start gap-3 ${eagleApiStatus === "ok" ? "bg-emerald-50 border border-emerald-200" : eagleApiStatus === "broken" ? "bg-red-50 border border-red-200" : "bg-slate-50 border border-slate-200"}`}>
-                        <span className="text-lg shrink-0">{eagleApiStatus === "ok" ? "✅" : eagleApiStatus === "broken" ? "❌" : "🔍"}</span>
+                        <span className="shrink-0">{eagleApiStatus === "ok" ? <CheckCircle2 size={18} className="text-emerald-600" /> : eagleApiStatus === "broken" ? <XCircle size={18} className="text-red-600" /> : <Search size={18} className="text-slate-400" />}</span>
                         <div className="flex-1">
                           {eagleApiStatus === "ok" && <p className="font-semibold text-emerald-700">API Eagle Express opérationnelle ✓</p>}
                           {eagleApiStatus === "broken" && (
@@ -590,7 +590,7 @@ export default function IntegrationsPage() {
                   {(["config", "cities"] as const).map(tab => (
                     <button key={tab} onClick={() => { setAmeexTab(tab); if (tab === "cities" && ameexCities.length === 0) loadAmeexCities(); }}
                       className={`flex-1 py-2 rounded-lg text-xs font-semibold transition-colors ${ameexTab === tab ? "bg-white text-blue-700 shadow-sm" : "text-slate-500 hover:text-slate-700"}`}>
-                      {tab === "config" ? "⚙️ Configuration" : `🏙️ Villes (${ameexCities.length})`}
+                      {tab === "config" ? "Configuration" : `Villes (${ameexCities.length})`}
                     </button>
                   ))}
                 </div>

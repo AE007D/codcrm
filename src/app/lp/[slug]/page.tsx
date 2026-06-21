@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { useParams } from "next/navigation";
 import LiveTracker from "@/components/LiveTracker";
 import { initFBPixel, trackFBEvent } from "@/lib/pixelEvents";
+import { Truck, CreditCard, CheckCircle2, Phone, HelpCircle, Lock, Zap, type LucideIcon } from "lucide-react";
 
 type LandingPage = {
   id: string; slug: string; title: string; subtitle: string;
@@ -15,11 +16,11 @@ type LandingPage = {
   active: boolean; ownerId?: string; facebookPixelId?: string;
 };
 
-const TRUST_BADGES = [
-  { icon: "🚚", label: "توصيل مجاني", sub: "Livraison gratuite" },
-  { icon: "💳", label: "الدفع عند الاستلام", sub: "Paiement à la livraison" },
-  { icon: "✅", label: "ضمان 100%", sub: "Garantie 100%" },
-  { icon: "📞", label: "خدمة العملاء", sub: "Support client" },
+const TRUST_BADGES: { icon: LucideIcon; label: string; sub: string }[] = [
+  { icon: Truck, label: "توصيل مجاني", sub: "Livraison gratuite" },
+  { icon: CreditCard, label: "الدفع عند الاستلام", sub: "Paiement à la livraison" },
+  { icon: CheckCircle2, label: "ضمان 100%", sub: "Garantie 100%" },
+  { icon: Phone, label: "خدمة العملاء", sub: "Support client" },
 ];
 
 export default function LandingPageView() {
@@ -83,7 +84,7 @@ export default function LandingPageView() {
   if (notFound) return (
     <div className="min-h-screen bg-slate-50 flex items-center justify-center p-8">
       <div className="text-center">
-        <p className="text-6xl mb-4">😕</p>
+        <HelpCircle size={60} className="text-slate-300 mx-auto mb-4" />
         <p className="text-xl font-bold text-slate-800">Page introuvable</p>
         <p className="text-slate-400 mt-2">Cette page n'existe pas ou a été désactivée.</p>
       </div>
@@ -99,7 +100,7 @@ export default function LandingPageView() {
   if (!page.active) return (
     <div className="min-h-screen bg-slate-50 flex items-center justify-center p-8">
       <div className="text-center">
-        <p className="text-6xl mb-4">🔒</p>
+        <Lock size={60} className="text-slate-300 mx-auto mb-4" />
         <p className="text-xl font-bold text-slate-800">Page temporairement indisponible</p>
       </div>
     </div>
@@ -114,9 +115,9 @@ export default function LandingPageView() {
     <div className={`min-h-screen ${bg} flex items-center justify-center p-6`}>
       <div className="max-w-md w-full text-center">
         <div className="w-24 h-24 rounded-full flex items-center justify-center text-5xl mx-auto mb-6" style={{ backgroundColor: page.primaryColor + "20" }}>
-          ✅
+          <CheckCircle2 size={48} style={{ color: page.primaryColor }} className="mx-auto" />
         </div>
-        <h1 className={`text-2xl font-black mb-3 ${textMain}`} dir="rtl">تم استلام طلبك بنجاح! 🎉</h1>
+        <h1 className={`text-2xl font-black mb-3 ${textMain}`} dir="rtl">تم استلام طلبك بنجاح!</h1>
         <p className={`text-lg font-semibold mb-2 ${textMain}`}>Votre commande a bien été reçue !</p>
         <p className="text-slate-400 mb-6">سيتصل بك فريقنا في أقرب وقت لتأكيد الطلب وتحديد موعد التوصيل</p>
         <div className="rounded-2xl p-5 border" style={{ backgroundColor: page.primaryColor + "10", borderColor: page.primaryColor + "30" }}>
@@ -135,7 +136,7 @@ export default function LandingPageView() {
       {/* Urgency top bar */}
       {page.urgencyText && (
         <div className="text-white text-center py-3 px-4 text-sm font-bold" style={{ backgroundColor: page.primaryColor }} dir="rtl">
-          ⚡ {page.urgencyText}
+          <Zap size={14} className="inline mr-1" />{page.urgencyText}
         </div>
       )}
 
@@ -245,7 +246,7 @@ export default function LandingPageView() {
             )}
 
             <p className="text-red-500 text-xs text-center font-medium" dir="rtl">
-              المرجو التأكد من صحة رقم الهاتف قبل الإرسال ⚠️
+              المرجو التأكد من صحة رقم الهاتف قبل الإرسال
             </p>
 
             {formError && <p className="text-red-500 text-xs text-center">{formError}</p>}
@@ -263,7 +264,7 @@ export default function LandingPageView() {
           <div className="grid grid-cols-4 gap-2">
             {TRUST_BADGES.map(b => (
               <div key={b.label} className={`rounded-2xl border p-3 flex flex-col items-center gap-1 text-center ${cardBg}`}>
-                <span className="text-2xl">{b.icon}</span>
+                <b.icon size={22} />
                 <p className={`text-xs font-bold leading-tight ${textMain}`} dir="rtl">{b.label}</p>
                 <p className="text-xs text-slate-400 leading-tight">{b.sub}</p>
               </div>
@@ -289,7 +290,7 @@ export default function LandingPageView() {
           <button onClick={scrollToForm}
             className="text-white text-sm font-bold px-4 py-2.5 rounded-xl shrink-0 whitespace-nowrap"
             style={{ backgroundColor: page.primaryColor }}>
-            اطلب الآن 🛒
+            اطلب الآن
           </button>
         </div>
       )}

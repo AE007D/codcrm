@@ -3,50 +3,51 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { CodCrmLogo } from "@/components/CodCrmLogo";
+import { Package, Bird, BarChart3, DollarSign, Users, Bot, ShoppingBag, TrendingUp, Rocket, Truck, Zap, ShoppingCart, Megaphone, Music2, Send, MessageCircle, type LucideIcon } from "lucide-react";
 
-const FEATURES = [
+const FEATURES: { icon: LucideIcon; title: string; desc: string }[] = [
   {
-    icon: "📦",
+    icon: Package,
     title: "Gestion des commandes",
     desc: "Pipeline Kanban complet — confirmez, expédiez et suivez chaque commande en temps réel. Statuts automatiques, notes, historique.",
   },
   {
-    icon: "🦅",
+    icon: Bird,
     title: "Intégration Eagle Express",
     desc: "Expédiez en 1 clic via Eagle Express. Numéro de suivi automatique, sync des statuts livrés/retournés toutes les heures.",
   },
   {
-    icon: "📊",
+    icon: BarChart3,
     title: "Dashboard & Analytics",
     desc: "KPIs en temps réel — commandes, taux de livraison, CA, top produits, top villes. Graphiques sur 7j / 30j / 12 mois.",
   },
   {
-    icon: "💰",
+    icon: DollarSign,
     title: "Finances & ROAS",
     desc: "Coût par lead, seuil de rentabilité, CA livré vs investi. Suivi des virements Eagle Express. Rapports Telegram automatiques.",
   },
   {
-    icon: "👥",
+    icon: Users,
     title: "Équipe & Agents",
     desc: "Gérez vos agents de confirmation avec des rôles (Admin, Agent, Viewer). Suivi des paiements et commissions par agent.",
   },
   {
-    icon: "🤖",
+    icon: Bot,
     title: "Notifications Telegram",
     desc: "Alertes instantanées pour chaque nouvelle commande. Rapports quotidiens automatisés directement dans votre groupe Telegram.",
   },
   {
-    icon: "🛍️",
+    icon: ShoppingBag,
     title: "Multi-boutiques",
     desc: "Connectez Lightfunnels, Shopify et vos boutiques COD. Toutes vos commandes centralisées dans un seul tableau de bord.",
   },
   {
-    icon: "📈",
+    icon: TrendingUp,
     title: "Ads Manager intégré",
     desc: "CPP, CPD, ROAS par campagne Facebook & TikTok. Comparez vos performances publicitaires avec votre CA réel livré.",
   },
   {
-    icon: "🚀",
+    icon: Rocket,
     title: "Funnels & Abandons",
     desc: "Récupérez les paniers abandonnés de vos landing pages. Relancez par téléphone, suivez les taux de conversion.",
   },
@@ -59,15 +60,15 @@ const STATS = [
   { value: "0 MAD", label: "Pour commencer" },
 ];
 
-const INTEGRATIONS = [
-  { name: "Eagle Express", color: "bg-amber-50 text-amber-700 border-amber-200", icon: "🦅" },
-  { name: "Ameex", color: "bg-blue-50 text-blue-700 border-blue-200", icon: "🚚" },
-  { name: "Lightfunnels", color: "bg-indigo-50 text-indigo-700 border-indigo-200", icon: "⚡" },
-  { name: "Shopify", color: "bg-emerald-50 text-emerald-700 border-emerald-200", icon: "🛒" },
-  { name: "Facebook Ads", color: "bg-blue-50 text-blue-800 border-blue-200", icon: "📘" },
-  { name: "TikTok Ads", color: "bg-slate-50 text-slate-700 border-slate-200", icon: "🎵" },
-  { name: "Telegram", color: "bg-sky-50 text-sky-700 border-sky-200", icon: "✈️" },
-  { name: "WhatsApp", color: "bg-emerald-50 text-emerald-700 border-emerald-200", icon: "💬" },
+const INTEGRATIONS: { name: string; color: string; icon: LucideIcon }[] = [
+  { name: "Eagle Express", color: "bg-amber-50 text-amber-700 border-amber-200", icon: Bird },
+  { name: "Ameex", color: "bg-blue-50 text-blue-700 border-blue-200", icon: Truck },
+  { name: "Lightfunnels", color: "bg-indigo-50 text-indigo-700 border-indigo-200", icon: Zap },
+  { name: "Shopify", color: "bg-emerald-50 text-emerald-700 border-emerald-200", icon: ShoppingCart },
+  { name: "Facebook Ads", color: "bg-blue-50 text-blue-800 border-blue-200", icon: Megaphone },
+  { name: "TikTok Ads", color: "bg-slate-50 text-slate-700 border-slate-200", icon: Music2 },
+  { name: "Telegram", color: "bg-sky-50 text-sky-700 border-sky-200", icon: Send },
+  { name: "WhatsApp", color: "bg-emerald-50 text-emerald-700 border-emerald-200", icon: MessageCircle },
 ];
 
 const STEPS = [
@@ -235,7 +236,7 @@ export default function LandingPage() {
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
             {FEATURES.map(f => (
               <div key={f.title} className="bg-white rounded-2xl p-6 border border-slate-100 shadow-sm hover:shadow-md hover:border-blue-100 transition-all group">
-                <span className="text-3xl mb-4 block">{f.icon}</span>
+                <f.icon size={28} className="mb-4 text-blue-600" />
                 <h3 className="text-base font-bold text-slate-900 mb-2 group-hover:text-blue-600 transition-colors">{f.title}</h3>
                 <p className="text-sm text-slate-500 leading-relaxed">{f.desc}</p>
               </div>
@@ -277,7 +278,7 @@ export default function LandingPage() {
           <div className="flex flex-wrap justify-center gap-3">
             {INTEGRATIONS.map(integ => (
               <div key={integ.name} className={`flex items-center gap-2 px-5 py-3 rounded-2xl border font-semibold text-sm ${integ.color}`}>
-                <span className="text-lg">{integ.icon}</span>
+                <integ.icon size={16} />
                 {integ.name}
               </div>
             ))}

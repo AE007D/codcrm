@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import Sidebar from "@/components/Sidebar";
 import { useLang } from "@/lib/i18n";
+import { CheckCircle2 } from "lucide-react";
 
 type PayRequest = {
   id: string;
@@ -122,7 +123,7 @@ export default function PaiementsPage() {
 
           {success && (
             <div className="mb-4 bg-emerald-50 border border-emerald-200 text-emerald-700 rounded-xl px-4 py-3 text-sm font-medium">
-              ✅ Demande envoyée ! L&apos;admin a été notifié.
+              <CheckCircle2 size={14} className="inline mr-1" />Demande envoyée ! L&apos;admin a été notifié.
             </div>
           )}
 

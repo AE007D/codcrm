@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback, useMemo } from "react";
 import Image from "next/image";
 import Sidebar from "@/components/Sidebar";
+import { AlertTriangle, Trophy, XCircle, BarChart3, ShoppingCart, TrendingUp } from "lucide-react";
 import { useLang } from "@/lib/i18n";
 
 type AdCampaign = {
@@ -378,7 +379,7 @@ export default function CalculateurPage() {
 
           {!hasRealData && !syncing && (
             <div className="bg-amber-50 border border-amber-200 rounded-2xl px-5 py-3 mb-6 flex items-center gap-3">
-              <span className="text-amber-500 text-lg">⚠️</span>
+              <AlertTriangle size={18} className="text-amber-500 shrink-0" />
               <p className="text-sm text-amber-700">Aucun transporteur connecté — taux affiché à <strong>70%</strong> par défaut. Configurez Ameex ou Eagle Express dans <strong>Intégrations</strong> pour obtenir les vrais taux par produit.</p>
             </div>
           )}
@@ -387,8 +388,8 @@ export default function CalculateurPage() {
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 lg:gap-5 mb-6">
             {[
               { label: "Produits analysés", value: products.length, sub: "total", color: "text-slate-900" },
-              { label: "Winners 🏆", value: winners, sub: `taux réel`, color: "text-emerald-600" },
-              { label: "Losers ❌", value: losers, sub: `taux réel`, color: "text-red-500" },
+              { label: "Winners", value: winners, sub: `taux réel`, color: "text-emerald-600" },
+              { label: "Losers", value: losers, sub: `taux réel`, color: "text-red-500" },
               { label: "Taux moyen livraison", value: hasRealData ? `${Math.round(withMetrics.reduce((s,p) => s + p.effectiveRate, 0) / withMetrics.length)}%` : "—", sub: hasRealData ? "données réelles transporteurs" : "aucune donnée", color: "text-blue-600" },
             ].map(k => (
               <div key={k.label} className="bg-white rounded-2xl p-5 shadow-sm border border-slate-100">
@@ -415,7 +416,7 @@ export default function CalculateurPage() {
                 {/* WIN / LOSE banner */}
                 <div className={`rounded-xl px-4 py-2.5 mb-4 flex items-center justify-between ${p.isWinner ? "bg-emerald-600" : "bg-red-500"}`}>
                   <span className="text-white font-black text-sm">{p.isWinner ? "✓ VOUS GAGNEZ" : "✗ VOUS PERDEZ"}</span>
-                  <span className="text-white font-black text-xl">{p.isWinner ? "🏆" : "❌"}</span>
+                  {p.isWinner ? <Trophy size={20} className="text-white" /> : <XCircle size={20} className="text-white" />}
                 </div>
 
                 <div className="flex items-start justify-between mb-3">
@@ -694,7 +695,7 @@ export default function CalculateurPage() {
                     <p className={`text-sm font-black ${previewProfit.isWinner ? "text-emerald-700" : "text-red-600"}`}>{previewProfit.isWinner ? "✓ VOUS GAGNEZ" : "✗ VOUS PERDEZ"}</p>
                     <p className={`text-lg font-bold mt-0.5 ${previewProfit.netPerOrder >= 0 ? "text-emerald-600" : "text-red-500"}`}>{previewProfit.netPerOrder >= 0 ? "+" : ""}{previewProfit.netPerOrder.toFixed(1)} MAD / commande</p>
                   </div>
-                  <span className="text-3xl">{previewProfit.isWinner ? "🏆" : "❌"}</span>
+                  {previewProfit.isWinner ? <Trophy size={28} className="text-emerald-500" /> : <XCircle size={28} className="text-red-500" />}
                 </div>
               </div>
             )}

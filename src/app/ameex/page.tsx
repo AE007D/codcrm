@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from "react";
 import Sidebar from "@/components/Sidebar";
 import { useLang } from "@/lib/i18n";
+import { AlertTriangle } from "lucide-react";
 
 type Creds = { apiId: string; apiKey: string };
 const CREDS_KEY = "ameex_creds";
@@ -221,7 +222,7 @@ export default function AmeexPage() {
             <div className="max-w-xl">
               {!isConnected && (
                 <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4 mb-5 text-sm text-amber-700 font-medium">
-                  ⚠️ Configurez vos identifiants dans l&apos;onglet Config.
+                  <AlertTriangle size={15} className="inline mr-1 text-amber-600" />Configurez vos identifiants dans l&apos;onglet Config.
                 </div>
               )}
               <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-6">

@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { CodCrmLogo } from "@/components/CodCrmLogo";
 import { useLang, type Lang } from "@/lib/i18n";
+import { Package, Truck, BarChart3, Users, Bot, DollarSign, AlertTriangle } from "lucide-react";
 
 declare global {
   interface Window {
@@ -25,12 +26,12 @@ const GOOGLE_CLIENT_ID =
   "50528925336-37s476bkh1kn9qf7s1259vfqks95vvvo.apps.googleusercontent.com";
 
 const FEATURES = [
-  { icon: "📦", label: "Gestion des commandes COD" },
-  { icon: "🚚", label: "Intégration Ameex & Eagle" },
-  { icon: "📊", label: "Dashboard & Analytics" },
-  { icon: "👥", label: "Gestion d'équipe" },
-  { icon: "🤖", label: "Notifications Telegram" },
-  { icon: "💰", label: "Finances & ROAS" },
+  { icon: Package, label: "Gestion des commandes COD" },
+  { icon: Truck, label: "Intégration Ameex & Eagle" },
+  { icon: BarChart3, label: "Dashboard & Analytics" },
+  { icon: Users, label: "Gestion d'équipe" },
+  { icon: Bot, label: "Notifications Telegram" },
+  { icon: DollarSign, label: "Finances & ROAS" },
 ];
 
 function Input({
@@ -88,6 +89,7 @@ export default function LoginPage() {
   const [regEmail, setRegEmail] = useState("");
   const [regPassword, setRegPassword] = useState("");
   const [regConfirm, setRegConfirm] = useState("");
+  const [regShipping, setRegShipping] = useState<string[]>([]);
   const [regError, setRegError] = useState("");
   const [regLoading, setRegLoading] = useState(false);
 
@@ -156,7 +158,7 @@ export default function LoginPage() {
     try {
       const res = await fetch("/api/auth/signup", {
         method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name: regName, email: regEmail, password: regPassword, storeName: regStore }),
+        body: JSON.stringify({ name: regName, email: regEmail, password: regPassword, storeName: regStore, shippingCompanies: regShipping }),
       });
       const data = await res.json();
       if (!res.ok) { setRegError(data.error || "Erreur lors de la création."); return; }
@@ -215,7 +217,7 @@ export default function LoginPage() {
           <div className="grid grid-cols-2 gap-3">
             {FEATURES.map(f => (
               <div key={f.label} className="flex items-center gap-3 bg-white/5 rounded-xl px-4 py-3 border border-white/8">
-                <span className="text-xl">{f.icon}</span>
+                <f.icon size={18} className="text-blue-300 shrink-0" />
                 <span className="text-sm text-slate-300 font-medium">{f.label}</span>
               </div>
             ))}
@@ -276,7 +278,7 @@ export default function LoginPage() {
 
               {(loginError || googleError) && (
                 <div className="bg-red-50 border border-red-200 text-red-700 text-sm px-4 py-3 rounded-xl mb-4 flex items-start gap-2">
-                  <span className="mt-0.5">⚠️</span>
+                  <AlertTriangle size={15} className="mt-0.5 shrink-0" />
                   <span>{loginError || googleError}</span>
                 </div>
               )}
@@ -323,7 +325,7 @@ export default function LoginPage() {
 
               {regError && (
                 <div className="bg-red-50 border border-red-200 text-red-700 text-sm px-4 py-3 rounded-xl mb-4 flex items-start gap-2">
-                  <span className="mt-0.5">⚠️</span>
+                  <AlertTriangle size={15} className="mt-0.5 shrink-0" />
                   <span>{regError}</span>
                 </div>
               )}
@@ -335,6 +337,39 @@ export default function LoginPage() {
                   <Input label={t("store_name")} value={regStore} onChange={setRegStore}
                     placeholder="Ma Boutique" autoComplete="organization" />
                 </div>
+
+                {/* Shipping companies */}
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-2">Transporteurs utilisés</label>
+                  <div className="flex gap-2 flex-wrap">
+                    {[
+                      { id: "ameex", label: "Ameex" },
+                      { id: "eagle", label: "Maystro (Eagle)" },
+                    ].map(({ id, label }) => {
+                      const checked = regShipping.includes(id);
+                      return (
+                        <button
+                          key={id}
+                          type="button"
+                          onClick={() => setRegShipping(prev => checked ? prev.filter(x => x !== id) : [...prev, id])}
+                          className={`flex items-center gap-2 px-4 py-2.5 rounded-xl border text-sm font-medium transition-all ${
+                            checked
+                              ? "bg-blue-50 border-blue-400 text-blue-700"
+                              : "bg-slate-50 border-slate-200 text-slate-500 hover:border-slate-300"
+                          }`}
+                        >
+                          <span className={`w-4 h-4 rounded border flex items-center justify-center flex-shrink-0 transition-colors ${
+                            checked ? "bg-blue-500 border-blue-500" : "border-slate-300 bg-white"
+                          }`}>
+                            {checked && <svg className="w-2.5 h-2.5 text-white" fill="none" viewBox="0 0 10 8"><path d="M1 4l3 3 5-6" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/></svg>}
+                          </span>
+                          {label}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+
                 <Input label={t("email")} type="email" value={regEmail} onChange={setRegEmail}
                   placeholder="vous@example.com" required autoComplete="email" />
                 <Input label={t("password")} type="password" value={regPassword} onChange={setRegPassword}

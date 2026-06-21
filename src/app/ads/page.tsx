@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from "react";
 import Sidebar from "@/components/Sidebar";
 import { useLang } from "@/lib/i18n";
+import { Calendar } from "lucide-react";
 
 type Platform = "Facebook" | "TikTok";
 
@@ -301,7 +302,7 @@ export default function AdsPage() {
                   onClick={() => setViewMode("daily")}
                   className={`px-3 py-1.5 text-xs font-semibold transition-colors ${viewMode === "daily" ? "bg-indigo-600 text-white" : "bg-white text-slate-500 hover:bg-slate-50"}`}
                 >
-                  📅 {t("daily_view")}
+                  <Calendar size={13} className="inline mr-1" />{t("daily_view")}
                 </button>
               </div>
               <h2 className="text-base font-bold text-slate-900 mr-auto">

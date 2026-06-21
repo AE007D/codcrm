@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef, useCallback } from "react";
-import { Package } from "lucide-react";
+import { Package, AlertTriangle } from "lucide-react";
 import Image from "next/image";
 import Sidebar from "@/components/Sidebar";
 import { useLang } from "@/lib/i18n";
@@ -261,7 +261,7 @@ export default function ProduitsPage() {
             {[
               { label: "Total produits", value: products.length, color: "text-slate-900" },
               { label: "Unités en stock", value: totalStock, color: "text-blue-600" },
-              { label: "Stock bas ⚠️", value: lowStock, color: lowStock > 0 ? "text-amber-600" : "text-emerald-600" },
+              { label: "Stock bas", value: lowStock, color: lowStock > 0 ? "text-amber-600" : "text-emerald-600" },
               { label: "Rupture 🔴", value: outOfStock, color: outOfStock > 0 ? "text-red-600" : "text-emerald-600" },
             ].map(k => (
               <div key={k.label} className="bg-white rounded-2xl p-5 shadow-sm border border-slate-100">
@@ -280,7 +280,7 @@ export default function ProduitsPage() {
           )}
           {lowStock > 0 && (
             <div className="bg-amber-50 border border-amber-200 rounded-2xl px-5 py-3 mb-4 flex items-center gap-3">
-              <span className="text-amber-500 text-lg">⚠️</span>
+              <AlertTriangle size={18} className="text-amber-500 shrink-0" />
               <p className="text-sm font-semibold text-amber-700">{lowStock} produit(s) en stock bas</p>
             </div>
           )}
@@ -306,7 +306,7 @@ export default function ProduitsPage() {
             <div className="flex items-center justify-center py-20"><div className="w-8 h-8 border-2 border-blue-600 border-t-transparent rounded-full animate-spin" /></div>
           ) : displayed.length === 0 ? (
             <div className="bg-white rounded-2xl shadow-sm border border-slate-100 flex flex-col items-center py-20 gap-4">
-              <div className="w-16 h-16 bg-blue-50 rounded-3xl flex items-center justify-center text-3xl">📦</div>
+              <div className="w-16 h-16 bg-blue-50 rounded-3xl flex items-center justify-center"><Package size={30} className="text-blue-400" /></div>
               <p className="text-slate-700 font-bold text-lg">Aucun produit</p>
               <p className="text-slate-400 text-sm text-center px-8">Ajoutez vos produits pour gérer votre catalogue et votre stock.</p>
               <button onClick={openAdd} className="bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold px-6 py-3 rounded-xl shadow-md shadow-blue-200">+ Ajouter un produit</button>
@@ -336,7 +336,7 @@ export default function ProduitsPage() {
                     <div className="p-4 flex flex-col gap-3 flex-1">
                       <div>
                         <h3 className="font-bold text-slate-900 text-sm leading-tight">{p.name}</h3>
-                        {p.sku && <p className="text-xs text-slate-400 mt-0.5 font-mono">📦 {p.sku}</p>}
+                        {p.sku && <p className="text-xs text-slate-400 mt-0.5 font-mono">{p.sku}</p>}
                       </div>
 
                       {/* Prices */}
@@ -582,7 +582,7 @@ export default function ProduitsPage() {
 
               {/* Boutique + Commission */}
               <div className="bg-emerald-50 rounded-2xl p-4">
-                <p className="text-xs font-bold text-emerald-700 uppercase tracking-wider mb-3">🏪 Boutique & Commission</p>
+                <p className="text-xs font-bold text-emerald-700 uppercase tracking-wider mb-3">Boutique & Commission</p>
                 <div className="flex flex-col gap-3">
                   <div>
                     <label className="text-xs font-semibold text-slate-600 mb-1.5 block">Boutique (store)</label>
@@ -630,7 +630,7 @@ export default function ProduitsPage() {
 
               {/* Boutique + Commission */}
               <div className="bg-emerald-50 rounded-2xl p-4">
-                <p className="text-xs font-bold text-emerald-700 uppercase tracking-wider mb-3">🏪 Boutique & Commission</p>
+                <p className="text-xs font-bold text-emerald-700 uppercase tracking-wider mb-3">Boutique & Commission</p>
                 <div className="flex flex-col gap-3">
                   <div>
                     <label className="text-xs font-semibold text-slate-600 mb-1.5 block">Boutique (store)</label>

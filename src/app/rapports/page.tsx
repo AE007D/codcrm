@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import Sidebar from "@/components/Sidebar";
 import { useLang } from "@/lib/i18n";
+import { BarChart3 } from "lucide-react";
 
 type MonthlyRow = {
   month: string;
@@ -100,7 +101,7 @@ export default function RapportsPage() {
             </div>
           ) : totalOrders === 0 ? (
             <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-16 flex flex-col items-center gap-4">
-              <span className="text-5xl">📊</span>
+              <BarChart3 size={48} className="text-slate-300" />
               <p className="text-slate-700 font-semibold text-lg">Aucune donnée pour le moment</p>
               <p className="text-slate-400 text-sm text-center">Importez des commandes via vos intégrations pour voir vos rapports.</p>
             </div>
