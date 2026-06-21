@@ -21,7 +21,7 @@ export async function GET() {
       .filter(Boolean);
   }
 
-  return NextResponse.json({ boutiques: names });
+  return NextResponse.json({ boutiques: names }, { headers: { "Cache-Control": "private, max-age=60, stale-while-revalidate=120" } });
 }
 
 // POST/DELETE kept for backward compat but boutiques page manages its own list

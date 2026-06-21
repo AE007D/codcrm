@@ -22,7 +22,7 @@ export async function GET() {
 
   const { data, error } = await query;
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-  return NextResponse.json({ requests: data ?? [] });
+  return NextResponse.json({ requests: data ?? [] }, { headers: { "Cache-Control": "private, max-age=15, stale-while-revalidate=30" } });
 }
 
 // POST — agent submits a payment request

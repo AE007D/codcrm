@@ -33,7 +33,7 @@ export async function GET() {
     createdAt: u.createdAt,
   }));
 
-  return NextResponse.json({ users });
+  return NextResponse.json({ users }, { headers: { "Cache-Control": "private, max-age=60, stale-while-revalidate=120" } });
 }
 
 export async function POST(request: NextRequest) {

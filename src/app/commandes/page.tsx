@@ -150,8 +150,12 @@ export default function CommandesPage() {
   const [showCatalogDrop, setShowCatalogDrop] = useState(false);
 
   useEffect(() => {
-    fetch("/api/products").then(r => r.ok ? r.json() : null).then(d => {
-      if (d?.products) setCatalog(d.products);
+    Promise.all([
+      fetch("/api/products").then(r => r.ok ? r.json() : null),
+      fetch("/api/auth/me").then(r => r.ok ? r.json() : null),
+    ]).then(([productsData, meData]) => {
+      if (productsData?.products) setCatalog(productsData.products);
+      if (meData?.role) setUserRole(meData.role);
     }).catch(() => {});
   }, []);
 
@@ -197,11 +201,6 @@ export default function CommandesPage() {
   // Current user role — null while loading, so isAdmin is never wrong before fetch completes
   const [userRole, setUserRole] = useState<"admin" | "agent" | "viewer" | null>(null);
   const isAdmin = userRole === "admin";
-  useEffect(() => {
-    fetch("/api/auth/me").then(r => r.ok ? r.json() : null).then(d => {
-      setUserRole(d?.role ?? "agent");
-    }).catch(() => { setUserRole("agent"); });
-  }, []);
 
   // Edit mode for drawer
   const [editMode, setEditMode] = useState(false);

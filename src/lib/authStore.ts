@@ -150,7 +150,7 @@ export async function createSession(userId: string): Promise<string> {
 // Avoids 2 Supabase roundtrips per API call for the same token.
 // TTL: 60s — short enough to reflect logouts/role changes quickly.
 const SESSION_CACHE = new Map<string, { user: User; cachedAt: number }>();
-const SESSION_CACHE_TTL_MS = 60_000;
+const SESSION_CACHE_TTL_MS = 10 * 60_000; // 10 minutes
 
 export async function getSession(token: string): Promise<User | null> {
   // Check in-memory cache first
