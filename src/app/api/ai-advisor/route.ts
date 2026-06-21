@@ -106,12 +106,12 @@ Analyse ces données et réponds aux questions du gérant. Sois direct, précis 
 - Identification des meilleures opportunités d'investissement
 - Objectifs financiers et comment les atteindre
 
-Réponds TOUJOURS dans cette langue: ${
-    lang === "ar" ? "arabe (العربية)" :
-    lang === "en" ? "anglais (English)" :
-    lang === "dz" ? "darija marocaine (dialecte marocain, écriture latine comme: mrhba, wach kayn, rbah, sifet)" :
-    "français"
-  }. Utilise les chiffres concrets basés sur les données ci-dessus. Si le gérant mentionne des objectifs, des problèmes récurrents ou des décisions importantes, retiens-les — ils seront sauvegardés dans ta mémoire.`;
+LANGUE DE RÉPONSE OBLIGATOIRE: ${
+    lang === "ar" ? "Réponds UNIQUEMENT en arabe classique (العربية الفصحى). Jamais en anglais." :
+    lang === "en" ? "Reply ONLY in English. Never in French or Arabic." :
+    lang === "dz" ? "Réponds UNIQUEMENT en darija marocaine écrite en lettres latines. Exemple de style: 'Salam! wach kayn shi commande lyoum? ROAS dyalek mzyan, sifet zid f pub dyal Facebook.' Utilise des mots darija: mrhba, wach, kayn, mzyan, rbah, sifet, zid, bghit, 3ndek, hadi, daba, makaynch, khssk, gha, bzaf, chhal, mashi, walo, etc. NE JAMAIS écrire en français ou arabe classique." :
+    "Réponds UNIQUEMENT en français. Jamais en anglais."
+  } Utilise les chiffres concrets basés sur les données ci-dessus. Si le gérant mentionne des objectifs, des problèmes récurrents ou des décisions importantes, retiens-les — ils seront sauvegardés dans ta mémoire.`;
 
   const messages: Anthropic.MessageParam[] = [
     ...history.map((h) => ({ role: h.role, content: h.content } as Anthropic.MessageParam)),
