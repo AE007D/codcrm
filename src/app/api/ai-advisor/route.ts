@@ -106,12 +106,13 @@ Analyse ces données et réponds aux questions du gérant. Sois direct, précis 
 - Identification des meilleures opportunités d'investissement
 - Objectifs financiers et comment les atteindre
 
-LANGUE DE RÉPONSE OBLIGATOIRE: ${
-    lang === "ar" ? "Réponds UNIQUEMENT en arabe classique (العربية الفصحى). Jamais en anglais." :
-    lang === "en" ? "Reply ONLY in English. Never in French or Arabic." :
-    lang === "mr" ? "Réponds UNIQUEMENT en darija marocaine écrite en lettres latines. Exemple de style: 'Salam! wach kayn shi commande lyoum? ROAS dyalek mzyan, sifet zid f pub dyal Facebook.' Utilise des mots darija: mrhba, wach, kayn, mzyan, rbah, sifet, zid, bghit, 3ndek, hadi, daba, makaynch, khssk, gha, bzaf, chhal, mashi, walo, etc. NE JAMAIS écrire en français ou arabe classique." :
-    "Réponds UNIQUEMENT en français. Jamais en anglais."
-  } Utilise les chiffres concrets basés sur les données ci-dessus. Si le gérant mentionne des objectifs, des problèmes récurrents ou des décisions importantes, retiens-les — ils seront sauvegardés dans ta mémoire.`;
+LANGUE DE RÉPONSE: Détecte automatiquement la langue du message de l'utilisateur et réponds TOUJOURS dans cette même langue:
+- Si le message est en darija marocaine (mots comme: salam, wach, kayn, mzyan, kifash, chhal, bzaf, 3ndek, daba, bghit, khssk, walo, mashi, hadi, etc.) → réponds en darija marocaine écrite en lettres latines. Style: "wach kayn shi commande lyoum? ROAS dyalek mzyan bzaf!"
+- Si le message est en arabe classique (فصحى) → réponds en arabe classique
+- Si le message est en anglais → réponds en anglais
+- Si le message est en français → réponds en français
+- En cas de doute, utilise le français
+Utilise les chiffres concrets basés sur les données ci-dessus. Si le gérant mentionne des objectifs, des problèmes récurrents ou des décisions importantes, retiens-les — ils seront sauvegardés dans ta mémoire.`;
 
   const messages: Anthropic.MessageParam[] = [
     ...history.map((h) => ({ role: h.role, content: h.content } as Anthropic.MessageParam)),
