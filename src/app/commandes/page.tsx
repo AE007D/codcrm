@@ -24,6 +24,7 @@ type Order = {
   receivedAt: string; // ISO string for date calculations
   source: "lightfunnels" | "shopify" | "manuel";
   notes: string;
+  quantity: number;
   attempts: number;
   noAnswer: number;
   carrierTracking?: string;
@@ -261,6 +262,7 @@ export default function CommandesPage() {
         receivedAt: String(o.receivedAt ?? o.received_at ?? new Date().toISOString()),
         source: (o.source ?? "manuel") as Order["source"],
         notes: String(o.notes ?? ""),
+        quantity: Number(o.quantity ?? 1),
         attempts: Number(o.attempts ?? 0),
         noAnswer: Number(o.noAnswer ?? o.no_answer ?? 0),
         carrierTracking: o.carrierTracking ? String(o.carrierTracking) : undefined,
@@ -440,6 +442,7 @@ export default function CommandesPage() {
         receivedAt: String(o.receivedAt ?? new Date().toISOString()),
         source: (o.source ?? "manuel") as Order["source"],
         notes: String(o.notes ?? ""),
+        quantity: Number(o.quantity ?? 1),
         attempts: 0,
         noAnswer: 0,
       };
@@ -1006,6 +1009,11 @@ export default function CommandesPage() {
                     {o.city && <span className="text-slate-400">{o.city}</span>}
                     {o.city && <span className="text-slate-200">·</span>}
                     <span className="truncate flex-1">{o.product}</span>
+                    {o.quantity > 1 && (
+                      <span className="inline-flex items-center gap-0.5 text-xs font-bold bg-violet-100 text-violet-700 px-2 py-0.5 rounded-lg shrink-0">
+                        ×{o.quantity}
+                      </span>
+                    )}
                     <span className="font-black text-slate-900 shrink-0">{o.amount} {o.currency}</span>
                   </div>
 
@@ -1152,7 +1160,14 @@ export default function CommandesPage() {
                             </span>
                           )}
                         </td>
-                        <td className="px-5 py-3.5 text-slate-600 max-w-[130px] truncate" onClick={() => setDrawer(o)}>{o.product}</td>
+                        <td className="px-5 py-3.5 text-slate-600 max-w-[160px]" onClick={() => setDrawer(o)}>
+                          <div className="flex items-center gap-1.5">
+                            <span className="truncate">{o.product}</span>
+                            {o.quantity > 1 && (
+                              <span className="inline-flex items-center text-xs font-bold bg-violet-100 text-violet-700 px-1.5 py-0.5 rounded-lg shrink-0">×{o.quantity}</span>
+                            )}
+                          </div>
+                        </td>
                         <td className="px-5 py-3.5 font-bold text-slate-800 whitespace-nowrap" onClick={() => setDrawer(o)}>{o.amount} {o.currency}</td>
                         <td className="px-5 py-3.5" onClick={() => setDrawer(o)}>
                           <SourceBadge source={o.source} />
