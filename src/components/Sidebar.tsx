@@ -520,7 +520,7 @@ export default function Sidebar() {
               <circle cx="12" cy="12" r="10"/><path d="M2 12h20M12 2a15.3 15.3 0 010 20M12 2a15.3 15.3 0 000 20"/>
             </svg>
             <div className="flex gap-0.5 ml-1">
-              {(["fr", "ar", "en", "dz"] as Lang[]).map(l => (
+              {(["fr", "ar", "en", "mr"] as Lang[]).map(l => (
                 <button key={l} onClick={() => setLang(l)}
                   className={`text-xs font-bold px-2 py-1 rounded-lg transition-colors uppercase ${
                     lang === l ? "bg-blue-600 text-white" : "text-slate-400 hover:text-slate-700 hover:bg-slate-100"

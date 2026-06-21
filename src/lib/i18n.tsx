@@ -2,7 +2,7 @@
 
 import { createContext, useContext, useState, useEffect, ReactNode } from "react";
 
-export type Lang = "fr" | "ar" | "en" | "dz";
+export type Lang = "fr" | "ar" | "en" | "mr";
 
 const T: Record<Lang, Record<string, string>> = {
   fr: {
@@ -1019,7 +1019,7 @@ const T: Record<Lang, Record<string, string>> = {
   },
 
   // ════════════════════════════════════════════════════════════════════════════
-  dz: {
+  mr: {
     // ── Sidebar ──────────────────────────────────────────────────────────────
     tagline: "Oder. Sifet. Qbed.",
     notifications: "Notifications",
@@ -1374,7 +1374,7 @@ export function LangProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     const stored = localStorage.getItem("codcrm_lang") as Lang | null;
-    if (stored && (stored === "fr" || stored === "ar" || stored === "en" || stored === "dz")) {
+    if (stored && (stored === "fr" || stored === "ar" || stored === "en" || stored === "mr")) {
       setLangState(stored);
     }
   }, []);
