@@ -16,19 +16,23 @@ const SUGGESTIONS = [
 
 export default function AIPage() {
   const { lang } = useLang();
-  const [messages, setMessages] = useState<Message[]>(() => {
-    if (typeof window === "undefined") return [];
-    try {
-      const saved = localStorage.getItem("codcrm_ai_chat");
-      return saved ? (JSON.parse(saved) as Message[]) : [];
-    } catch { return []; }
-  });
+  const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
+  // Load from localStorage after mount
   useEffect(() => {
+    try {
+      const saved = localStorage.getItem("codcrm_ai_chat");
+      if (saved) setMessages(JSON.parse(saved) as Message[]);
+    } catch { /* ignore */ }
+  }, []);
+
+  // Save to localStorage on every message change
+  useEffect(() => {
+    if (messages.length === 0) return;
     try { localStorage.setItem("codcrm_ai_chat", JSON.stringify(messages.slice(-50))); } catch { /* ignore */ }
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
