@@ -54,7 +54,7 @@ export async function createProduct(p: Omit<Product, "id" | "createdAt">): Promi
       owner_id: p.ownerId,
       name: p.name,
       sku: p.sku,
-      ameex_sku: p.ameexSku ?? "",
+      ...(p.ameexSku ? { ameex_sku: p.ameexSku } : {}),
       image: p.image,
       sell_price: p.sellPrice,
       purchase_price: p.purchasePrice,
@@ -72,7 +72,7 @@ export async function updateProduct(id: string, ownerId: string, patch: Partial<
   const dbPatch: Record<string, unknown> = {};
   if (patch.name !== undefined) dbPatch.name = patch.name;
   if (patch.sku !== undefined) dbPatch.sku = patch.sku;
-  if (patch.ameexSku !== undefined) dbPatch.ameex_sku = patch.ameexSku;
+  if (patch.ameexSku) dbPatch.ameex_sku = patch.ameexSku;
   if (patch.image !== undefined) dbPatch.image = patch.image;
   if (patch.sellPrice !== undefined) dbPatch.sell_price = patch.sellPrice;
   if (patch.purchasePrice !== undefined) dbPatch.purchase_price = patch.purchasePrice;
