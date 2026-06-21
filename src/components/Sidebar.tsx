@@ -158,6 +158,14 @@ export default function Sidebar() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // Presence ping — update last_seen every 2 minutes
+  useEffect(() => {
+    const ping = () => fetch("/api/auth/ping", { method: "POST" }).catch(() => {});
+    ping();
+    const id = setInterval(ping, 2 * 60 * 1000);
+    return () => clearInterval(id);
+  }, []);
+
   async function handleLogout() {
     setLoggingOut(true);
     try {

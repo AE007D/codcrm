@@ -76,6 +76,7 @@ export default function AdsPage() {
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
   const [productSearch, setProductSearch] = useState("");
+  const [productSearchFocused, setProductSearchFocused] = useState(false);
   const [saving, setSaving] = useState(false);
   const [viewMode, setViewMode] = useState<"campaigns" | "daily">("campaigns");
 
@@ -152,6 +153,7 @@ export default function AdsPage() {
   function selectProduct(p: CatalogProduct) {
     setForm(f => ({ ...f, name: p.name, sku: p.sku }));
     setProductSearch("");
+    setProductSearchFocused(false);
     setAutoFilled(false);
   }
 
@@ -515,9 +517,11 @@ export default function AdsPage() {
                 placeholder="Rechercher par nom ou SKU…"
                 value={productSearch}
                 onChange={e => setProductSearch(e.target.value)}
+                onFocus={() => setProductSearchFocused(true)}
+                onBlur={() => setTimeout(() => setProductSearchFocused(false), 150)}
                 className="w-full text-sm border border-slate-200 rounded-xl px-4 py-2.5 outline-none focus:border-violet-400 focus:ring-2 focus:ring-violet-50"
               />
-              {productSearch && filteredCatalog.length > 0 && (
+              {(productSearchFocused || productSearch) && filteredCatalog.length > 0 && (
                 <div className="mt-1 border border-slate-200 rounded-xl overflow-hidden shadow-lg max-h-40 overflow-y-auto">
                   {filteredCatalog.slice(0, 8).map(p => (
                     <button key={p.id} onClick={() => selectProduct(p)}
@@ -531,7 +535,7 @@ export default function AdsPage() {
                   ))}
                 </div>
               )}
-              {productSearch && filteredCatalog.length === 0 && (
+              {productSearch && filteredCatalog.length === 0 && catalog.length > 0 && (
                 <p className="text-xs text-slate-400 mt-1 px-1">Aucun produit trouvé — vous pouvez saisir manuellement ci-dessous.</p>
               )}
             </div>

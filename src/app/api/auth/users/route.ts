@@ -31,6 +31,7 @@ export async function GET() {
     role: u.role,
     active: u.active,
     createdAt: u.createdAt,
+    lastSeen: u.lastSeen ?? null,
   }));
 
   return NextResponse.json({ users }, { headers: { "Cache-Control": "private, max-age=60, stale-while-revalidate=120" } });

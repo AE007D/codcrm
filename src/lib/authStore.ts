@@ -14,6 +14,7 @@ export type User = {
   active: boolean;
   avatar?: string;
   workspaceId: string; // = own id for fresh signups; = admin's id for team members
+  lastSeen?: string;
 };
 
 const SALT = "CODCRM_SALT_";
@@ -197,5 +198,6 @@ function rowToUser(row: any): User {
     active: row.active,
     avatar: row.avatar ?? undefined,
     workspaceId: row.workspace_id ?? row.id,
+    lastSeen: row.last_seen ?? undefined,
   };
 }

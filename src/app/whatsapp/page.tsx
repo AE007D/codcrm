@@ -281,6 +281,10 @@ export default function WhatsAppPage() {
   const [qr, setQr] = useState<string | null>(null);
   const [jid, setJid] = useState<string | null>(null);
   const [waError, setWaError] = useState(false);
+  const [myRole, setMyRole] = useState<string>("agent");
+  useEffect(() => {
+    fetch("/api/auth/me").then(r => r.ok ? r.json() : null).then(d => { if (d?.role) setMyRole(d.role); }).catch(() => {});
+  }, []);
 
   const [orders, setOrders] = useState<Order[]>([]);
   const [productImages, setProductImages] = useState<Record<string, string>>({}); // product name → image url
@@ -449,6 +453,21 @@ export default function WhatsAppPage() {
     setTimeout(fetchWaStatus, 15000);
   }
 
+  const [reconnecting, setReconnecting] = useState(false);
+  async function handleReconnect() {
+    setReconnecting(true);
+    try {
+      // Logout resets the WA server session so it generates a fresh QR
+      await fetch("/api/whatsapp", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "logout" }) });
+    } catch {}
+    setQr(null);
+    // Poll aggressively for the new QR
+    for (const ms of [2000, 4000, 7000, 10000, 15000]) {
+      setTimeout(fetchWaStatus, ms);
+    }
+    setTimeout(() => setReconnecting(false), 16000);
+  }
+
   async function handleReply() {
     if (!replyText.trim() || !activePhone) return;
     setReplying(true);
@@ -549,6 +568,11 @@ export default function WhatsAppPage() {
               {jid && <span className="font-mono opacity-60">{jid.split(":")[0]}</span>}
             </span>
             {waStatus === "connected" && (
+              <span className="text-xs text-slate-400 bg-slate-50 px-2.5 py-1 rounded-full border border-slate-200">
+                🔗 Compte partagé workspace
+              </span>
+            )}
+            {waStatus === "connected" && myRole === "admin" && (
               <button onClick={handleLogout} className="text-xs font-semibold text-red-500 hover:text-red-700 px-3 py-1.5 rounded-xl hover:bg-red-50">
                 Déconnecter
               </button>
@@ -576,14 +600,28 @@ export default function WhatsAppPage() {
           </div>
         )}
         {waStatus === "disconnected" && (
-          <div className="mx-6 mt-4 border border-slate-200 rounded-2xl p-4 bg-slate-50 shrink-0 flex items-center justify-between gap-3">
+          <div className="mx-6 mt-4 border border-amber-200 rounded-2xl p-4 bg-amber-50 shrink-0 flex items-center justify-between gap-3">
             <div className="flex items-center gap-3">
-              <span className="w-2 h-2 rounded-full bg-slate-300 shrink-0 animate-pulse" />
-              <p className="text-sm text-slate-500">Déconnecté — en attente du QR code…</p>
+              <span className="w-2 h-2 rounded-full bg-amber-400 shrink-0 animate-pulse" />
+              <div>
+                <p className="text-sm font-semibold text-amber-800">WhatsApp déconnecté</p>
+                <p className="text-xs text-amber-600">
+                  {myRole === "admin"
+                    ? "Cliquez sur \"Se connecter\" pour scanner un QR code et partager l'accès avec toute l'équipe"
+                    : "En attente que l'admin connecte le compte WhatsApp du workspace"}
+                </p>
+              </div>
             </div>
-            <button onClick={fetchWaStatus} className="text-xs font-semibold text-emerald-600 hover:text-emerald-800 px-3 py-1.5 rounded-xl hover:bg-emerald-50 border border-emerald-200 transition-colors">
-              <RefreshCw size={12} className="inline mr-1" />Actualiser
-            </button>
+            <div className="flex items-center gap-2 shrink-0">
+              <button onClick={fetchWaStatus} className="text-xs font-semibold text-slate-500 hover:text-slate-700 px-3 py-1.5 rounded-xl hover:bg-white border border-slate-200 transition-colors">
+                <RefreshCw size={12} className="inline mr-1" />Actualiser
+              </button>
+              {myRole === "admin" && (
+                <button onClick={handleReconnect} disabled={reconnecting} className="text-xs font-semibold text-white bg-emerald-500 hover:bg-emerald-600 disabled:opacity-60 px-3 py-1.5 rounded-xl border border-emerald-600 transition-colors">
+                  {reconnecting ? <><RefreshCw size={12} className="inline mr-1 animate-spin" />En cours…</> : "📱 Se connecter"}
+                </button>
+              )}
+            </div>
           </div>
         )}
 

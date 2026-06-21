@@ -33,7 +33,13 @@ type TeamUser = {
   email: string;
   role: string;
   active: boolean;
+  lastSeen?: string | null;
 };
+
+function isOnline(lastSeen?: string | null): boolean {
+  if (!lastSeen) return false;
+  return Date.now() - new Date(lastSeen).getTime() < 5 * 60 * 1000; // 5 min
+}
 
 function AgentAvatar({ name }: { name: string }) {
   const initials = name.split(" ").map((w: string) => w[0]).join("").slice(0, 2).toUpperCase();
@@ -462,18 +468,24 @@ export default function Home() {
                     </div>
                   ) : (
                     <div className="divide-y divide-slate-50">
-                      {team.map((a) => (
-                        <div key={a.id} className="flex items-center gap-3 px-6 py-3 hover:bg-slate-50/60 transition-colors">
-                          <AgentAvatar name={a.name} />
-                          <div className="flex-1 min-w-0">
-                            <p className="text-sm font-semibold text-slate-800 truncate">{a.name}</p>
-                            <p className="text-xs text-slate-400">{a.email}</p>
+                      {team.map((a) => {
+                        const online = isOnline(a.lastSeen);
+                        return (
+                          <div key={a.id} className="flex items-center gap-3 px-6 py-3 hover:bg-slate-50/60 transition-colors">
+                            <div className="relative shrink-0">
+                              <AgentAvatar name={a.name} />
+                              <span className={`absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full border-2 border-white ${online ? "bg-emerald-400" : "bg-slate-300"}`} title={online ? "En ligne" : "Hors ligne"} />
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <p className="text-sm font-semibold text-slate-800 truncate">{a.name}</p>
+                              <p className="text-xs text-slate-400">{online ? "En ligne" : "Hors ligne"}</p>
+                            </div>
+                            <span className={`text-xs font-semibold px-2 py-0.5 rounded-full shrink-0 ${a.role === "admin" ? "bg-blue-50 text-blue-600" : a.role === "agent" ? "bg-emerald-50 text-emerald-600" : "bg-slate-100 text-slate-400"}`}>
+                              {a.role}
+                            </span>
                           </div>
-                          <span className={`text-xs font-semibold px-2 py-0.5 rounded-full shrink-0 ${a.role === "admin" ? "bg-blue-50 text-blue-600" : a.role === "agent" ? "bg-emerald-50 text-emerald-600" : "bg-slate-100 text-slate-400"}`}>
-                            {a.role}
-                          </span>
-                        </div>
-                      ))}
+                        );
+                      })}
                     </div>
                   )}
                   <div className="px-6 py-3 border-t border-slate-50">
