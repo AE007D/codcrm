@@ -580,8 +580,8 @@ export default function WhatsAppPage() {
           </div>
         </div>
 
-        {/* QR banner — only when WhatsApp not yet connected */}
-        {(waStatus === "qr" && qr) && (
+        {/* QR banner — show whenever QR is available (some servers return status=disconnected with a QR) */}
+        {(qr && waStatus !== "connected") && (
           <div className="mx-6 mt-4 border border-amber-200 rounded-2xl p-5 bg-amber-50 shrink-0">
             <div className="flex items-center gap-6">
               <div className="bg-white p-3 rounded-xl shadow border border-amber-200 shrink-0">
@@ -599,26 +599,32 @@ export default function WhatsAppPage() {
             </div>
           </div>
         )}
-        {waStatus === "disconnected" && (
+        {waStatus === "disconnected" && !qr && (
           <div className="mx-6 mt-4 border border-amber-200 rounded-2xl p-4 bg-amber-50 shrink-0 flex items-center justify-between gap-3">
             <div className="flex items-center gap-3">
               <span className="w-2 h-2 rounded-full bg-amber-400 shrink-0 animate-pulse" />
               <div>
-                <p className="text-sm font-semibold text-amber-800">WhatsApp déconnecté</p>
+                <p className="text-sm font-semibold text-amber-800">
+                  {reconnecting ? "Génération du QR code…" : "WhatsApp déconnecté"}
+                </p>
                 <p className="text-xs text-amber-600">
-                  {myRole === "admin"
-                    ? "Cliquez sur \"Se connecter\" pour scanner un QR code et partager l'accès avec toute l'équipe"
-                    : "En attente que l'admin connecte le compte WhatsApp du workspace"}
+                  {reconnecting
+                    ? "Le QR code va apparaître dans quelques secondes, gardez cette page ouverte"
+                    : myRole === "admin"
+                      ? "Cliquez sur \"Se connecter\" pour scanner un QR code et partager l'accès avec toute l'équipe"
+                      : "En attente que l'admin connecte le compte WhatsApp du workspace"}
                 </p>
               </div>
             </div>
             <div className="flex items-center gap-2 shrink-0">
-              <button onClick={fetchWaStatus} className="text-xs font-semibold text-slate-500 hover:text-slate-700 px-3 py-1.5 rounded-xl hover:bg-white border border-slate-200 transition-colors">
-                <RefreshCw size={12} className="inline mr-1" />Actualiser
-              </button>
+              {!reconnecting && (
+                <button onClick={fetchWaStatus} className="text-xs font-semibold text-slate-500 hover:text-slate-700 px-3 py-1.5 rounded-xl hover:bg-white border border-slate-200 transition-colors">
+                  <RefreshCw size={12} className="inline mr-1" />Actualiser
+                </button>
+              )}
               {myRole === "admin" && (
                 <button onClick={handleReconnect} disabled={reconnecting} className="text-xs font-semibold text-white bg-emerald-500 hover:bg-emerald-600 disabled:opacity-60 px-3 py-1.5 rounded-xl border border-emerald-600 transition-colors">
-                  {reconnecting ? <><RefreshCw size={12} className="inline mr-1 animate-spin" />En cours…</> : "📱 Se connecter"}
+                  {reconnecting ? <><RefreshCw size={12} className="inline mr-1 animate-spin" />En attente du QR…</> : "📱 Se connecter"}
                 </button>
               )}
             </div>
