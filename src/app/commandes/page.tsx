@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback, useMemo, useRef } from "react";
-import { Package, Warehouse, Home, AlertTriangle, PhoneOff, RefreshCw, Bird } from "lucide-react";
+import { AlertTriangle, PhoneOff, RefreshCw, Bird } from "lucide-react";
 import { AMEEX_CITIES_FALLBACK } from "@/lib/moroccanCities";
 import { cachedFetch, invalidateCache } from "@/lib/clientCache";
 import Sidebar from "@/components/Sidebar";
@@ -110,7 +110,7 @@ function SourceBadge({ source }: { source: Order["source"] }) {
   );
 }
 
-type ShipCarrier = "eagle" | "ameex";
+type ShipCarrier = "eagle";
 
 type CatalogProduct = {
   id: string;
@@ -182,19 +182,12 @@ export default function CommandesPage() {
   const [eagleAddressOverrides, setEagleAddressOverrides] = useState<Record<string, string>>({}); // orderId → address override for Eagle
   const [eagleCities, setEagleCities] = useState<{ id: string; name: string }[]>(AMEEX_CITIES_FALLBACK); // seeded with Moroccan cities; replaced by Eagle API data on load
   const [eagleCitySearch, setEagleCitySearch] = useState<Record<string, string>>({}); // orderId → search text
+  const [modalCitySearch, setModalCitySearch] = useState<Record<string, string>>({}); // key → search text
+  const [modalCityOpen, setModalCityOpen] = useState<Record<string, boolean>>({}); // key → dropdown open
   const [carrierStatus, setCarrierStatus] = useState<{ loading: boolean; text: string | null; ok: boolean }>({ loading: false, text: null, ok: true });
-  // Ameex city state
-  const [ameexCities, setAmeexCities] = useState<{ id: string; name: string }[]>([]);
-  const [ameexCityOverrides, setAmeexCityOverrides] = useState<Record<string, string>>({}); // orderId → numeric city ID
-  const [modalCitySearch, setModalCitySearch] = useState<Record<string, string>>({}); // orderId → search text
-  const [modalCityOpen, setModalCityOpen] = useState<Record<string, boolean>>({}); // orderId → dropdown open
-  const [ameexShipType, setAmeexShipType] = useState<"STOCK" | "SIMPLE">("STOCK"); // STOCK=from warehouse, SIMPLE=home pickup
-  // Merged city list for dropdowns: shows cities from all configured carriers with their logo
-  const allCities: { id: string; name: string; carrier: "eagle" | "ameex" }[] = [
+  // Merged city list for dropdowns
+  const allCities: { id: string; name: string; carrier: "eagle" }[] = [
     ...eagleCities.map(c => ({ ...c, carrier: "eagle" as const })),
-    ...ameexCities
-      .filter(a => !eagleCities.some(e => e.name.toLowerCase() === a.name.toLowerCase()))
-      .map(c => ({ ...c, carrier: "ameex" as const })),
   ];
 
 
@@ -299,19 +292,6 @@ export default function CommandesPage() {
           const cities = list.map((c: any) => ({ id: String(c.id ?? ""), name: String(c.name ?? c.city_name ?? c.City ?? "") })).filter(c => c.name);
           if (cities.length) setEagleCities(cities);
         } catch { /* keep fallback */ }
-      }
-      // Ameex cities — response is { login, api: { cities: { "1": {...}, "2": {...} } } }
-      if (s.ameex?.apiId) {
-        try {
-          const raw = await fetch("/api/ameex", { method: "POST", headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ action: "cities", apiId: s.ameex.apiId, apiKey: s.ameex.apiKey }) }).then(r => r.json());
-          const citiesObj = raw?.api?.cities ?? raw?.cities ?? raw;
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          const list: any[] = Array.isArray(citiesObj) ? citiesObj : (typeof citiesObj === "object" && citiesObj ? Object.values(citiesObj) : []);
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          const cities = list.map((c: any) => ({ id: String(c.id ?? c.ID ?? ""), name: String(c.name ?? c.label ?? c.ville ?? "") })).filter(c => c.name && c.id);
-          if (cities.length) setAmeexCities(cities);
-        } catch { /* no ameex */ }
       }
     }).catch(() => {});
   }, []);
@@ -504,7 +484,6 @@ export default function CommandesPage() {
   async function openShipModal(ids?: string[]) {
     setShipResults([]);
     setCityOverrides({});
-    setAmeexCityOverrides({});
     setEagleCitySearch({});
     if (ids) setSelected(new Set(ids));
     setShipModal(true);
@@ -527,25 +506,6 @@ export default function CommandesPage() {
       }
     } catch { /* keep fallback */ }
 
-    // Load Ameex cities — response: { api: { cities: { "1": {id,name,...}, ... } } }
-    try {
-      const creds = settings.ameex ?? {};
-      if (creds.apiId) {
-        const raw = await fetch("/api/ameex", {
-          method: "POST", headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ action: "cities", apiId: creds.apiId, apiKey: creds.apiKey }),
-        }).then(r => r.json());
-        const citiesObj = raw?.api?.cities ?? raw?.cities ?? raw;
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const list: any[] = Array.isArray(citiesObj) ? citiesObj : (typeof citiesObj === "object" && citiesObj ? Object.values(citiesObj) : []);
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const cities = list.map((c: any) => ({
-          id: String(c.id ?? c.ID ?? ""),
-          name: String(c.name ?? c.label ?? c.ville ?? ""),
-        })).filter(c => c.name && c.id);
-        if (cities.length) setAmeexCities(cities);
-      }
-    } catch { /* no ameex */ }
   }
 
   async function checkCarrierStatus(order: Order) {
@@ -676,15 +636,11 @@ export default function CommandesPage() {
     try {
       const settingsData = await fetch("/api/settings").then(r => r.json());
       const s = settingsData.settings ?? {};
-      creds = shipCarrier === "ameex" ? (s.ameex ?? {}) : (s.eagle ?? {});
+      creds = s.eagle ?? {};
     } catch { /* no creds */ }
 
     if (shipCarrier === "eagle" && (!creds.tk || !creds.sk)) {
       setShipResults([{ id: "error", ok: false, msg: "Identifiants Eagle Express manquants — configurez tk et sk dans Intégrations." }]);
-      setShipping(false); return;
-    }
-    if (shipCarrier === "ameex" && (!creds.apiId || !creds.apiKey)) {
-      setShipResults([{ id: "error", ok: false, msg: "Identifiants Ameex manquants — configurez apiId et apiKey dans Intégrations." }]);
       setShipping(false); return;
     }
 
@@ -693,49 +649,6 @@ export default function CommandesPage() {
     for (const order of selectedOrders) {
       try {
         let res: Response;
-
-        if (shipCarrier === "ameex") {
-          const cityId = ameexCityOverrides[order.id] || "";
-          if (!cityId) { results.push({ id: order.id, ok: false, msg: "Ville Ameex non sélectionnée" }); continue; }
-          // Find Ameex SKU (réf) from catalog — needed for STOCK type
-          const catalogMatch = catalog.find(p => p.name.toLowerCase() === (order.product || "").toLowerCase());
-          const ameexRef = catalogMatch?.sku || order.product || "Produit";
-          res = await fetch("/api/ameex", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              action: "addParcel",
-              apiId: creds.apiId,
-              apiKey: creds.apiKey,
-              receiver: order.customer || "Client",
-              phone: (order.phone || "0600000000").replace(/\s+/g, ""),
-              city: cityId,
-              address: order.address || order.city || "",
-              cod: String(order.amount ?? "0"),
-              product: ameexRef,
-              order_num: order.orderNumber || order.id.slice(-8),
-              comment: order.orderNumber || "",
-              type: ameexShipType,
-              open: "NO",
-              fragile: "0",
-              replace: "false",
-            }),
-          });
-          const data = await res.json();
-          // Ameex success: data.message includes "success" or data.api.parcel.code
-          const apiMsg = data?.message ?? data?.api?.message ?? data?.msg ?? JSON.stringify(data);
-          const trackingCode = data?.api?.parcel?.code ?? data?.parcel?.code ?? data?.code ?? null;
-          const ok = res.ok && (String(apiMsg).toLowerCase().includes("success") || !!trackingCode || data?.success);
-          if (ok) {
-            const patchBody: Record<string, unknown> = { id: order.id, status: "expédié", carrierName: "ameex" };
-            if (trackingCode) patchBody.carrierTracking = String(trackingCode);
-            fetch("/api/orders", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(patchBody) }).catch(() => {});
-            setOrders(prev => prev.map(o => o.id === order.id ? { ...o, status: "expédié", carrierName: "ameex", ...(trackingCode ? { carrierTracking: String(trackingCode) } : {}) } : o));
-            setDrawer(prev => prev?.id === order.id ? { ...prev, status: "expédié", carrierName: "ameex", ...(trackingCode ? { carrierTracking: String(trackingCode) } : {}) } : prev);
-          }
-          results.push({ id: order.id, ok: !!ok, msg: ok ? `✓ Envoyé${trackingCode ? ` · ${trackingCode}` : ""}` : (apiMsg ?? "Erreur Ameex") });
-          continue;
-        }
 
         // Eagle path
         {
@@ -1373,11 +1286,7 @@ export default function CommandesPage() {
                     {allCities.filter(c => !citySearch || c.name.toLowerCase().includes(citySearch.toLowerCase())).map((c, i) => (
                       <button key={`${c.carrier}-${c.id}-${i}`} type="button" onMouseDown={() => { setForm(f => ({ ...f, city: c.name })); setCitySearch(c.name); setShowCityDrop(false); }}
                         className="w-full text-left px-3 py-2 text-sm hover:bg-slate-50 transition-colors flex items-center gap-3 border-b border-slate-50 last:border-0">
-                        {c.carrier === "eagle" ? (
-                          <img src="/eagle-logo.png" alt="Eagle" className="w-8 h-5 object-contain shrink-0" />
-                        ) : (
-                          <img src="/ameex-logo.png" alt="Ameex" className="w-8 h-5 object-contain shrink-0" />
-                        )}
+                        <img src="/eagle-logo.png" alt="Eagle" className="w-8 h-5 object-contain shrink-0" />
                         <span className="flex-1 font-medium text-slate-800">{c.name}</span>
                       </button>
                     ))}
@@ -1493,29 +1402,10 @@ export default function CommandesPage() {
             </div>
 
             <div className="p-6 space-y-5">
-              {/* Carrier selector */}
-              <div className="grid grid-cols-2 gap-2">
-                <button onClick={() => setShipCarrier("eagle")}
-                  className={`flex items-center gap-2 px-4 py-3 rounded-2xl border-2 transition-all ${shipCarrier === "eagle" ? "border-amber-400 bg-amber-50" : "border-slate-200 bg-white hover:border-slate-300"}`}>
-                  <Bird size={22} className={shipCarrier === "eagle" ? "text-amber-600" : "text-slate-400"} />
-                  <div className="text-left">
-                    <p className={`text-sm font-bold ${shipCarrier === "eagle" ? "text-amber-800" : "text-slate-700"}`}>Eagle Express</p>
-                    <p className={`text-xs ${shipCarrier === "eagle" ? "text-amber-600" : "text-slate-400"}`}>Nom de ville</p>
-                  </div>
-                </button>
-                <button onClick={() => setShipCarrier("ameex")}
-                  className={`flex items-center gap-2 px-4 py-3 rounded-2xl border-2 transition-all ${shipCarrier === "ameex" ? "border-blue-400 bg-blue-50" : "border-slate-200 bg-white hover:border-slate-300"}`}>
-                  <Package size={24} strokeWidth={1.5} className={shipCarrier === "ameex" ? "text-blue-700" : "text-slate-400"} />
-                  <div className="text-left">
-                    <p className={`text-sm font-bold ${shipCarrier === "ameex" ? "text-blue-800" : "text-slate-700"}`}>Ameex</p>
-                    <p className={`text-xs ${shipCarrier === "ameex" ? "text-blue-600" : "text-slate-400"}`}>ID Ville auto</p>
-                  </div>
-                </button>
-              </div>
-
-              <div className={`flex items-center gap-3 px-4 py-2.5 rounded-xl ${shipCarrier === "eagle" ? "bg-amber-50 border border-amber-200" : "bg-blue-50 border border-blue-200"}`}>
-                {shipCarrier === "ameex" && <Package size={18} strokeWidth={1.5} className="text-blue-700" />}
-                <p className={`text-xs font-semibold ${shipCarrier === "eagle" ? "text-amber-700" : "text-blue-700"}`}>{selected.size} colis → Expédié via {shipCarrier === "eagle" ? "Eagle Express" : "Ameex"}</p>
+              {/* Carrier info */}
+              <div className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-amber-50 border border-amber-200">
+                <Bird size={18} className="text-amber-600" />
+                <p className="text-xs font-semibold text-amber-700">{selected.size} colis → Expédié via Eagle Express</p>
               </div>
 
               {/* Results */}
@@ -1535,102 +1425,6 @@ export default function CommandesPage() {
                   })}
                 </div>
               )}
-
-              {/* Ameex — shipment type + hub info */}
-              {shipCarrier === "ameex" && !shipResults.length && (
-                <div className="space-y-2">
-                  <div className="flex gap-2">
-                    <button onClick={() => setAmeexShipType("STOCK")}
-                      className={`flex-1 flex items-center justify-center gap-2 py-2 rounded-xl border-2 text-xs font-bold transition-all ${ameexShipType === "STOCK" ? "border-blue-500 bg-blue-50 text-blue-700" : "border-slate-200 bg-white text-slate-500 hover:border-slate-300"}`}>
-                      <Warehouse size={14} strokeWidth={1.5} /> Depuis stock Ameex
-                    </button>
-                    <button onClick={() => setAmeexShipType("SIMPLE")}
-                      className={`flex-1 flex items-center justify-center gap-2 py-2 rounded-xl border-2 text-xs font-bold transition-all ${ameexShipType === "SIMPLE" ? "border-blue-500 bg-blue-50 text-blue-700" : "border-slate-200 bg-white text-slate-500 hover:border-slate-300"}`}>
-                      <Home size={14} strokeWidth={1.5} /> Ramassage domicile
-                    </button>
-                  </div>
-                  {ameexShipType === "STOCK" && (
-                    <div className="text-xs text-blue-700 bg-blue-50 border border-blue-200 rounded-xl px-3 py-2 flex items-center gap-2">
-                      <Warehouse size={14} strokeWidth={1.5} />
-                      <span>Hub configuré dans <strong>Intégrations → Ameex → Dépôt par défaut</strong></span>
-                    </div>
-                  )}
-                </div>
-              )}
-
-              {/* Ameex — city select per order (uses numeric ID) */}
-              {shipCarrier === "ameex" && !shipResults.length && (() => {
-                const selectedOrders = orders.filter(o => selected.has(o.id));
-                return (
-                  <div className="space-y-2">
-                    <p className="text-xs font-semibold text-slate-500">Ville Ameex :</p>
-                    {ameexCities.length === 0 && (
-                      <p className="text-xs text-amber-600 bg-amber-50 px-3 py-2 rounded-xl border border-amber-200">
-                        Villes non chargées — vérifiez vos identifiants Ameex dans Intégrations
-                      </p>
-                    )}
-                    {selectedOrders.map(o => {
-                      const cityId = ameexCityOverrides[o.id] ?? "";
-                      const autoMatch = ameexCities.find(c => c.name.toLowerCase() === (o.city ?? "").toLowerCase());
-                      const effectiveId = cityId || autoMatch?.id || "";
-                      const selectedCity = ameexCities.find(c => c.id === effectiveId);
-                      const search = modalCitySearch[o.id] ?? "";
-                      const isOpen = modalCityOpen[o.id] ?? false;
-                      const filtered = ameexCities.filter(c => !search || c.name.toLowerCase().includes(search.toLowerCase()));
-                      return (
-                        <div key={o.id} className="p-2 rounded-xl border border-slate-200 bg-slate-50 space-y-1.5">
-                          <div className="flex items-center justify-between gap-2">
-                            <p className="text-xs font-semibold text-slate-700 truncate">{o.customer}</p>
-                            {(() => {
-                              const cp = catalog.find(p => p.name.toLowerCase() === (o.product || "").toLowerCase());
-                              return cp?.sku ? (
-                                <span className="text-[10px] font-mono bg-blue-50 text-blue-700 border border-blue-200 rounded px-1.5 py-0.5 shrink-0">📦 {cp.sku}</span>
-                              ) : (
-                                <span className="flex items-center gap-0.5 text-[10px] text-red-500 shrink-0"><AlertTriangle size={12} strokeWidth={1.5} /> Réf manquante</span>
-                              );
-                            })()}
-                          </div>
-                          {o.city && (
-                            <p className="text-[10px] text-slate-400 flex items-center gap-1">
-                              <span className="font-medium text-slate-500">Ville client :</span>
-                              <span className="font-semibold text-slate-600 bg-yellow-50 border border-yellow-200 rounded px-1">{o.city}</span>
-                              {autoMatch && <span className="text-emerald-600">→ auto-détecté ✓</span>}
-                            </p>
-                          )}
-                          <div className="relative">
-                            <button type="button"
-                              onClick={() => setModalCityOpen(p => ({ ...p, [o.id]: !p[o.id] }))}
-                              className={`w-full text-xs border rounded-lg px-2 py-1.5 bg-white flex items-center gap-2 text-left ${effectiveId ? "border-emerald-400" : "border-red-300"}`}>
-                              <img src="/ameex-logo.png" alt="" className="w-5 h-4 object-contain shrink-0" />
-                              <span className={effectiveId ? "text-slate-800 font-medium" : "text-slate-400"}>{selectedCity?.name || "— Choisissez une ville —"}</span>
-                              <svg className="w-3 h-3 ml-auto text-slate-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}><path d="M6 9l6 6 6-6"/></svg>
-                            </button>
-                            {isOpen && (
-                              <div className="absolute z-50 top-full mt-1 left-0 right-0 bg-white border border-slate-200 rounded-xl shadow-lg overflow-hidden">
-                                <div className="p-1.5 border-b border-slate-100">
-                                  <input autoFocus type="text" placeholder="Rechercher…" value={search}
-                                    onChange={e => setModalCitySearch(p => ({ ...p, [o.id]: e.target.value }))}
-                                    className="w-full text-xs px-2 py-1 border border-slate-200 rounded-lg outline-none focus:border-blue-400" />
-                                </div>
-                                <div className="max-h-40 overflow-y-auto">
-                                  {filtered.map(c => (
-                                    <button key={c.id} type="button"
-                                      onMouseDown={() => { setAmeexCityOverrides(p => ({ ...p, [o.id]: c.id })); setModalCityOpen(p => ({ ...p, [o.id]: false })); setModalCitySearch(p => ({ ...p, [o.id]: "" })); }}
-                                      className="w-full flex items-center gap-2 px-2 py-1.5 hover:bg-slate-50 text-left">
-                                      <img src="/ameex-logo.png" alt="" className="w-5 h-4 object-contain shrink-0" />
-                                      <span className="text-xs font-medium text-slate-800">{c.name}</span>
-                                    </button>
-                                  ))}
-                                </div>
-                              </div>
-                            )}
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                );
-              })()}
 
               {/* Eagle Express — city select + address per order */}
               {shipCarrier === "eagle" && !shipResults.length && (() => {
@@ -1696,7 +1490,7 @@ export default function CommandesPage() {
                 );
               })()}
               <p className="text-xs text-slate-400">
-                Configurez vos identifiants Eagle / Ameex dans la page Intégrations.
+                Configurez vos identifiants Eagle Express dans la page Intégrations.
               </p>
             </div>
 
@@ -1777,11 +1571,7 @@ export default function CommandesPage() {
                         {allCities.filter(c => !editCitySearch || c.name.toLowerCase().includes(editCitySearch.toLowerCase())).map((c, i) => (
                           <button key={`${c.carrier}-${c.id}-${i}`} type="button" onMouseDown={() => { setEditForm(f => ({ ...f, city: c.name })); setEditCitySearch(c.name); setShowEditCityDrop(false); }}
                             className="w-full text-left px-3 py-2 text-sm hover:bg-slate-50 transition-colors flex items-center gap-3 border-b border-slate-50 last:border-0">
-                            {c.carrier === "eagle" ? (
-                              <img src="https://eagleexpress.ma/assets/images/logo.png" alt="Eagle" className="w-8 h-5 object-contain shrink-0" onError={e => { (e.target as HTMLImageElement).style.display="none"; }} />
-                            ) : (
-                              <img src="https://ameex.app/assets/images/logo.png" alt="Ameex" className="w-8 h-5 object-contain shrink-0" onError={e => { (e.target as HTMLImageElement).style.display="none"; }} />
-                            )}
+                            <img src="https://eagleexpress.ma/assets/images/logo.png" alt="Eagle" className="w-8 h-5 object-contain shrink-0" onError={e => { (e.target as HTMLImageElement).style.display="none"; }} />
                             <span className="flex-1 font-medium text-slate-800">{c.name}</span>
                           </button>
                         ))}

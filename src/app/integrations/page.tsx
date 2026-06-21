@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { CheckCircle2, Save, Warehouse, Package, PhoneOff, XCircle, Search } from "lucide-react";
+import { CheckCircle2, PhoneOff, XCircle, Search } from "lucide-react";
 import Sidebar from "@/components/Sidebar";
 import { useLang } from "@/lib/i18n";
 
@@ -75,7 +75,6 @@ const INTEGRATIONS = [
   { id: "lightfunnels",   label: "Lightfunnels",    category: "source",   color: "bg-orange-500",  desc: "Webhook order/created v2",    logo: "https://lightfunnels.com/favicon.ico" },
   { id: "shopify",        label: "Shopify",          category: "source",   color: "bg-emerald-600", desc: "Webhook orders/create",        logo: "https://www.shopify.com/favicon.ico" },
   { id: "eagle",          label: "Eagle Express",    category: "shipping", color: "bg-amber-500",   desc: "API · eagleexpress.ma",        logo: "/eagle-logo.png" },
-  { id: "ameex",          label: "Ameex",            category: "shipping", color: "bg-blue-700",    desc: "API · ameex.ma",               logo: "/ameex-logo.png" },
   { id: "facebook-ads",   label: "Facebook Ads",     category: "ads",      color: "bg-blue-600",    desc: "Graph API · Meta Business",    logo: "https://www.facebook.com/favicon.ico" },
   { id: "tiktok-ads",     label: "TikTok Ads",       category: "ads",      color: "bg-slate-900",   desc: "Marketing API · TikTok",       logo: "https://www.tiktok.com/favicon.ico" },
   { id: "telegram-bot",  label: "Telegram Bot",     category: "notif",    color: "bg-blue-500",    desc: "Rapports quotidiens · Alertes", logo: "https://telegram.org/favicon.ico" },
@@ -102,45 +101,6 @@ export default function IntegrationsPage() {
   const [eagleApiStatus, setEagleApiStatus] = useState<"unknown"|"ok"|"broken">("unknown");
   const [eagleApiTesting, setEagleApiTesting] = useState(false);
   const [eagleApiRaw, setEagleApiRaw] = useState<string>("");
-
-  /* Ameex state */
-  const [ameex, setAmeex] = useState({ apiId: "", apiKey: "", depotId: "" });
-  const [ameexSaved, setAmeexSaved] = useState<{ apiId: string; apiKey: string; depotId: string } | null>(null);
-  const [ameexCities, setAmeexCities] = useState<{ id: string; name: string }[]>([]);
-  const [ameexDepots, setAmeexDepots] = useState<{ id: string; name: string }[]>([]);
-  const [ameexCitySearch, setAmeexCitySearch] = useState("");
-  const [ameexTab, setAmeexTab] = useState<"config"|"cities">("config");
-  function saveAmeex() {
-    if (!ameex.apiId || !ameex.apiKey) { showToast("API ID et API Key requis.", false); return; }
-    patchSettings({ ameex }).then(() => { setAmeexSaved(ameex); showToast("Ameex connecté ✓"); });
-  }
-  async function loadAmeexDepots(creds: { apiId: string; apiKey: string }) {
-    try {
-      const d = await fetch("/api/ameex", { method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: "depots", apiId: creds.apiId, apiKey: creds.apiKey }) }).then(r => r.json());
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const raw = d?.api?.depots ?? d?.depots ?? d;
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const list: any[] = Array.isArray(raw) ? raw : (typeof raw === "object" && raw ? Object.values(raw) : []);
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const depots = list.map((x: any) => ({ id: String(x.id ?? x.ID ?? ""), name: String(x.name ?? x.label ?? x.ville ?? "") })).filter(x => x.id && x.name);
-      if (depots.length) setAmeexDepots(depots);
-    } catch { /* silent */ }
-  }
-  async function loadAmeexCities() {
-    if (!ameexSaved) return;
-    const d = await fetch("/api/ameex", { method: "POST", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ action: "cities", apiId: ameexSaved.apiId, apiKey: ameexSaved.apiKey }) }).then(r => r.json());
-    // Ameex returns { api: { cities: { "1": {id,name,...}, "2": {...} } } }
-    const citiesObj = d?.api?.cities ?? d?.cities ?? d;
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const list: any[] = Array.isArray(citiesObj) ? citiesObj : (typeof citiesObj === "object" && citiesObj ? Object.values(citiesObj) : []);
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const cities = list.map((c: any) => ({ id: String(c.id ?? c.ID ?? ""), name: String(c.name ?? c.label ?? c.ville ?? "") })).filter(c => c.name && c.id);
-    setAmeexCities(cities);
-    if (!cities.length) showToast("Aucune ville trouvée — vérifiez vos identifiants", false);
-    else showToast(`${cities.length} villes chargées ✓`);
-  }
 
   /* LF state */
   const [lfOrders, setLfOrders] = useState<LFOrder[]>([]);
@@ -171,7 +131,6 @@ export default function IntegrationsPage() {
     fetch("/api/settings").then(r => r.json()).then(d => {
       const s = d.settings ?? {};
       if (s.eagle)            { setEagleSaved(s.eagle);          setEagle(s.eagle); }
-      if (s.ameex)            { setAmeexSaved(s.ameex);          setAmeex(s.ameex); loadAmeexDepots(s.ameex); }
       if (s.shopify)          { setShopifySaved(s.shopify);      setShopify(s.shopify); }
       if (s.facebook)         { setFbAdsSaved(s.facebook);       setFbAds(s.facebook); }
       if (s.tiktok)           { setTiktokAdsSaved(s.tiktok);     setTiktokAds(s.tiktok); }
@@ -281,6 +240,7 @@ export default function IntegrationsPage() {
   useEffect(() => { if (active === "eagle" && eagleTab === "parcels") loadEagleParcels(); if (active === "eagle" && eagleTab === "cities" && eagleCities.length === 0) loadEagleCities(); }, [active, eagleTab, loadEagleParcels, loadEagleCities, eagleCities.length]);
 
   const connected: Record<string, boolean> = { lightfunnels: lfEvents > 0, shopify: !!shopifySaved?.store, eagle: !!eagleSaved?.tk, "facebook-ads": !!fbAdsSaved?.accessToken, "tiktok-ads": !!tiktokAdsSaved?.accessToken, "telegram-bot": !!tgBotSaved?.botToken };
+
   const sources  = INTEGRATIONS.filter(i => i.category === "source");
   const shippers = INTEGRATIONS.filter(i => i.category === "shipping");
   const adsInteg = INTEGRATIONS.filter(i => i.category === "ads");
@@ -569,98 +529,6 @@ export default function IntegrationsPage() {
                           return !nameVal ? <tr><td colSpan={2} className="px-5 py-2 text-xs text-red-500 font-mono bg-red-50">⚠ Champs reçus: {Object.keys(r).join(", ")}</td></tr> : null;
                         })()}</tbody>
                       </table>
-                    )}
-                  </div>
-                )}
-              </div>
-            )}
-
-            {/* ── AMEEX ── */}
-            {active === "ameex" && (
-              <div className="max-w-lg space-y-5">
-                <div className="flex items-center gap-3 mb-2">
-                  <div className="w-10 h-10 rounded-xl overflow-hidden border border-slate-200 bg-white flex items-center justify-center shrink-0">
-                    <img src="/ameex-logo.png" alt="Ameex" className="w-9 h-9 object-contain" />
-                  </div>
-                  <div><h2 className="font-bold text-slate-900 text-lg">Ameex</h2><p className="text-xs text-slate-400">ameex.ma · API ID / API Key</p></div>
-                </div>
-
-                {/* Tabs */}
-                <div className="flex gap-1 bg-slate-100 p-1 rounded-xl">
-                  {(["config", "cities"] as const).map(tab => (
-                    <button key={tab} onClick={() => { setAmeexTab(tab); if (tab === "cities" && ameexCities.length === 0) loadAmeexCities(); }}
-                      className={`flex-1 py-2 rounded-lg text-xs font-semibold transition-colors ${ameexTab === tab ? "bg-white text-blue-700 shadow-sm" : "text-slate-500 hover:text-slate-700"}`}>
-                      {tab === "config" ? "Configuration" : `Villes (${ameexCities.length})`}
-                    </button>
-                  ))}
-                </div>
-
-                {ameexTab === "config" && (
-                  <div className="space-y-4">
-                    {ameexSaved && (
-                      <div className="flex items-center gap-2 px-3 py-2 bg-emerald-50 border border-emerald-200 rounded-xl text-xs font-semibold text-emerald-700">
-                        <CheckCircle2 size={14} strokeWidth={1.5} className="text-emerald-600" /> Ameex connecté
-                      </div>
-                    )}
-                    <div className="space-y-3 bg-slate-50 rounded-2xl p-4 border border-slate-200">
-                      {[
-                        { key: "apiId", label: "API ID *", placeholder: "Votre API ID Ameex" },
-                        { key: "apiKey", label: "API Key *", placeholder: "Votre API Key Ameex" },
-                      ].map(f => (
-                        <div key={f.key}>
-                          <label className="text-xs font-semibold text-slate-600 mb-1 block">{f.label}</label>
-                          <input type={f.key === "apiKey" ? "password" : "text"} placeholder={f.placeholder}
-                            value={(ameex as Record<string, string>)[f.key] ?? ""}
-                            onChange={e => setAmeex(a => ({ ...a, [f.key]: e.target.value }))}
-                            className="w-full text-sm border border-slate-200 rounded-xl px-4 py-2.5 outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-50 font-mono bg-white" />
-                        </div>
-                      ))}
-                      {/* Depot ID */}
-                      <div>
-                        <label className="text-xs font-semibold text-slate-600 mb-1 block flex items-center gap-1"><Warehouse size={14} strokeWidth={1.5} /> Hub ID par défaut *</label>
-                        <input type="text" placeholder="Ex: 129"
-                          value={ameex.depotId}
-                          onChange={e => setAmeex(a => ({ ...a, depotId: e.target.value }))}
-                          className={`w-full text-sm border rounded-xl px-4 py-2.5 outline-none focus:border-blue-400 font-mono bg-white ${ameex.depotId ? "border-emerald-400" : "border-slate-200"}`} />
-                        <p className="text-xs text-slate-400 mt-1">
-                          Trouvez votre Hub ID dans <strong>Ameex → Produits</strong> (colonne &quot;Hub&quot;).
-                          {ameex.depotId && <span className="text-emerald-600 ml-1">✓ Hub {ameex.depotId} configuré</span>}
-                        </p>
-                      </div>
-                    </div>
-                    <button onClick={saveAmeex}
-                      className="w-full py-3 bg-blue-700 hover:bg-blue-800 text-white font-semibold text-sm rounded-xl shadow shadow-blue-200 transition-colors">
-                      <Save size={14} strokeWidth={1.5} className="inline mr-1" /> Sauvegarder Ameex
-                    </button>
-                  </div>
-                )}
-
-                {ameexTab === "cities" && (
-                  <div className="space-y-3">
-                    {!ameexSaved ? (
-                      <p className="text-sm text-slate-400 text-center py-8">Configurez Ameex d&apos;abord</p>
-                    ) : (
-                      <>
-                        <input type="text" placeholder="Rechercher une ville…" value={ameexCitySearch}
-                          onChange={e => setAmeexCitySearch(e.target.value)}
-                          className="w-full text-sm border border-slate-200 rounded-xl px-4 py-2.5 outline-none focus:border-blue-400 bg-white" />
-                        <div className="max-h-80 overflow-y-auto border border-slate-200 rounded-xl divide-y divide-slate-100">
-                          {ameexCities
-                            .filter(c => !ameexCitySearch || c.name.toLowerCase().includes(ameexCitySearch.toLowerCase()))
-                            .map(c => (
-                              <div key={c.id} className="flex items-center gap-3 px-4 py-2.5 hover:bg-slate-50">
-                                <img src="/ameex-logo.png" alt="Ameex" className="w-6 h-4 object-contain shrink-0 opacity-70" />
-                                <span className="text-sm font-medium text-slate-800 flex-1">{c.name}</span>
-                                <span className="text-xs font-mono text-slate-400 bg-slate-100 px-2 py-0.5 rounded">ID: {c.id}</span>
-                              </div>
-                            ))}
-                          {ameexCities.length === 0 && (
-                            <button onClick={loadAmeexCities} className="w-full py-6 text-sm text-blue-600 font-semibold hover:bg-blue-50">
-                              Charger les villes →
-                            </button>
-                          )}
-                        </div>
-                      </>
                     )}
                   </div>
                 )}

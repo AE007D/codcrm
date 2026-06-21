@@ -37,7 +37,6 @@ const T: Record<Lang, Record<string, string>> = {
     nav_finances: "Finances",
     nav_calculator: "Calculateur",
     nav_transit: "En Transit",
-    nav_ameex: "Ameex",
     nav_visitors: "Visiteurs live",
     nav_ads: "Ads Manager",
     nav_whatsapp: "WhatsApp",
@@ -285,26 +284,6 @@ const T: Record<Lang, Record<string, string>> = {
     conv_rate: "Taux conv.",
     search_funnel: "Rechercher nom, téléphone, produit…",
 
-    // ── Transit page ──────────────────────────────────────────────────────────
-    transit_title: "En Transit · Ameex",
-    transit_subtitle: "Suivi des colis en cours",
-    in_progress: "En cours",
-    col_total_parcels: "Total colis",
-    col_in_delivery: "En livraison",
-    type_all: "Tous",
-    type_simple: "SIMPLE",
-    type_stock: "STOCK",
-    search_transit: "Rechercher code, client, ville…",
-
-    // ── Ameex page ────────────────────────────────────────────────────────────
-    ameex_title: "Ameex",
-    ameex_subtitle: "ameex.ma · Livraison & Logistique COD",
-    tab_config: "Config",
-    tab_add_parcel: "+ Ajouter colis",
-    tab_my_parcels: "Mes colis",
-    tab_tracking: "Tracking",
-    new_parcel: "Nouveau colis Ameex",
-
     // ── Integrations page ─────────────────────────────────────────────────────
     integrations_title: "Intégrations",
     integrations_subtitle: "Connectez vos outils",
@@ -375,7 +354,6 @@ const T: Record<Lang, Record<string, string>> = {
     nav_finances: "المالية",
     nav_calculator: "الحاسبة",
     nav_transit: "في الطريق",
-    nav_ameex: "أميكس",
     nav_visitors: "الزوار المباشر",
     nav_ads: "مدير الإعلانات",
     nav_whatsapp: "واتساب",
@@ -623,26 +601,6 @@ const T: Record<Lang, Record<string, string>> = {
     conv_rate: "نسبة التحويل",
     search_funnel: "بحث بالاسم، الهاتف، المنتج…",
 
-    // ── Transit page ──────────────────────────────────────────────────────────
-    transit_title: "في الطريق · Ameex",
-    transit_subtitle: "متابعة الطرود الجارية",
-    in_progress: "قيد التنفيذ",
-    col_total_parcels: "إجمالي الطرود",
-    col_in_delivery: "قيد التوصيل",
-    type_all: "الكل",
-    type_simple: "بسيط",
-    type_stock: "مخزون",
-    search_transit: "بحث برمز، عميل، مدينة…",
-
-    // ── Ameex page ────────────────────────────────────────────────────────────
-    ameex_title: "Ameex",
-    ameex_subtitle: "ameex.ma · توصيل ولوجستيك COD",
-    tab_config: "الإعداد",
-    tab_add_parcel: "+ إضافة طرد",
-    tab_my_parcels: "طرودي",
-    tab_tracking: "تتبع",
-    new_parcel: "طرد Ameex جديد",
-
     // ── Integrations page ─────────────────────────────────────────────────────
     integrations_title: "التكاملات",
     integrations_subtitle: "اربط أدواتك",
@@ -713,7 +671,6 @@ const T: Record<Lang, Record<string, string>> = {
     nav_finances: "Finances",
     nav_calculator: "Calculator",
     nav_transit: "In Transit",
-    nav_ameex: "Ameex",
     nav_visitors: "Live Visitors",
     nav_ads: "Ads Manager",
     nav_whatsapp: "WhatsApp",
@@ -961,26 +918,6 @@ const T: Record<Lang, Record<string, string>> = {
     conv_rate: "Conv. rate",
     search_funnel: "Search name, phone, product…",
 
-    // ── Transit page ──────────────────────────────────────────────────────────
-    transit_title: "In Transit · Ameex",
-    transit_subtitle: "Tracking in-progress parcels",
-    in_progress: "In progress",
-    col_total_parcels: "Total parcels",
-    col_in_delivery: "In delivery",
-    type_all: "All",
-    type_simple: "SIMPLE",
-    type_stock: "STOCK",
-    search_transit: "Search code, client, city…",
-
-    // ── Ameex page ────────────────────────────────────────────────────────────
-    ameex_title: "Ameex",
-    ameex_subtitle: "ameex.ma · COD Delivery & Logistics",
-    tab_config: "Config",
-    tab_add_parcel: "+ Add parcel",
-    tab_my_parcels: "My parcels",
-    tab_tracking: "Tracking",
-    new_parcel: "New Ameex parcel",
-
     // ── Integrations page ─────────────────────────────────────────────────────
     integrations_title: "Integrations",
     integrations_subtitle: "Connect your tools",
@@ -1051,7 +988,6 @@ const T: Record<Lang, Record<string, string>> = {
     nav_finances: "Finances",
     nav_calculator: "Calculateur",
     nav_transit: "F Route",
-    nav_ameex: "Ameex",
     nav_visitors: "Visiteurs live",
     nav_ads: "Ads Manager",
     nav_whatsapp: "WhatsApp",
@@ -1298,26 +1234,6 @@ const T: Record<Lang, Record<string, string>> = {
     recovered: "Mstirj3in",
     conv_rate: "Taux conv.",
     search_funnel: "Qlab smiya, tel, produit…",
-
-    // ── Transit page ──────────────────────────────────────────────────────────
-    transit_title: "F Route · Ameex",
-    transit_subtitle: "Taba3 colis li mazalin f route",
-    in_progress: "F khedma",
-    col_total_parcels: "Total colis",
-    col_in_delivery: "F tawsil",
-    type_all: "Kol chi",
-    type_simple: "SIMPLE",
-    type_stock: "STOCK",
-    search_transit: "Qlab code, client, mdina…",
-
-    // ── Ameex page ────────────────────────────────────────────────────────────
-    ameex_title: "Ameex",
-    ameex_subtitle: "ameex.ma · Tawsil w logistique COD",
-    tab_config: "Config",
-    tab_add_parcel: "+ Zid colis",
-    tab_my_parcels: "Colis dyali",
-    tab_tracking: "Tracking",
-    new_parcel: "Colis jdid Ameex",
 
     // ── Integrations page ─────────────────────────────────────────────────────
     integrations_title: "Intégrations",

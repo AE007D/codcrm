@@ -7,7 +7,6 @@ export type Product = {
   ownerId: string;
   name: string;
   sku: string;
-  ameexSku?: string; // Ameex warehouse reference (e.g. 23336-0-39853-6257-XA)
   image: string;
   sellPrice: number;
   purchasePrice: number;
@@ -25,7 +24,6 @@ function rowToProduct(row: any): Product {
     ownerId: row.owner_id,
     name: row.name,
     sku: row.sku ?? "",
-    ameexSku: row.ameex_sku ?? "",
     image: row.image ?? "",
     sellPrice: parseFloat(row.sell_price ?? "0"),
     purchasePrice: parseFloat(row.purchase_price ?? "0"),
@@ -54,7 +52,6 @@ export async function createProduct(p: Omit<Product, "id" | "createdAt">): Promi
       owner_id: p.ownerId,
       name: p.name,
       sku: p.sku,
-      ...(p.ameexSku ? { ameex_sku: p.ameexSku } : {}),
       image: p.image,
       sell_price: p.sellPrice,
       purchase_price: p.purchasePrice,
@@ -72,7 +69,6 @@ export async function updateProduct(id: string, ownerId: string, patch: Partial<
   const dbPatch: Record<string, unknown> = {};
   if (patch.name !== undefined) dbPatch.name = patch.name;
   if (patch.sku !== undefined) dbPatch.sku = patch.sku;
-  if (patch.ameexSku) dbPatch.ameex_sku = patch.ameexSku;
   if (patch.image !== undefined) dbPatch.image = patch.image;
   if (patch.sellPrice !== undefined) dbPatch.sell_price = patch.sellPrice;
   if (patch.purchasePrice !== undefined) dbPatch.purchase_price = patch.purchasePrice;

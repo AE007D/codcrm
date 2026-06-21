@@ -2,7 +2,6 @@
 import { supabase } from "./supabase";
 
 export type UserSettings = {
-  ameex?: { apiId: string; apiKey: string };
   eagle?: { tk: string; sk: string };
   shopify?: { store: string; apiKey: string };
   facebook?: { accessToken: string };

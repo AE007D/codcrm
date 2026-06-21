@@ -76,12 +76,6 @@ const navItems: NavItem[] = [
       <line x1="8" y1="10" x2="16" y2="10"/><line x1="8" y1="14" x2="12" y2="14"/>
     </svg>
   )},
-  { labelKey: "nav_transit", href: "/transit", adminOnly: true, icon: (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="w-5 h-5">
-      <path d="M5 17H3a2 2 0 01-2-2V5a2 2 0 012-2h11a2 2 0 012 2v3M9 17h6m4 0h2"/><circle cx="7" cy="17" r="2"/>
-      <path d="M13 17V9h5l3 4v4h-2"/><circle cx="19" cy="17" r="2"/>
-    </svg>
-  )},
   { labelKey: "nav_visitors", href: "/visiteurs", adminOnly: true, icon: (
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="w-5 h-5">
       <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>
