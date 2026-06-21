@@ -155,8 +155,8 @@ export default function ProductPage() {
         {/* Product card */}
         <div className="bg-white rounded-3xl shadow-xl overflow-hidden mb-5">
           {product.image && (
-            <div className="relative w-full aspect-square max-h-80 bg-slate-100">
-              <Image src={product.image} alt={product.name} fill className="object-cover" unoptimized />
+            <div className="w-full bg-slate-100">
+              <Image src={product.image} alt={product.name} width={800} height={800} className="w-full h-auto object-contain" unoptimized />
             </div>
           )}
           <div className="p-6">
