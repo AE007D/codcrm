@@ -107,7 +107,7 @@ export default function ProduitsPage() {
   const fetchProducts = useCallback(async () => {
     try {
       const [pRes, oRes, aRes, bRes] = await Promise.all([
-        fetch("/api/products"),
+        fetch("/api/products", { cache: "no-store" }),
         fetch("/api/lf-orders"),
         fetch("/api/auth/users"),
         fetch("/api/boutiques"),

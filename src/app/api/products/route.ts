@@ -42,7 +42,7 @@ export async function GET() {
     };
   });
 
-  return NextResponse.json({ products: enriched }, { headers: { "Cache-Control": "private, max-age=30, stale-while-revalidate=60" } });
+  return NextResponse.json({ products: enriched }, { headers: { "Cache-Control": "no-store" } });
 }
 
 export async function POST(request: NextRequest) {
