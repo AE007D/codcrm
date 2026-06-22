@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getUsersByWorkspace, getSession, updateUser, deleteUser, createUser, hashPassword, getUserByEmail } from "@/lib/authStore";
+import { getSettings } from "@/lib/supabaseSettingsStore";
 import { cookies } from "next/headers";
 
 const SESSION_COOKIE = "codcrm_session";
@@ -24,17 +25,23 @@ export async function GET() {
   }
 
   // Only return users in the same workspace
-  const users = (await getUsersByWorkspace(user.workspaceId)).map(u => ({
+  const [wsUsers, settings] = await Promise.all([
+    getUsersByWorkspace(user.workspaceId),
+    getSettings(user.workspaceId),
+  ]);
+  const presence = (settings.presence as Record<string, string>) ?? {};
+
+  const users = wsUsers.map(u => ({
     id: u.id,
     name: u.name,
     email: u.email,
     role: u.role,
     active: u.active,
     createdAt: u.createdAt,
-    lastSeen: u.lastSeen ?? null,
+    lastSeen: presence[u.id] ?? u.lastSeen ?? null,
   }));
 
-  return NextResponse.json({ users }, { headers: { "Cache-Control": "private, max-age=60, stale-while-revalidate=120" } });
+  return NextResponse.json({ users }, { headers: { "Cache-Control": "no-store" } });
 }
 
 export async function POST(request: NextRequest) {
