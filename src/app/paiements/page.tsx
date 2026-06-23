@@ -89,6 +89,33 @@ export default function PaiementsPage() {
     }
   }
 
+  async function payAgent(agentId: string, agent: { name: string; ids: string[]; total: number }) {
+    // Mark all pending commissions for this agent as paid
+    await Promise.all(agent.ids.map(id =>
+      fetch("/api/payment-requests", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id, status: "paid" }),
+      })
+    ));
+    setRequests(prev => prev.map(r => agent.ids.includes(r.id) ? { ...r, status: "paid" as const } : r));
+
+    // Record in finances as a virement (expense)
+    const settingsRes = await fetch("/api/settings").then(r => r.json()).catch(() => ({}));
+    const existing: { id: number; date: string; amount: number; note: string }[] = settingsRes?.settings?.virements ?? [];
+    const updated = [...existing, {
+      id: Date.now(),
+      date: new Date().toISOString().slice(0, 10),
+      amount: agent.total,
+      note: `Commission ${agent.name} (${agent.ids.length} livraison${agent.ids.length > 1 ? "s" : ""})`,
+    }];
+    await fetch("/api/settings", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ virements: updated }),
+    });
+  }
+
   const pendingTotal = requests.filter(r => r.status === "pending").reduce((s, r) => s + r.amount, 0);
   const paidTotal = requests.filter(r => r.status === "paid").reduce((s, r) => s + r.amount, 0);
   const totalEarned = pendingTotal + paidTotal;
@@ -242,96 +269,94 @@ export default function PaiementsPage() {
             </>
           )}
 
-          {/* Admin view — summary cards */}
-          {role === "admin" && (
-            <div className="grid grid-cols-3 gap-4 mb-6">
-              <div className="bg-white rounded-2xl p-4 shadow-sm border border-slate-100">
-                <p className="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-1">{t("status_pending_pay")}</p>
-                <p className="text-2xl font-bold text-amber-600">{requests.filter(r => r.status === "pending").length}</p>
-                <p className="text-xs text-slate-400 mt-0.5">{pendingTotal} MAD total</p>
-              </div>
-              <div className="bg-white rounded-2xl p-4 shadow-sm border border-slate-100">
-                <p className="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-1">Payé</p>
-                <p className="text-2xl font-bold text-emerald-600">{requests.filter(r => r.status === "paid").length}</p>
-                <p className="text-xs text-slate-400 mt-0.5">{paidTotal} MAD versé</p>
-              </div>
-              <div className="bg-white rounded-2xl p-4 shadow-sm border border-slate-100">
-                <p className="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-1">Total demandes</p>
-                <p className="text-2xl font-bold text-slate-700">{requests.length}</p>
-                <p className="text-xs text-slate-400 mt-0.5">tous agents</p>
-              </div>
-            </div>
-          )}
+          {/* Admin view — per-agent commission cards */}
+          {role === "admin" && (() => {
+            const pending = requests.filter(r => r.status === "pending");
+            const paid = requests.filter(r => r.status === "paid");
 
-          {/* Requests list */}
-          <div className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
-            <div className="px-5 py-4 border-b border-slate-100 flex items-center justify-between">
-              <h2 className="font-bold text-slate-900">
-                {role === "admin" ? "Demandes de virement" : "Mes demandes"}
-              </h2>
-              {requests.filter(r => r.status === "pending").length > 0 && role === "admin" && (
-                <span className="bg-orange-100 text-orange-700 text-xs font-bold px-2.5 py-1 rounded-full animate-pulse">
-                  {requests.filter(r => r.status === "pending").length} urgente(s)
-                </span>
-              )}
-            </div>
+            // Group pending by agent
+            const agentMap: Record<string, { name: string; ids: string[]; total: number }> = {};
+            for (const r of pending) {
+              if (!agentMap[r.agent_id]) agentMap[r.agent_id] = { name: r.agent_name, ids: [], total: 0 };
+              agentMap[r.agent_id].ids.push(r.id);
+              agentMap[r.agent_id].total += r.amount;
+            }
+            const agents = Object.entries(agentMap);
 
-            {requests.length === 0 ? (
-              <div className="py-12 text-center text-slate-400">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5} className="w-10 h-10 mx-auto mb-3 opacity-30">
-                  <path d="M12 2v20M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/>
-                </svg>
-                <p className="text-sm">Aucune demande</p>
-              </div>
-            ) : (
-              <div className="divide-y divide-slate-50">
-                {requests.map(r => {
-                  const st = STATUS_LABELS[r.status] ?? STATUS_LABELS.pending;
-                  return (
-                    <div key={r.id} className={`px-5 py-4 flex items-start gap-4 ${r.status === "pending" && role === "admin" ? "bg-orange-50/30" : ""}`}>
-                      {/* Avatar */}
-                      <div className="w-9 h-9 rounded-xl bg-blue-600 flex items-center justify-center text-white font-bold text-sm shrink-0">
-                        {r.agent_name[0]?.toUpperCase()}
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2 flex-wrap">
-                          <span className="font-semibold text-slate-800 text-sm">{r.agent_name}</span>
-                          {r.status === "pending" && (
-                            <span className="text-[10px] font-bold text-orange-600 bg-orange-100 px-1.5 py-0.5 rounded-full animate-pulse">URGENT</span>
-                          )}
+            return (
+              <>
+                {/* Summary */}
+                <div className="grid grid-cols-2 gap-4 mb-6">
+                  <div className="bg-white rounded-2xl p-4 shadow-sm border border-slate-100">
+                    <p className="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-1">À payer</p>
+                    <p className="text-2xl font-bold text-amber-600">{pendingTotal} MAD</p>
+                    <p className="text-xs text-slate-400 mt-0.5">{pending.length} commissions · {agents.length} agent(s)</p>
+                  </div>
+                  <div className="bg-white rounded-2xl p-4 shadow-sm border border-slate-100">
+                    <p className="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-1">Déjà payé</p>
+                    <p className="text-2xl font-bold text-emerald-600">{paidTotal} MAD</p>
+                    <p className="text-xs text-slate-400 mt-0.5">{paid.length} commissions versées</p>
+                  </div>
+                </div>
+
+                {/* Agent cards */}
+                {agents.length === 0 ? (
+                  <div className="bg-white rounded-2xl p-10 text-center text-slate-400 shadow-sm border border-slate-100">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5} className="w-10 h-10 mx-auto mb-3 opacity-30"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/></svg>
+                    <p className="text-sm">Aucune commission en attente</p>
+                  </div>
+                ) : (
+                  <div className="space-y-3 mb-6">
+                    <h2 className="font-bold text-slate-700 text-sm uppercase tracking-wide">Commissions à payer</h2>
+                    {agents.map(([agentId, agent]) => (
+                      <div key={agentId} className="bg-white rounded-2xl shadow-sm border border-amber-100 p-4 flex items-center gap-4">
+                        <div className="w-11 h-11 rounded-xl bg-blue-600 flex items-center justify-center text-white font-bold text-base shrink-0">
+                          {agent.name[0]?.toUpperCase()}
                         </div>
-                        {r.message && <p className="text-xs text-slate-500 mt-0.5 truncate">{r.message}</p>}
-                        <p className="text-xs text-slate-400 mt-0.5">
-                          {new Date(r.created_at).toLocaleDateString("fr-MA", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" })}
-                        </p>
+                        <div className="flex-1 min-w-0">
+                          <p className="font-bold text-slate-900">{agent.name}</p>
+                          <p className="text-xs text-slate-500">{agent.ids.length} commande(s) livrée(s)</p>
+                        </div>
+                        <div className="text-right shrink-0">
+                          <p className="text-xl font-bold text-amber-600">{agent.total} MAD</p>
+                        </div>
+                        <button
+                          onClick={() => payAgent(agentId, agent)}
+                          className="shrink-0 px-4 py-2.5 bg-emerald-500 hover:bg-emerald-600 text-white text-sm font-bold rounded-xl shadow-sm shadow-emerald-200 transition-colors"
+                        >
+                          Payer →
+                        </button>
                       </div>
-                      <div className="flex flex-col items-end gap-2 shrink-0">
-                        <span className="text-base font-bold text-slate-900">{r.amount} MAD</span>
-                        <span className={`text-xs font-semibold px-2.5 py-1 rounded-full border ${st.bg} ${st.color}`}>{t(st.labelKey)}</span>
-                        {/* Admin actions */}
-                        {role === "admin" && r.status === "pending" && (
-                          <div className="flex gap-1.5 mt-1">
-                            <button
-                              onClick={() => updateStatus(r.id, "paid")}
-                              className="px-3 py-1.5 bg-emerald-500 hover:bg-emerald-600 text-white text-xs font-bold rounded-lg shadow-sm"
-                            >
-                              ✓ Payé
-                            </button>
-                            <button
-                              onClick={() => updateStatus(r.id, "rejected")}
-                              className="px-3 py-1.5 bg-slate-100 hover:bg-red-50 text-slate-500 hover:text-red-600 text-xs font-semibold rounded-lg"
-                            >
-                              Refuser
-                            </button>
-                          </div>
-                        )}
-                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {/* Paid history */}
+                {paid.length > 0 && (
+                  <div className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
+                    <div className="px-5 py-3 border-b border-slate-100">
+                      <h2 className="font-bold text-slate-700 text-sm">Historique payé</h2>
                     </div>
-                  );
-                })}
-              </div>
-            )}
-          </div>
+                    <div className="divide-y divide-slate-50">
+                      {paid.map(r => (
+                        <div key={r.id} className="px-5 py-3 flex items-center gap-3">
+                          <div className="w-8 h-8 rounded-lg bg-emerald-100 flex items-center justify-center text-emerald-700 font-bold text-xs shrink-0">
+                            {r.agent_name[0]?.toUpperCase()}
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-semibold text-slate-700">{r.agent_name}</p>
+                            <p className="text-xs text-slate-400">{r.message} · {new Date(r.created_at).toLocaleDateString("fr-MA", { day: "2-digit", month: "2-digit", year: "numeric" })}</p>
+                          </div>
+                          <span className="text-sm font-bold text-emerald-600">{r.amount} MAD</span>
+                          <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200">Payé</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </>
+            );
+          })()}
         </div>
       </main>
     </div>
