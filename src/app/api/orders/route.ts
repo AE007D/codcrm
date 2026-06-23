@@ -87,7 +87,7 @@ export async function PATCH(request: NextRequest) {
   const updated = await updateOrderFields(id, user.workspaceId, patch);
   if (!updated) return NextResponse.json({ error: "Commande introuvable." }, { status: 404 });
 
-  if (patch.status === "livré" && currentRow?.status !== "livré") {
+  if (patch.status === "expédié" && currentRow?.status !== "expédié") {
     try {
       const [products, settings] = await Promise.all([
         getProducts(user.workspaceId),

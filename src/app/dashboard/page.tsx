@@ -11,7 +11,7 @@ import {
 const COLORS = ["#2563EB", "#3B82F6", "#60A5FA", "#93C5FD", "#BFDBFE"];
 const MONTHS = ["Jan","Fév","Mar","Avr","Mai","Jun","Jul","Aoû","Sep","Oct","Nov","Déc"];
 const DAYS = ["Dim","Lun","Mar","Mer","Jeu","Ven","Sam"];
-type Period = "today" | "week" | "month" | "year";
+type Period = "today" | "yesterday" | "week" | "month" | "year";
 
 type Order = {
   id: string;
@@ -66,26 +66,38 @@ const STATUS_STYLE: Record<string, string> = {
 function startOf(period: Period, now: Date): Date {
   const d = new Date(now);
   if (period === "today") { d.setHours(0, 0, 0, 0); return d; }
+  if (period === "yesterday") { d.setDate(d.getDate() - 1); d.setHours(0, 0, 0, 0); return d; }
   if (period === "week") {
-    const day = d.getDay(); // 0=Sun
+    const day = d.getDay();
     d.setDate(d.getDate() - day);
     d.setHours(0, 0, 0, 0);
     return d;
   }
   if (period === "month") { d.setDate(1); d.setHours(0, 0, 0, 0); return d; }
-  // year
   d.setMonth(0, 1); d.setHours(0, 0, 0, 0); return d;
+}
+
+function endOf(period: Period, now: Date): Date {
+  if (period === "yesterday") {
+    const d = new Date(now);
+    d.setHours(0, 0, 0, 0); // start of today = end of yesterday
+    return d;
+  }
+  return new Date(now.getTime() + 1); // future = include everything
 }
 
 function filterByPeriod(orders: Order[], period: Period, now: Date) {
   const start = startOf(period, now).getTime();
-  return orders.filter(o => new Date(o.created_at).getTime() >= start);
+  const end = endOf(period, now).getTime();
+  return orders.filter(o => {
+    const t = new Date(o.created_at).getTime();
+    return t >= start && t < end;
+  });
 }
 
 // ── Chart data builders ───────────────────────────────────────────────────────
 function buildChartData(orders: Order[], period: Period, now: Date) {
-  if (period === "today") {
-    // 24 hours
+  if (period === "today" || period === "yesterday") {
     const buckets: { label: string; commandes: number; revenue: number }[] = Array.from({ length: 24 }, (_, h) => ({
       label: `${h}h`, commandes: 0, revenue: 0,
     }));
@@ -95,9 +107,8 @@ function buildChartData(orders: Order[], period: Period, now: Date) {
       if (["confirmé","livré","expédié"].includes(o.status))
         buckets[h].revenue += parseFloat(o.total_price) || 0;
     });
-    // Only show up to current hour + 1
-    const curH = now.getHours();
-    return buckets.slice(0, curH + 2).map(b => ({ ...b, revenue: Math.round(b.revenue) }));
+    const show = period === "today" ? now.getHours() + 2 : 24;
+    return buckets.slice(0, show).map(b => ({ ...b, revenue: Math.round(b.revenue) }));
   }
 
   if (period === "week") {
@@ -142,6 +153,7 @@ export default function Home() {
   const { t } = useLang();
   const PERIOD_LABELS: Record<Period, string> = {
     today: t("period_today"),
+    yesterday: "Hier",
     week: t("period_week"),
     month: t("period_month"),
     year: t("period_year"),
@@ -332,7 +344,7 @@ export default function Home() {
 
               {/* ── Period selector ── */}
               <div className="flex items-center gap-2 mb-5 bg-white rounded-2xl border border-slate-100 shadow-sm p-1.5 w-fit">
-                {(["today","week","month","year"] as Period[]).map(p => (
+                {(["today","yesterday","week","month","year"] as Period[]).map(p => (
                   <button key={p} onClick={() => setPeriod(p)}
                     className={`px-4 py-2 rounded-xl text-sm font-semibold transition-all ${
                       period === p ? "bg-blue-600 text-white shadow-md shadow-blue-200" : "text-slate-500 hover:bg-slate-50"

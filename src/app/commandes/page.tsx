@@ -258,7 +258,7 @@ export default function CommandesPage() {
         amount: parseFloat(String(o.totalPrice ?? o.total_price ?? "0")),
         currency: String(o.currency ?? "MAD"),
         status: (o.status ?? "nouveau") as OrderStatus,
-        date: new Date(String(o.receivedAt ?? o.received_at ?? Date.now())).toLocaleDateString("fr-MA", { day: "2-digit", month: "2-digit", year: "numeric" }),
+        date: new Date(String(o.receivedAt ?? o.received_at ?? Date.now())).toLocaleString("fr-MA", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" }),
         receivedAt: String(o.receivedAt ?? o.received_at ?? new Date().toISOString()),
         source: (o.source ?? "manuel") as Order["source"],
         notes: String(o.notes ?? ""),
@@ -438,7 +438,7 @@ export default function CommandesPage() {
         amount: parseFloat(String(o.totalPrice ?? "0")),
         currency: "MAD",
         status: "nouveau",
-        date: new Date(o.receivedAt ?? Date.now()).toLocaleDateString("fr-MA", { day: "2-digit", month: "2-digit", year: "numeric" }),
+        date: new Date(o.receivedAt ?? Date.now()).toLocaleString("fr-MA", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" }),
         receivedAt: String(o.receivedAt ?? new Date().toISOString()),
         source: (o.source ?? "manuel") as Order["source"],
         notes: String(o.notes ?? ""),
@@ -547,8 +547,8 @@ export default function CommandesPage() {
       // Match is done lowercase + keyword check to handle accent variations
       function eagleToCrm(etat: string): OrderStatus | null {
         const e = etat.toLowerCase().trim();
-        if (e.includes("livr") && (e.includes("effect") || e === "livré" || e === "livre" || e.includes("livraison effect"))) return "livré";
-        if (e === "livré" || e === "livre" || e.startsWith("livré")) return "livré";
+        // Any "livr*" string that isn't "en cours de livraison" (still in transit)
+        if (e.includes("livr") && !e.includes("cours")) return "livré";
         if (e.includes("retour") || e.includes("hors zone") || e.includes("hors_zone")) return "retourné";
         if (e.includes("annul")) return "annulé";
         return null; // no CRM status change — just update carrierStatus
@@ -564,36 +564,80 @@ export default function CommandesPage() {
         return;
       }
 
+      // Pull full Eagle package list to match by tracking code OR phone number
+      const eagleListRaw = await fetch("/api/eagle", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "list", tk: creds.tk, sk: creds.sk }),
+      }).then(r => r.json()).catch(() => null);
+      console.log("[EagleSync] list raw:", JSON.stringify(eagleListRaw)?.slice(0, 500));
+      const eagleList: Record<string, unknown>[] = Array.isArray(eagleListRaw) ? eagleListRaw : [];
+
+      // Build lookup maps: by tracking code and by normalized phone
+      function normalizePhone(p: string) { return String(p ?? "").replace(/[\s\-().+]/g, "").replace(/^212/, "0"); }
+      const byTracking = new Map<string, Record<string, unknown>>();
+      const byPhone = new Map<string, Record<string, unknown>>();
+      for (const pkg of eagleList) {
+        const code = String(pkg.Code ?? pkg.code ?? pkg.CODE ?? "").trim();
+        const phone = normalizePhone(String(pkg.Phone ?? pkg.phone ?? pkg.telephone ?? ""));
+        const etat = String(pkg.Status ?? pkg.State ?? pkg.state ?? pkg.Etat ?? pkg.etat ?? "").trim();
+        if (code) byTracking.set(code, pkg);
+        if (phone && etat) {
+          // Keep highest-priority status per phone (livré > expédié > others)
+          const existing = byPhone.get(phone);
+          if (!existing) { byPhone.set(phone, pkg); }
+          else {
+            const existingEtat = String(existing.Status ?? existing.State ?? existing.Etat ?? "").toLowerCase();
+            if (!existingEtat.includes("livr") && etat.toLowerCase().includes("livr")) byPhone.set(phone, pkg);
+          }
+        }
+      }
+
       let updated = 0;
       const patchPromises: Promise<void>[] = [];
 
       for (const order of expOrders) {
-        if (!order.carrierTracking) continue;
         try {
-          const d = await fetch("/api/eagle", {
-            method: "POST", headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ action: "track", tk: creds.tk, sk: creds.sk, code: order.carrierTracking }),
-          }).then(r => r.json()).catch(() => null);
+          // Match Eagle package: prefer tracking code, fall back to phone
+          let eaglePkg: Record<string, unknown> | undefined;
+          if (order.carrierTracking) eaglePkg = byTracking.get(order.carrierTracking);
+          if (!eaglePkg) {
+            const normPhone = normalizePhone(order.phone);
+            eaglePkg = byPhone.get(normPhone);
+          }
+          // If still no match, try individual track call using carrierTracking
+          // Eagle track returns an object {0:{state:...}, 1:{state:...}, status:"200"} not an array
+          if (!eaglePkg && order.carrierTracking) {
+            const d = await fetch("/api/eagle", {
+              method: "POST", headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ action: "track", tk: creds.tk, sk: creds.sk, code: order.carrierTracking }),
+            }).then(r => r.json()).catch(() => null);
+            if (d && typeof d === "object") {
+              // Newest event is key "0"
+              const latest = (d as Record<string, unknown>)["0"] as Record<string, unknown> | undefined;
+              const latestEtat = String(latest?.state ?? latest?.Etat ?? latest?.State ?? "").trim();
+              if (latestEtat) eaglePkg = { Status: latestEtat };
+            }
+          }
+          if (!eaglePkg) continue;
 
-          if (!d || !Array.isArray(d) || !d.length) continue;
-
-          // Eagle returns statuses newest-first; d[0].Etat is the latest
-          const latestEtat = String(d[0]?.Etat ?? "").trim();
+          const latestEtat = String(eaglePkg.Status ?? eaglePkg.State ?? eaglePkg.state ?? eaglePkg.Etat ?? eaglePkg.etat ?? "").trim();
+          const eagleCode = String(eaglePkg.Code ?? eaglePkg.code ?? eaglePkg.CODE ?? "").trim();
           if (!latestEtat) continue;
 
           const crmStatus = eagleToCrm(latestEtat);
           const newCarrierStatus = latestEtat;
+          const newTracking = eagleCode || order.carrierTracking;
 
           const targetStatus = (crmStatus ?? order.status) as OrderStatus;
           if (targetStatus === order.status && newCarrierStatus === order.carrierStatus) continue;
 
           updated++;
           setOrders(prev => prev.map(o => o.id === order.id
-            ? { ...o, status: targetStatus, carrierStatus: newCarrierStatus, carrierName: "eagle" }
+            ? { ...o, status: targetStatus, carrierStatus: newCarrierStatus, carrierName: "eagle", ...(newTracking ? { carrierTracking: newTracking } : {}) }
             : o));
           patchPromises.push(
             fetch("/api/orders", { method: "PATCH", headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ id: order.id, status: targetStatus, carrierStatus: newCarrierStatus, carrierName: "eagle" }),
+              body: JSON.stringify({ id: order.id, status: targetStatus, carrierStatus: newCarrierStatus, carrierName: "eagle", ...(newTracking ? { carrierTracking: newTracking } : {}) }),
             }).then(() => {}).catch(() => {})
           );
         } catch { /* skip this order */ }
@@ -617,16 +661,17 @@ export default function CommandesPage() {
     await runEagleSync(false);
   }
 
-  // Auto Eagle sync once after initial orders load (placed after runEagleSync declaration)
+  // Auto Eagle sync on load + every 5 minutes
   useEffect(() => {
-    if (autoSyncDoneRef.current) return;
     if (orders.length === 0) return;
-    const hasEagleExpédié = orders.some(o => o.status === "expédié" && o.carrierTracking && (o.carrierName === "eagle" || !o.carrierName));
-    if (!hasEagleExpédié) return;
-    autoSyncDoneRef.current = true;
-    runEagleSync(true);
+    if (!autoSyncDoneRef.current) {
+      autoSyncDoneRef.current = true;
+      runEagleSync(true);
+    }
+    const interval = setInterval(() => runEagleSync(true), 5 * 60 * 1000);
+    return () => clearInterval(interval);
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [orders.length]);
+  }, [orders.length > 0]);
 
   // Send selected orders to carrier
   async function sendToCarrier(overrideIds?: Set<string>) {
@@ -782,12 +827,11 @@ export default function CommandesPage() {
             <p className="text-sm text-slate-400 hidden sm:block">{orders.length} commandes · {needsCall > 0 ? <span className="text-blue-600 font-semibold">{needsCall} appel(s) à faire</span> : "aucun appel en attente"}</p>
           </div>
           <div className="flex items-center gap-2">
-            {eagleExpédiéCount > 0 && (
-              <button onClick={syncEagleStatuses} disabled={syncingEagle}
-                className="flex items-center gap-1.5 text-sm font-semibold px-3 py-2.5 rounded-xl border border-amber-200 bg-amber-50 text-amber-700 hover:bg-amber-100 disabled:opacity-50 transition-colors whitespace-nowrap">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} className={`w-4 h-4 ${syncingEagle ? "animate-spin" : ""}`}><path d="M23 4v6h-6M1 20v-6h6"/><path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15"/></svg>
-                <span className="hidden sm:inline">{syncingEagle ? t("loading") : `${t("sync_eagle")} (${eagleExpédiéCount})`}</span>
-              </button>
+            {syncingEagle && (
+              <span className="flex items-center gap-1.5 text-xs text-amber-600 px-2">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} className="w-3.5 h-3.5 animate-spin"><path d="M23 4v6h-6M1 20v-6h6"/><path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15"/></svg>
+                Eagle…
+              </span>
             )}
             {confirmedCount > 0 && (
               <button onClick={() => { openShipModal(orders.filter(o => o.status === "confirmé").map(o => o.id)); }}
@@ -1420,16 +1464,16 @@ export default function CommandesPage() {
 
       {/* Shipping modal */}
       {shipModal && (
-        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md">
-            <div className="flex items-center justify-between px-6 py-5 border-b border-slate-100">
+        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-end sm:items-center justify-center z-50 p-0 sm:p-4">
+          <div className="bg-white rounded-t-2xl sm:rounded-2xl shadow-2xl w-full max-w-md flex flex-col max-h-[90vh]">
+            <div className="flex items-center justify-between px-6 py-5 border-b border-slate-100 shrink-0">
               <h2 className="text-lg font-bold text-slate-900">Envoyer au transporteur</h2>
               <button onClick={() => { setShipModal(false); setShipResults([]); }} className="w-8 h-8 rounded-xl hover:bg-slate-100 flex items-center justify-center text-slate-400">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="w-4 h-4"><path d="M18 6L6 18M6 6l12 12"/></svg>
               </button>
             </div>
 
-            <div className="p-6 space-y-5">
+            <div className="p-6 space-y-5 overflow-y-auto flex-1">
               {/* Carrier info */}
               <div className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-amber-50 border border-amber-200">
                 <Bird size={18} className="text-amber-600" />
@@ -1522,7 +1566,7 @@ export default function CommandesPage() {
               </p>
             </div>
 
-            <div className="flex gap-3 px-6 pb-6">
+            <div className="flex gap-3 px-6 pb-6 pt-3 border-t border-slate-100 shrink-0">
               <button onClick={() => { setShipModal(false); setShipResults([]); }}
                 className="flex-1 py-3 rounded-xl border border-slate-200 text-sm font-semibold text-slate-600 hover:bg-slate-50">
                 Fermer

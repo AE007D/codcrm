@@ -119,8 +119,11 @@ export async function PATCH(request: NextRequest) {
     if (rest.stock !== undefined) patch.stock = parseInt(rest.stock) || 0;
     if (rest.minStock !== undefined) patch.minStock = parseInt(rest.minStock) || 5;
 
-    const updated = await updateProduct(id, user.workspaceId, patch);
-    if (!updated) return NextResponse.json({ error: "Produit introuvable." }, { status: 404 });
+    let updated = null;
+    if (Object.keys(patch).length > 0) {
+      updated = await updateProduct(id, user.workspaceId, patch);
+      if (!updated) return NextResponse.json({ error: "Produit introuvable." }, { status: 404 });
+    }
 
     const needsSettingsSave = rest.facebookPixelId !== undefined
       || rest.boutiqueNom !== undefined
@@ -150,7 +153,7 @@ export async function PATCH(request: NextRequest) {
       await saveSettings(user.workspaceId, settingsPatch);
     }
 
-    return NextResponse.json({ ok: true, product: updated });
+    return NextResponse.json({ ok: true, ...(updated ? { product: updated } : {}) });
   } catch (err) {
     const msg = err instanceof Error ? err.message : "Erreur serveur";
     return NextResponse.json({ error: msg }, { status: 500 });
