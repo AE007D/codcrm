@@ -25,24 +25,26 @@ export async function GET() {
   return NextResponse.json({ requests: data ?? [] }, { headers: { "Cache-Control": "private, max-age=15, stale-while-revalidate=30" } });
 }
 
-// POST — agent submits a payment request
+// POST — agent submits a payment request (admin can pass agentId+agentName to create for another agent)
 export async function POST(request: NextRequest) {
   const user = await getRequestUser();
   if (!user) return NextResponse.json({ error: "Non authentifié." }, { status: 401 });
 
   const body = await request.json();
-  const { amount, message } = body;
+  const { amount, message, agentId, agentName } = body;
   if (!amount || parseFloat(amount) <= 0) {
     return NextResponse.json({ error: "Montant invalide." }, { status: 400 });
   }
+
+  const isAdminOverride = user.role === "admin" && agentId && agentName;
 
   const { data, error } = await supabase
     .from("crm_payment_requests")
     .insert({
       id: crypto.randomUUID(),
       workspace_id: user.workspaceId,
-      agent_id: user.id,
-      agent_name: user.name,
+      agent_id: isAdminOverride ? String(agentId) : user.id,
+      agent_name: isAdminOverride ? String(agentName) : user.name,
       amount: parseFloat(amount),
       message: String(message ?? ""),
       status: "pending",
