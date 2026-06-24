@@ -558,8 +558,8 @@ export default function CommandesPage() {
       // Match is done lowercase + keyword check to handle accent variations
       function eagleToCrm(etat: string): OrderStatus | null {
         const e = etat.toLowerCase().trim();
-        // Any "livr*" string that isn't "en cours de livraison" (still in transit)
-        if (e.includes("livr") && !e.includes("cours")) return "livré";
+        // Only "Livré" means delivered — exclude "Reçu par livreur" (in transit) and "en cours de livraison"
+        if ((e === "livré" || e === "livre" || e === "delivered" || e === "livré avec succès" || e === "livree") && !e.includes("reçu") && !e.includes("recu") && !e.includes("livreur") && !e.includes("cours")) return "livré";
         if (e.includes("retour") || e.includes("hors zone") || e.includes("hors_zone")) return "retourné";
         if (e.includes("annul")) return "annulé";
         return null; // no CRM status change — just update carrierStatus
