@@ -91,6 +91,7 @@ export default function FinancesPage() {
   const [sendingReport, setSendingReport] = useState(false);
   const reportSentRef = useRef(false);
   const [virements, setVirements] = useState<Virement[]>([]);
+  const [paymentRequests, setPaymentRequests] = useState<{ amount: number; status: string; created_at: string }[]>([]);
   const [showAddVirement, setShowAddVirement] = useState(false);
   const [draftVirement, setDraftVirement] = useState({ date: new Date().toISOString().slice(0, 10), amount: "", note: "" });
 
@@ -178,14 +179,17 @@ export default function FinancesPage() {
 
   const fetchData = useCallback(async () => {
     try {
-      const [oRes, pRes] = await Promise.all([
+      const [oRes, pRes, prRes] = await Promise.all([
         fetch("/api/orders"),
         fetch("/api/products"),
+        fetch("/api/payment-requests"),
       ]);
       const oData = await oRes.json();
       const pData = await pRes.json();
+      const prData = await prRes.json();
       setOrders(oData.orders ?? []);
       setProducts(pData.products ?? []);
+      setPaymentRequests(prData.requests ?? []);
     } catch { /* silent */ }
     finally { setLoading(false); }
   }, []);
@@ -252,10 +256,20 @@ export default function FinancesPage() {
   const campaignAdSpend = campaignsInPeriod.reduce((s, c) => s + c.spend, 0);
   const adsCost = campaignAdSpend > 0 ? campaignAdSpend : costs.dailyAdsBudget * days;
   const confirmCost = shipped.length * costs.confirmationCostPerOrder;
-  const shippingCost = shipped.length * costs.shippingCostPerOrder; // only on shipped orders
+  // Eagle Express only charges on delivered orders (not returned/in-transit)
+  const shippingCost = delivered.length * costs.shippingCostPerOrder;
   const returnCost = returned.length * costs.returnShippingCost;
 
-  const totalCost = productCost + adsCost + confirmCost + shippingCost + returnCost;
+  // Agent commissions: pending + paid in this period
+  const commissionCost = paymentRequests
+    .filter(r => {
+      if (r.status === "rejected") return false;
+      const d = new Date(r.created_at);
+      return d >= start && d <= now;
+    })
+    .reduce((s, r) => s + r.amount, 0);
+
+  const totalCost = productCost + adsCost + confirmCost + shippingCost + returnCost + commissionCost;
   const netProfit = revenue - totalCost;
   const roi = totalCost > 0 ? (netProfit / totalCost) * 100 : 0;
   const profitPerDay = netProfit / days;
@@ -478,8 +492,9 @@ export default function FinancesPage() {
                       { label: "Achats produits", value: productCost, sub: `${confirmed.length} cmds confirmées`, color: "bg-orange-500" },
                       { label: "Budget publicité", value: adsCost, sub: campaignAdSpend > 0 ? `${campaignsInPeriod.length} campagne(s) — Ads Manager` : `${costs.dailyAdsBudget} MAD × ${days} jours`, color: "bg-blue-500" },
                       { label: "Centre confirmation", value: confirmCost, sub: `${shipped.length} expédiées × ${costs.confirmationCostPerOrder} MAD`, color: "bg-violet-500" },
-                      { label: "Livraison Eagle Express", value: shippingCost, sub: `${shipped.length} colis expédiés × ${costs.shippingCostPerOrder} MAD`, color: "bg-amber-500" },
+                      { label: "Livraison Eagle Express", value: shippingCost, sub: `${delivered.length} colis livrés × ${costs.shippingCostPerOrder} MAD`, color: "bg-amber-500" },
                       { label: "Frais retour", value: returnCost, sub: `${returned.length} × ${costs.returnShippingCost} MAD`, color: "bg-red-400" },
+                      { label: "Commissions agents", value: commissionCost, sub: `${paymentRequests.filter(r => r.status !== "rejected" && new Date(r.created_at) >= start && new Date(r.created_at) <= now).length} commission(s)`, color: "bg-blue-400" },
                     ].map(item => {
                       const pct = totalCost > 0 ? (item.value / totalCost) * 100 : 0;
                       return (
