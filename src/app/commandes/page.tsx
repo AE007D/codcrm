@@ -598,7 +598,8 @@ export default function CommandesPage() {
           if (!existing) { byPhone.set(phone, pkg); }
           else {
             const existingEtat = String(existing.Status ?? existing.State ?? existing.Etat ?? "").toLowerCase();
-            if (!existingEtat.includes("livr") && etat.toLowerCase().includes("livr")) byPhone.set(phone, pkg);
+            const isTrulyLivre = (s: string) => s === "livré" || s === "livre" || s === "delivered" || s === "livré avec succès";
+            if (!isTrulyLivre(existingEtat) && isTrulyLivre(etat.toLowerCase())) byPhone.set(phone, pkg);
           }
         }
       }
