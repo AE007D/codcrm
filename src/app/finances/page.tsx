@@ -255,7 +255,6 @@ export default function FinancesPage() {
   });
   const campaignAdSpend = campaignsInPeriod.reduce((s, c) => s + c.spend, 0);
   const adsCost = campaignAdSpend > 0 ? campaignAdSpend : costs.dailyAdsBudget * days;
-  const confirmCost = shipped.length * costs.confirmationCostPerOrder;
   // Eagle Express only charges on delivered orders (not returned/in-transit)
   const shippingCost = delivered.length * costs.shippingCostPerOrder;
   // Agent commissions: pending + paid in this period
@@ -267,7 +266,7 @@ export default function FinancesPage() {
     })
     .reduce((s, r) => s + r.amount, 0);
 
-  const totalCost = productCost + adsCost + confirmCost + shippingCost + commissionCost;
+  const totalCost = productCost + adsCost + shippingCost + commissionCost;
   const netProfit = revenue - totalCost;
   const roi = totalCost > 0 ? (netProfit / totalCost) * 100 : 0;
   const profitPerDay = netProfit / days;
@@ -279,7 +278,7 @@ export default function FinancesPage() {
 
   // ── Break-even ─────────────────────────────────────────────────────────────
   const avgPurchasePerOrder = confirmed.length > 0 ? productCost / confirmed.length : 0;
-  const marginPerDelivery = avgRevPerDelivery - costs.shippingCostPerOrder - costs.confirmationCostPerOrder - avgPurchasePerOrder;
+  const marginPerDelivery = avgRevPerDelivery - costs.shippingCostPerOrder - avgPurchasePerOrder;
   const breakEvenOrders = marginPerDelivery > 0 ? Math.ceil(adsCost / marginPerDelivery) : 0;
   const breakEvenRemaining = Math.max(0, breakEvenOrders - delivered.length);
   const breakEvenProgress = breakEvenOrders > 0 ? Math.min(100, (delivered.length / breakEvenOrders) * 100) : 100;
@@ -348,7 +347,7 @@ export default function FinancesPage() {
     const isDelivered = s === "livré" || s === "livre" || s === "delivered";
     if (isDelivered) dailyMap[key].revenue += parsePrice(o.totalPrice ?? o.total_price);
     const dayAdSpend = campaignSpendByDay[key] !== undefined ? 0 : costs.dailyAdsBudget;
-    dailyMap[key].cost += dayAdSpend + costs.confirmationCostPerOrder + costs.shippingCostPerOrder;
+    dailyMap[key].cost += dayAdSpend + costs.shippingCostPerOrder;
   }
   // Add campaign ad spend into chart days (may not overlap with order days)
   for (const [day, spend] of Object.entries(campaignSpendByDay)) {
@@ -370,7 +369,6 @@ export default function FinancesPage() {
 
   const costFields: { key: keyof CostSettings; label: string; placeholder: string }[] = [
     { key: "dailyAdsBudget", label: "Budget pub / jour (MAD)", placeholder: "ex: 150" },
-    { key: "confirmationCostPerOrder", label: "Confirmation / commande (MAD)", placeholder: "ex: 7" },
     { key: "shippingCostPerOrder", label: "Frais livraison / commande (MAD)", placeholder: "ex: 38" },
   ];
 
@@ -488,7 +486,6 @@ export default function FinancesPage() {
                     {[
                       { label: "Achats produits", value: productCost, sub: `${confirmed.length} cmds confirmées`, color: "bg-orange-500" },
                       { label: "Budget publicité", value: adsCost, sub: campaignAdSpend > 0 ? `${campaignsInPeriod.length} campagne(s) — Ads Manager` : `${costs.dailyAdsBudget} MAD × ${days} jours`, color: "bg-blue-500" },
-                      { label: "Centre confirmation", value: confirmCost, sub: `${shipped.length} expédiées × ${costs.confirmationCostPerOrder} MAD`, color: "bg-violet-500" },
                       { label: "Livraison Eagle Express", value: shippingCost, sub: `${delivered.length} colis livrés × ${costs.shippingCostPerOrder} MAD`, color: "bg-amber-500" },
                       { label: "Commissions agents", value: commissionCost, sub: `${paymentRequests.filter(r => r.status !== "rejected" && new Date(r.created_at) >= start && new Date(r.created_at) <= now).length} commission(s)`, color: "bg-blue-400" },
                     ].map(item => {
