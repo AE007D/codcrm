@@ -158,13 +158,9 @@ export default function AdsPage() {
   }
 
   function handleAdd() {
-    const { name, spend, orders, delivered, revenue, date } = form;
-    if (!name || !spend || !orders || !delivered || !revenue || !date) {
+    const { name, spend, date } = form;
+    if (!name || !spend || !date) {
       setError("Remplissez les champs obligatoires (*).");
-      return;
-    }
-    if (Number(delivered) > Number(orders)) {
-      setError("Les livrés ne peuvent pas dépasser les commandes.");
       return;
     }
     const updated = [...campaigns, {
@@ -175,9 +171,9 @@ export default function AdsPage() {
       spend: Number(spend),
       impressions: 0,
       clicks: 0,
-      orders: Number(orders),
-      delivered: Number(delivered),
-      revenue: Number(revenue),
+      orders: Number(form.orders),
+      delivered: Number(form.delivered),
+      revenue: Number(form.revenue),
       date,
     }];
     setCampaigns(updated);
@@ -562,34 +558,26 @@ export default function AdsPage() {
               </div>
 
               {[
-                { key: "date",        label: "Date *",                     placeholder: "",        type: "date"   },
-                { key: "spend",       label: "Budget dépensé (MAD) *",     placeholder: "1200"              },
-                { key: "revenue",     label: "Revenue généré (MAD) *",     placeholder: "16800",  auto: true   },
-                { key: "orders",      label: "Commandes *",                placeholder: "48",     auto: true   },
-                { key: "delivered",   label: "Livrées *",                  placeholder: "41",     auto: true   },
-              ].map(({ key, label, placeholder, type, auto }) => (
+                { key: "date",  label: "Date *",                 placeholder: "", type: "date" },
+                { key: "spend", label: "Budget dépensé (MAD) *", placeholder: "1200" },
+              ].map(({ key, label, placeholder, type }) => (
                 <div key={key}>
-                  <label className="text-xs font-semibold text-slate-600 mb-1 flex items-center gap-1.5">
-                    {label}
-                    {auto && autoFilled && (
-                      <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-md bg-emerald-100 text-emerald-600">Auto ✓</span>
-                    )}
-                  </label>
+                  <label className="text-xs font-semibold text-slate-600 mb-1 block">{label}</label>
                   <input
                     type={type || "text"}
                     placeholder={placeholder}
                     value={form[key as keyof typeof form] as string}
-                    onChange={e => { setForm(f => ({ ...f, [key]: e.target.value })); if (auto) setAutoFilled(false); }}
-                    className={`w-full text-sm border rounded-xl px-4 py-2.5 outline-none focus:ring-2 focus:ring-blue-50 ${auto && autoFilled ? "border-emerald-300 bg-emerald-50/50 focus:border-emerald-400" : "border-slate-200 focus:border-blue-400"}`}
+                    onChange={e => setForm(f => ({ ...f, [key]: e.target.value }))}
+                    className="w-full text-sm border border-slate-200 rounded-xl px-4 py-2.5 outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-50"
                   />
                 </div>
               ))}
             </div>
 
             {/* Live preview */}
-            {form.spend && form.orders && form.delivered && form.revenue && (
+            {form.spend && autoFilled && (
               <div className="mt-4 p-4 bg-blue-50 rounded-xl border border-blue-100">
-                <p className="text-xs font-semibold text-blue-700 mb-2">Aperçu des métriques</p>
+                <p className="text-xs font-semibold text-blue-700 mb-2">Aperçu des métriques <span className="text-emerald-600 font-bold">Auto ✓</span></p>
                 <div className="grid grid-cols-3 gap-2 text-center">
                   <div>
                     <p className="text-xs text-blue-500">CPP</p>
