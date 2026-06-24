@@ -546,16 +546,6 @@ export default function AdsPage() {
                   className="w-full text-sm border border-slate-200 rounded-xl px-4 py-2.5 outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-50"
                 />
               </div>
-              <div className="col-span-2">
-                <label className="text-xs font-semibold text-slate-600 mb-1 block">SKU Produit
-                  <span className="text-slate-400 font-normal ml-1">(même SKU que Produits & livraison)</span>
-                </label>
-                <input type="text" placeholder="Ex: CEI-001"
-                  value={form.sku}
-                  onChange={e => setForm(f => ({ ...f, sku: e.target.value }))}
-                  className="w-full text-sm border border-slate-200 rounded-xl px-4 py-2.5 outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-50 font-mono"
-                />
-              </div>
 
               {[
                 { key: "date",  label: "Date *",                 placeholder: "", type: "date" },
