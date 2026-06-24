@@ -55,7 +55,7 @@ export async function POST(request: NextRequest) {
   return NextResponse.json({ ok: true, request: data });
 }
 
-// PATCH — admin marks a request as paid/rejected
+// PATCH — admin marks a request as paid/rejected, or bulk-updates amount by agent+product
 export async function PATCH(request: NextRequest) {
   const user = await getRequestUser();
   if (!user || user.role !== "admin") {
@@ -63,6 +63,21 @@ export async function PATCH(request: NextRequest) {
   }
 
   const body = await request.json();
+
+  // Bulk amount update: { agentId, productName, newAmount }
+  if (body.agentId && body.productName !== undefined && body.newAmount !== undefined) {
+    const { agentId, productName, newAmount } = body;
+    const { error } = await supabase
+      .from("crm_payment_requests")
+      .update({ amount: parseFloat(String(newAmount)) || 0 })
+      .eq("workspace_id", user.workspaceId)
+      .eq("agent_id", agentId)
+      .eq("status", "pending")
+      .like("message", `%${productName}%`);
+    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json({ ok: true });
+  }
+
   const { id, status } = body;
   if (!id || !["paid", "rejected", "pending"].includes(status)) {
     return NextResponse.json({ error: "Paramètres invalides." }, { status: 400 });

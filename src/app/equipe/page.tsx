@@ -99,21 +99,30 @@ export default function EquipePage() {
     if (!assignAgent) return;
     setAgentAssignSaving(true);
     try {
-      await Promise.all(allProducts.map(p => {
+      await Promise.all(allProducts.map(async p => {
         const f = agentAssignForm[p.id];
         const wasAssigned = p.agentId === assignAgent.id;
-        if (!f?.checked && !wasAssigned) return Promise.resolve();
-        return fetch("/api/products", {
+        if (!f?.checked && !wasAssigned) return;
+        const newAmount = f?.checked ? parseFloat(f.commissionAmount || "0") || 0 : 0;
+        await fetch("/api/products", {
           method: "PATCH",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             id: p.id,
             agentId: f?.checked ? assignAgent.id : "",
             agentName: f?.checked ? assignAgent.name : "",
-            commissionAmount: f?.checked ? parseFloat(f.commissionAmount || "0") || 0 : 0,
+            commissionAmount: newAmount,
             boutiqueNom: f?.boutiqueNom ?? p.boutiqueNom ?? "",
           }),
         });
+        // If commission amount changed, update pending payment requests for this agent+product
+        if (f?.checked && newAmount !== p.commissionAmount) {
+          await fetch("/api/payment-requests", {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ agentId: assignAgent.id, productName: p.name, newAmount }),
+          });
+        }
       }));
       setAssignAgent(null);
     } finally { setAgentAssignSaving(false); }
