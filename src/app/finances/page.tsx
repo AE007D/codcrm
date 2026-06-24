@@ -258,8 +258,6 @@ export default function FinancesPage() {
   const confirmCost = shipped.length * costs.confirmationCostPerOrder;
   // Eagle Express only charges on delivered orders (not returned/in-transit)
   const shippingCost = delivered.length * costs.shippingCostPerOrder;
-  const returnCost = returned.length * costs.returnShippingCost;
-
   // Agent commissions: pending + paid in this period
   const commissionCost = paymentRequests
     .filter(r => {
@@ -269,7 +267,7 @@ export default function FinancesPage() {
     })
     .reduce((s, r) => s + r.amount, 0);
 
-  const totalCost = productCost + adsCost + confirmCost + shippingCost + returnCost + commissionCost;
+  const totalCost = productCost + adsCost + confirmCost + shippingCost + commissionCost;
   const netProfit = revenue - totalCost;
   const roi = totalCost > 0 ? (netProfit / totalCost) * 100 : 0;
   const profitPerDay = netProfit / days;
@@ -374,7 +372,6 @@ export default function FinancesPage() {
     { key: "dailyAdsBudget", label: "Budget pub / jour (MAD)", placeholder: "ex: 150" },
     { key: "confirmationCostPerOrder", label: "Confirmation / commande (MAD)", placeholder: "ex: 7" },
     { key: "shippingCostPerOrder", label: "Frais livraison / commande (MAD)", placeholder: "ex: 38" },
-    { key: "returnShippingCost", label: "Frais retour / commande (MAD)", placeholder: "ex: 15" },
   ];
 
   return (
@@ -493,7 +490,6 @@ export default function FinancesPage() {
                       { label: "Budget publicité", value: adsCost, sub: campaignAdSpend > 0 ? `${campaignsInPeriod.length} campagne(s) — Ads Manager` : `${costs.dailyAdsBudget} MAD × ${days} jours`, color: "bg-blue-500" },
                       { label: "Centre confirmation", value: confirmCost, sub: `${shipped.length} expédiées × ${costs.confirmationCostPerOrder} MAD`, color: "bg-violet-500" },
                       { label: "Livraison Eagle Express", value: shippingCost, sub: `${delivered.length} colis livrés × ${costs.shippingCostPerOrder} MAD`, color: "bg-amber-500" },
-                      { label: "Frais retour", value: returnCost, sub: `${returned.length} × ${costs.returnShippingCost} MAD`, color: "bg-red-400" },
                       { label: "Commissions agents", value: commissionCost, sub: `${paymentRequests.filter(r => r.status !== "rejected" && new Date(r.created_at) >= start && new Date(r.created_at) <= now).length} commission(s)`, color: "bg-blue-400" },
                     ].map(item => {
                       const pct = totalCost > 0 ? (item.value / totalCost) * 100 : 0;
