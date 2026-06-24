@@ -156,7 +156,16 @@ export default function CommandesPage() {
       fetch("/api/auth/me").then(r => r.ok ? r.json() : null),
     ]).then(([productsData, meData]) => {
       if (productsData?.products) setCatalog(productsData.products);
-      if (meData?.role) setUserRole(meData.role);
+      if (meData?.role) {
+        setUserRole(meData.role);
+        // For agents: record which product names are assigned to them
+        if (meData.role === "agent" && productsData?.products) {
+          const myProducts = (productsData.products as { agentId: string; name: string }[])
+            .filter(p => p.agentId === meData.id)
+            .map(p => p.name.trim().toLowerCase());
+          setAgentProductFilter(myProducts.length > 0 ? myProducts : null);
+        }
+      }
     }).catch(() => {});
   }, []);
 
@@ -194,6 +203,7 @@ export default function CommandesPage() {
 
   // Current user role — null while loading, so isAdmin is never wrong before fetch completes
   const [userRole, setUserRole] = useState<"admin" | "agent" | "viewer" | null>(null);
+  const [agentProductFilter, setAgentProductFilter] = useState<string[] | null>(null);
   const isAdmin = userRole === "admin";
 
   // Edit mode for drawer
@@ -465,7 +475,8 @@ export default function CommandesPage() {
     const matchStatus = filter === "tous" || o.status === filter;
     const q = search.toLowerCase();
     const matchSearch = !q || o.customer.toLowerCase().includes(q) || o.phone.includes(q) || o.product.toLowerCase().includes(q) || o.orderNumber.includes(q) || o.city.toLowerCase().includes(q);
-    return matchStatus && matchSearch;
+    const matchAgent = !agentProductFilter || agentProductFilter.includes(o.product.trim().toLowerCase());
+    return matchStatus && matchSearch && matchAgent;
   });
 
   function toggleSelect(id: string) {
