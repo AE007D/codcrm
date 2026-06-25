@@ -300,11 +300,11 @@ export default function LoginPage() {
               </form>
 
               <p className="text-center text-sm text-slate-500 mt-6">
-                {t("no_account")}{" "}
-                <button onClick={() => { setMode("register"); setLoginError(""); setGoogleError(""); }}
-                  className="text-blue-600 font-semibold hover:text-blue-700 transition-colors">
-                  {t("create_free")}
-                </button>
+                Pas encore de compte ?{" "}
+                <a href="https://wa.me/212644587812" target="_blank" rel="noopener noreferrer"
+                  className="text-green-600 font-semibold hover:text-green-700 transition-colors">
+                  Contactez-nous sur WhatsApp
+                </a>
               </p>
             </>
           ) : (
