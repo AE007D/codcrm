@@ -731,7 +731,7 @@ export default function CommandesPage() {
               qty: "1",
               note: order.orderNumber || order.id.slice(-8),
               change: "0",
-              openpackage: "0",
+              openpackage: "1",
               stock: "1",
             }),
           });
