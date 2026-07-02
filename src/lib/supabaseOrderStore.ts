@@ -131,7 +131,7 @@ export async function updateCarrierStatusOnly(
 export async function updateOrderFields(
   id: string,
   workspaceId: string,
-  patch: Partial<{ status: string; notes: string; attempts: number; noAnswer: number; carrierTracking: string; carrierName: string; carrierStatus: string; customerName: string; customerPhone: string; city: string; address: string; product: string; totalPrice: number }>
+  patch: Partial<{ status: string; notes: string; attempts: number; noAnswer: number; carrierTracking: string; carrierName: string; carrierStatus: string; customerName: string; customerPhone: string; city: string; address: string; product: string; totalPrice: number; quantity: number }>
 ): Promise<CrmOrder | null> {
   const dbPatch: Record<string, unknown> = {};
   if (patch.status !== undefined) dbPatch.status = patch.status;
@@ -147,6 +147,7 @@ export async function updateOrderFields(
   if (patch.address !== undefined) dbPatch.address = patch.address;
   if (patch.product !== undefined) dbPatch.product = patch.product;
   if (patch.totalPrice !== undefined) dbPatch.total_price = patch.totalPrice;
+  if (patch.quantity !== undefined) dbPatch.quantity = patch.quantity;
 
   const { data, error } = await supabase
     .from("crm_orders")

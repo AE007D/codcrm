@@ -240,13 +240,20 @@ export default function FinancesPage() {
   const revenue = delivered.reduce((s, o) => s + parsePrice(o.totalPrice ?? o.total_price), 0);
 
   // ── Costs ──────────────────────────────────────────────────────────────
-  // Product purchase cost: use catalog price if available, else estimate from sell price
-  const productCost = confirmed.reduce((s, o) => {
-    const key = String(o.product ?? "").toLowerCase().trim();
-    const purchase = purchaseMap[key] ?? 0;
+  // Product purchase cost: only count delivered orders
+  const productCostByProduct: Record<string, { qty: number; cost: number; revenue: number }> = {};
+  for (const o of delivered) {
+    const key = String(o.product ?? "").trim();
+    const keyLow = key.toLowerCase();
+    const purchase = purchaseMap[keyLow] ?? 0;
     const qty = Number(o.quantity) || 1;
-    return s + purchase * qty;
-  }, 0);
+    const rev = parsePrice(o.totalPrice ?? o.total_price);
+    if (!productCostByProduct[key]) productCostByProduct[key] = { qty: 0, cost: 0, revenue: 0 };
+    productCostByProduct[key].qty += qty;
+    productCostByProduct[key].cost += purchase * qty;
+    productCostByProduct[key].revenue += rev;
+  }
+  const productCost = Object.values(productCostByProduct).reduce((s, v) => s + v.cost, 0);
 
   // Sum actual campaign spend within the period; fall back to daily budget if none entered
   const campaignsInPeriod = campaigns.filter(c => {
@@ -277,7 +284,7 @@ export default function FinancesPage() {
   const avgRevPerDelivery = delivered.length > 0 ? revenue / delivered.length : 0;
 
   // ── Break-even ─────────────────────────────────────────────────────────────
-  const avgPurchasePerOrder = confirmed.length > 0 ? productCost / confirmed.length : 0;
+  const avgPurchasePerOrder = delivered.length > 0 ? productCost / delivered.length : 0;
   const marginPerDelivery = avgRevPerDelivery - costs.shippingCostPerOrder - avgPurchasePerOrder;
   const breakEvenOrders = marginPerDelivery > 0 ? Math.ceil(adsCost / marginPerDelivery) : 0;
   const breakEvenRemaining = Math.max(0, breakEvenOrders - delivered.length);
@@ -484,7 +491,7 @@ export default function FinancesPage() {
                   <h2 className="text-sm font-bold text-slate-700 mb-4 flex items-center gap-1.5"><TrendingDown size={15} /> Détail des coûts</h2>
                   <div className="space-y-3">
                     {[
-                      { label: "Achats produits", value: productCost, sub: `${confirmed.length} cmds confirmées`, color: "bg-orange-500" },
+                      { label: "Achats produits", value: productCost, sub: `${delivered.length} cmds livrées`, color: "bg-orange-500", breakdown: Object.entries(productCostByProduct).sort((a, b) => b[1].cost - a[1].cost) },
                       { label: "Budget publicité", value: adsCost, sub: campaignAdSpend > 0 ? `${campaignsInPeriod.length} campagne(s) — Ads Manager` : `${costs.dailyAdsBudget} MAD × ${days} jours`, color: "bg-blue-500" },
                       { label: "Livraison Eagle Express", value: shippingCost, sub: `${delivered.length} colis livrés × ${costs.shippingCostPerOrder} MAD`, color: "bg-amber-500" },
                       { label: "Commissions agents", value: commissionCost, sub: `${paymentRequests.filter(r => r.status !== "rejected" && new Date(r.created_at) >= start && new Date(r.created_at) <= now).length} commission(s)`, color: "bg-blue-400" },
@@ -503,6 +510,22 @@ export default function FinancesPage() {
                             <span className="text-xs text-slate-400 w-10 text-right">{pct.toFixed(0)}%</span>
                           </div>
                           <p className="text-xs text-slate-400 mt-0.5">{item.sub}</p>
+                          {'breakdown' in item && item.breakdown && item.breakdown.length > 0 && (
+                            <div className="mt-2 ml-2 space-y-1.5 border-l-2 border-orange-100 pl-3">
+                              {item.breakdown.map(([name, v]) => (
+                                <div key={name} className="flex items-center justify-between text-xs">
+                                  <span className="text-slate-500 truncate max-w-[140px]">{name || "Inconnu"}</span>
+                                  <div className="flex items-center gap-2 shrink-0">
+                                    <span className="text-slate-400">{v.qty} × livrés</span>
+                                    <span className="font-semibold text-orange-600">{fmt(v.cost)} MAD</span>
+                                    <span className={`font-semibold ${v.revenue - v.cost >= 0 ? "text-emerald-600" : "text-red-500"}`}>
+                                      ({v.revenue - v.cost >= 0 ? "+" : ""}{fmt(v.revenue - v.cost)})
+                                    </span>
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          )}
                         </div>
                       );
                     })}
