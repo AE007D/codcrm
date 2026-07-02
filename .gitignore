@@ -46,7 +46,10 @@ next-env.d.ts
 /whatsapp-server/conversations.json
 /whatsapp-server/sent_confirms.json
 /.wwebjs_cache/
-/openwa/
+/openwa/node_modules/
+/openwa/dist/
+/openwa/data/
+/openwa/.env
 /wa-bg.png.jpg
 /whatsapp-server/auth_info/
 /whatsapp-server/node_modules/
