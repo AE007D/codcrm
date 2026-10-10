@@ -249,19 +249,6 @@ export default function ProductPage() {
                 className="w-full text-sm border-2 border-slate-200 rounded-2xl px-4 py-3 outline-none focus:border-blue-400 focus:ring-4 focus:ring-blue-50 transition-all" />
             </div>
 
-            <div>
-              <label className="text-xs font-bold text-slate-500 mb-1.5 block">الكمية</label>
-              <div className="flex items-center gap-3">
-                <button type="button" onClick={() => setForm(f => ({ ...f, quantity: String(Math.max(1, parseInt(f.quantity || "1") - 1)) }))}
-                  className="w-11 h-11 rounded-xl border-2 border-slate-200 text-slate-600 font-bold text-xl flex items-center justify-center hover:border-blue-400 transition-colors">−</button>
-                <input type="number" min="1" max="99" value={form.quantity} dir="ltr"
-                  onChange={e => setForm(f => ({ ...f, quantity: e.target.value }))}
-                  className="w-16 text-center text-lg font-bold border-2 border-slate-200 rounded-xl px-2 py-2 outline-none focus:border-blue-400" />
-                <button type="button" onClick={() => setForm(f => ({ ...f, quantity: String(Math.min(99, parseInt(f.quantity || "1") + 1)) }))}
-                  className="w-11 h-11 rounded-xl border-2 border-slate-200 text-slate-600 font-bold text-xl flex items-center justify-center hover:border-blue-400 transition-colors">+</button>
-              </div>
-            </div>
-
             {/* Total */}
             <div className="bg-blue-50 rounded-2xl px-5 py-4 flex items-center justify-between border border-blue-100">
               <span className="text-sm font-bold text-blue-700">المبلغ الإجمالي{qty === 2 && <span className="block text-xs mt-1 text-emerald-700">تم تطبيق تخفيض {Math.min(50, product.price * 2).toLocaleString("ar-MA")} درهم</span>}</span>
