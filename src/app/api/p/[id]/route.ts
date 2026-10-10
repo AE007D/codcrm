@@ -3,6 +3,7 @@ import { supabase } from "@/lib/supabase";
 import { getSettings } from "@/lib/supabaseSettingsStore";
 import { upsertLead } from "@/lib/supabaseLeadStore";
 import crypto from "crypto";
+import { productOrderTotal } from "@/lib/productPricing";
 
 export const dynamic = "force-dynamic";
 
@@ -110,6 +111,11 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     return NextResponse.json({ error: "يرجى تعبئة الاسم والهاتف والمدينة" }, { status: 400 });
   }
 
+  const orderQuantity = Number(quantity);
+  if (typeof quantity !== "number" || !Number.isInteger(orderQuantity) || orderQuantity < 1 || orderQuantity > 99) {
+    return NextResponse.json({ error: "Quantité invalide (1–99)." }, { status: 400 });
+  }
+
   // Get product info
   const { data: product, error: pErr } = await supabase
     .from("crm_products")
@@ -119,7 +125,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
 
   if (pErr || !product) return NextResponse.json({ error: "Produit introuvable." }, { status: 404 });
 
-  const totalPrice = parseFloat(product.sell_price ?? "0") * Number(quantity);
+  const totalPrice = productOrderTotal(parseFloat(product.sell_price ?? "0"), orderQuantity);
 
   const orderId = crypto.randomUUID();
   const { error: oErr } = await supabase.from("crm_orders").insert({
@@ -134,7 +140,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     product: product.name,
     total_price: totalPrice,
     currency: "MAD",
-    quantity: Number(quantity) || 1,
+    quantity: orderQuantity,
     funnel: "Page produit",
     source: "page",
     status: "nouveau",
@@ -153,9 +159,9 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
   if (product.stock > 0) {
     await supabase
       .from("crm_products")
-      .update({ stock: Math.max(0, product.stock - Number(quantity)) })
+      .update({ stock: Math.max(0, product.stock - orderQuantity) })
       .eq("id", id);
   }
 
-  return NextResponse.json({ ok: true, orderId });
+  return NextResponse.json({ ok: true, orderId, totalPrice });
 }

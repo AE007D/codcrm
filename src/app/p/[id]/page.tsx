@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import Image from "next/image";
+import { productOrderTotal } from "@/lib/productPricing";
 import { useParams } from "next/navigation";
 import LiveTracker from "@/components/LiveTracker";
 import { initFBPixel, trackFBEvent } from "@/lib/pixelEvents";
@@ -86,7 +87,7 @@ export default function ProductPage() {
       if (!res.ok) { setError(data.error || "حدث خطأ، يرجى المحاولة مجدداً"); return; }
       if (product?.facebookPixelId) {
         trackFBEvent("Purchase", {
-          value: product.price * (parseInt(form.quantity) || 1),
+          value: data.totalPrice,
           currency: "MAD",
           content_name: product.name,
           content_type: "product",
@@ -118,7 +119,7 @@ export default function ProductPage() {
   );
 
   const qty = parseInt(form.quantity) || 1;
-  const total = (product.price * qty).toLocaleString("ar-MA");
+  const total = productOrderTotal(product.price, qty).toLocaleString("ar-MA");
 
   if (submitted) return (
     <div dir="rtl" className="min-h-screen bg-gradient-to-br from-emerald-50 to-teal-100 flex items-center justify-center p-4">
@@ -204,6 +205,21 @@ export default function ProductPage() {
           )}
 
           <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+            <fieldset className="space-y-3" dir="ltr">
+              <legend className="text-sm font-bold text-slate-700 mb-3">Choisissez votre offre / اختار العرض</legend>
+              {[1, 2].map(quantity => (
+                <label key={quantity} className={`relative flex items-center gap-3 rounded-2xl border-2 p-4 cursor-pointer transition-colors ${qty === quantity ? "border-blue-600 bg-blue-50" : "border-slate-200 bg-white"}`}>
+                  <input type="radio" name="product-offer" value={quantity} checked={qty === quantity}
+                    onChange={() => setForm(f => ({ ...f, quantity: String(quantity) }))}
+                    className="h-5 w-5 accent-blue-600 shrink-0" />
+                  <span className="flex-1 font-bold text-slate-800">{quantity === 1 ? "1 produit / منتج واحد" : "2 produits / جوج منتجات"}</span>
+                  <span className="text-right shrink-0">
+                    <strong className="block text-lg text-slate-900">{productOrderTotal(product.price, quantity).toLocaleString("fr-MA")} DH</strong>
+                    {quantity === 2 && <><span className="block text-xs text-slate-400 line-through">{(product.price * 2).toLocaleString("fr-MA")} DH</span><span className="block text-xs font-bold text-emerald-700">Économisez {Math.min(50, product.price * 2).toLocaleString("fr-MA")} DH</span></>}
+                  </span>
+                </label>
+              ))}
+            </fieldset>
             <div>
               <label className="text-xs font-bold text-slate-500 mb-1.5 block">الاسم الكامل *</label>
               <input type="text" placeholder="أحمد بنعلي" value={form.customerName}
@@ -248,7 +264,7 @@ export default function ProductPage() {
 
             {/* Total */}
             <div className="bg-blue-50 rounded-2xl px-5 py-4 flex items-center justify-between border border-blue-100">
-              <span className="text-sm font-bold text-blue-700">المبلغ الإجمالي</span>
+              <span className="text-sm font-bold text-blue-700">المبلغ الإجمالي{qty === 2 && <span className="block text-xs mt-1 text-emerald-700">تم تطبيق تخفيض {Math.min(50, product.price * 2).toLocaleString("ar-MA")} درهم</span>}</span>
               <span className="text-2xl font-black text-blue-800">{total} درهم</span>
             </div>
 
