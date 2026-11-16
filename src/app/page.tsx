@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { CodCrmLogo } from "@/components/CodCrmLogo";
-import { Package, Bird, BarChart3, DollarSign, Users, Bot, ShoppingBag, TrendingUp, Rocket, Truck, Zap, ShoppingCart, Megaphone, Music2, Send, MessageCircle, type LucideIcon } from "lucide-react";
+import { Package, Bird, BarChart3, DollarSign, Users, Bot, ShoppingBag, TrendingUp, Zap, ShoppingCart, Megaphone, Music2, Send, MessageCircle, type LucideIcon } from "lucide-react";
 
 const FEATURES: { icon: LucideIcon; title: string; desc: string }[] = [
   {
@@ -53,13 +53,6 @@ const FEATURES: { icon: LucideIcon; title: string; desc: string }[] = [
   },
 ];
 
-const STATS = [
-  { value: "500+", label: "Vendeurs COD actifs" },
-  { value: "50K+", label: "Commandes gérées / mois" },
-  { value: "98%", label: "Taux de satisfaction" },
-  { value: "0 MAD", label: "Pour commencer" },
-];
-
 const INTEGRATIONS: { name: string; color: string; icon: LucideIcon }[] = [
   { name: "Eagle Express", color: "bg-amber-50 text-amber-700 border-amber-200", icon: Bird },
 
@@ -69,24 +62,6 @@ const INTEGRATIONS: { name: string; color: string; icon: LucideIcon }[] = [
   { name: "TikTok Ads", color: "bg-slate-50 text-slate-700 border-slate-200", icon: Music2 },
   { name: "Telegram", color: "bg-sky-50 text-sky-700 border-sky-200", icon: Send },
   { name: "WhatsApp", color: "bg-emerald-50 text-emerald-700 border-emerald-200", icon: MessageCircle },
-];
-
-const STEPS = [
-  {
-    step: "01",
-    title: "Créez votre compte",
-    desc: "Inscription gratuite en 30 secondes. Aucune carte bancaire requise.",
-  },
-  {
-    step: "02",
-    title: "Connectez vos boutiques",
-    desc: "Lightfunnels, Shopify, Eagle Express — toutes vos sources en quelques clics.",
-  },
-  {
-    step: "03",
-    title: "Gérez & encaissez",
-    desc: "Confirmez, expédiez, analysez. Votre business COD enfin sous contrôle.",
-  },
 ];
 
 export default function LandingPage() {
@@ -110,217 +85,140 @@ export default function LandingPage() {
   }
 
   return (
-    <div className="min-h-screen bg-white text-slate-900 overflow-x-hidden">
-      {/* ── Navbar ── */}
-      <nav className="sticky top-0 z-50 bg-white/90 backdrop-blur-md border-b border-slate-100 px-4 sm:px-8 py-3 flex items-center justify-between gap-4">
+    <div className="min-h-screen bg-[#080B2C] text-white overflow-x-hidden">
+      <nav className="sticky top-0 z-50 border-b border-white/10 bg-[#080B2C]/95 backdrop-blur px-4 sm:px-8 py-3 flex items-center justify-between gap-4">
         <Link href="/" className="flex items-center gap-2.5 shrink-0">
           <CodCrmLogo size={32} />
-          <span className="text-lg font-extrabold text-slate-900 tracking-tight">COD CRM</span>
+          <span className="text-lg font-extrabold tracking-tight text-white">COD Maroc CRM</span>
         </Link>
-        <div className="hidden md:flex items-center gap-6 text-sm font-medium text-slate-500">
-          <a href="#features" className="hover:text-slate-900 transition-colors">Fonctionnalités</a>
-          <a href="#integrations" className="hover:text-slate-900 transition-colors">Intégrations</a>
-          <a href="#how" className="hover:text-slate-900 transition-colors">Comment ça marche</a>
+        <div className="hidden md:flex items-center gap-8 text-sm font-medium text-slate-300">
+          <a href="#features" className="hover:text-[#F08061] transition-colors">Fonctionnalités</a>
+          <a href="#pricing" className="hover:text-[#F08061] transition-colors">Tarifs</a>
+          <a href="#integrations" className="hover:text-[#F08061] transition-colors">Partenaires</a>
         </div>
-        <div className="flex items-center gap-2 shrink-0">
-          <Link href="/login" className="text-sm font-semibold text-slate-600 hover:text-slate-900 px-3 py-2 rounded-xl transition-colors hidden sm:block">
-            Se connecter
-          </Link>
-          <Link href="/login" className="bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold px-4 py-2 rounded-xl transition-colors shadow-md shadow-blue-200 whitespace-nowrap">
-            Démarrer gratuitement →
-          </Link>
-        </div>
+        <Link href="/login" className="rounded-xl bg-[#E97858] hover:bg-[#F28B6C] text-white text-sm font-bold px-5 py-3 shadow-lg shadow-[#E97858]/20 transition-colors whitespace-nowrap">
+          Démarrer gratuitement
+        </Link>
       </nav>
 
-      {/* ── Hero ── */}
-      <section className="relative bg-gradient-to-br from-slate-900 via-blue-950 to-slate-900 text-white overflow-hidden">
-        {/* Background orbs */}
-        <div className="absolute inset-0 pointer-events-none">
-          <div className="absolute top-[-100px] right-[-100px] w-[500px] h-[500px] bg-blue-600/10 rounded-full blur-3xl" />
-          <div className="absolute bottom-[-80px] left-[-80px] w-[400px] h-[400px] bg-indigo-600/10 rounded-full blur-3xl" />
-        </div>
-
-        <div className="relative z-10 max-w-6xl mx-auto px-4 sm:px-8 pt-20 pb-24 text-center">
-          <div className="inline-flex items-center gap-2 bg-blue-600/20 border border-blue-500/30 rounded-full px-4 py-1.5 text-blue-300 text-sm font-semibold mb-6">
-            <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-            Plateforme COD · Maroc
+      <section className="relative overflow-hidden bg-[#080B2C]">
+        <div className="pointer-events-none absolute -top-24 right-0 h-[34rem] w-[34rem] rounded-full bg-[#E97858]/10 blur-[110px]" />
+        <div className="relative mx-auto grid max-w-7xl items-center gap-12 px-4 pb-20 pt-16 sm:px-8 lg:min-h-[610px] lg:grid-cols-[0.9fr_1.1fr] lg:gap-10 lg:pt-20">
+          <div className="relative z-10 max-w-xl">
+            <div className="mb-6 inline-flex items-center gap-2 rounded-full border border-[#E97858]/30 bg-[#E97858]/10 px-4 py-2 text-sm font-semibold text-[#F49A7E]">
+              <span className="h-2 w-2 animate-pulse rounded-full bg-[#E97858]" /> Plateforme COD · Maroc
+            </div>
+            <h1 className="mb-6 text-4xl font-extrabold leading-[1.08] tracking-tight sm:text-5xl lg:text-[4.25rem]">
+              Gérez votre<br /><span className="text-[#E97858]">E-commerce COD</span><br />au Maroc
+            </h1>
+            <p className="mb-9 max-w-lg text-lg leading-relaxed text-slate-300 sm:text-xl">
+              Automatisez vos confirmations, suivez vos livraisons et maximisez vos revenus.
+            </p>
+            <div className="flex flex-col gap-3 sm:flex-row">
+              <Link href="/login" className="rounded-xl bg-[#E97858] px-7 py-4 text-center text-lg font-bold text-white shadow-xl shadow-[#E97858]/20 transition hover:bg-[#F28B6C]">
+                Essai Gratuit
+              </Link>
+              <a href="#preview" className="rounded-xl border border-white/50 px-7 py-4 text-center text-lg font-semibold text-white transition hover:border-[#E97858] hover:text-[#F49A7E]">
+                Voir la Démo
+              </a>
+            </div>
+            <p className="mt-4 text-sm text-slate-400">Gratuit pour commencer · Aucune carte bancaire</p>
           </div>
 
-          <h1 className="text-4xl sm:text-5xl lg:text-6xl font-extrabold text-white leading-tight mb-6 tracking-tight">
-            Votre business COD,<br />
-            <span className="text-blue-400">enfin sous contrôle.</span>
-          </h1>
-
-          <p className="text-slate-300 text-lg sm:text-xl max-w-2xl mx-auto mb-10 leading-relaxed">
-            La plateforme tout-en-un pour les e-commerçants marocains — commandes, livraisons, équipe et finances. Tout au même endroit.
-          </p>
-
-          <div className="flex flex-col sm:flex-row items-center justify-center gap-4 mb-16">
-            <Link href="/login"
-              className="w-full sm:w-auto bg-blue-600 hover:bg-blue-500 text-white font-bold px-8 py-4 rounded-2xl transition-all shadow-xl shadow-blue-900/50 text-lg">
-              Démarrer gratuitement →
-            </Link>
-            <Link href="/login"
-              className="w-full sm:w-auto bg-white/10 hover:bg-white/20 border border-white/20 text-white font-semibold px-8 py-4 rounded-2xl transition-all text-lg">
-              Se connecter
-            </Link>
-          </div>
-
-          {/* Dashboard preview card */}
-          <div className="relative mx-auto max-w-4xl">
-            <div className="bg-white/5 border border-white/10 rounded-3xl p-3 sm:p-4 backdrop-blur-sm shadow-2xl">
-              <div className="bg-[#F0F4FF] rounded-2xl p-4 sm:p-6">
-                {/* Mini dashboard mockup */}
-                <div className="flex items-center justify-between mb-4">
-                  <div className="h-3 bg-slate-300/50 rounded-full w-28" />
-                  <div className="h-8 bg-blue-600 rounded-xl w-28 opacity-80" />
-                </div>
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-3 mb-4">
-                  {["bg-blue-100", "bg-emerald-100", "bg-red-100", "bg-violet-100"].map((bg, i) => (
-                    <div key={i} className={`${bg} rounded-2xl p-4`}>
-                      <div className="h-2 bg-current rounded opacity-30 mb-2 w-16" />
-                      <div className="h-5 bg-current rounded opacity-40 w-10" />
-                    </div>
+          <div id="preview" className="relative lg:-mr-36">
+            <div className="absolute -inset-5 rounded-[2rem] bg-[#E97858]/15 blur-3xl" />
+            <div className="relative overflow-hidden rounded-[1.5rem] border-[3px] border-[#D87558] bg-[#101535] p-2 shadow-[0_0_55px_rgba(233,120,88,0.24)] sm:p-3">
+              <div className="flex min-h-[340px] overflow-hidden rounded-xl border border-white/10 bg-[#0B1030]">
+                <aside className="hidden w-32 shrink-0 border-r border-white/10 bg-[#090E2B] p-4 sm:block">
+                  <div className="mb-8 flex items-center gap-2 text-[10px] font-bold text-white"><span className="h-5 w-5 rounded bg-[#E97858]"/> COD CRM</div>
+                  {["Tableau de bord", "Commandes", "Livraisons", "Produits", "Finances"].map((item, i) => (
+                    <div key={item} className={`mb-2 rounded-lg px-2 py-2 text-[9px] ${i === 0 ? "bg-[#E97858]/15 text-[#F49A7E]" : "text-slate-400"}`}>{item}</div>
                   ))}
-                </div>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  <div className="bg-white rounded-2xl p-4 h-24 flex flex-col gap-2">
-                    <div className="h-2 bg-slate-200 rounded-full w-20" />
-                    <div className="flex items-end gap-1 flex-1">
-                      {[60, 80, 45, 90, 70, 85, 55].map((h, i) => (
-                        <div key={i} className="flex-1 bg-blue-500 rounded-t opacity-70" style={{ height: `${h}%` }} />
-                      ))}
-                    </div>
+                </aside>
+                <div className="min-w-0 flex-1 p-3 sm:p-5">
+                  <div className="mb-4 flex items-center justify-between">
+                    <div><p className="text-[9px] text-slate-400">Boutique · Admin</p><p className="text-sm font-bold">Tableau de bord</p></div>
+                    <div className="rounded-lg border border-white/10 px-2 py-1 text-[9px] text-slate-400">Aujourd&apos;hui⌄</div>
                   </div>
-                  <div className="bg-white rounded-2xl p-4 h-24 flex flex-col gap-2">
-                    <div className="h-2 bg-slate-200 rounded-full w-20" />
-                    <div className="flex flex-col gap-1 mt-auto">
-                      {[{ w: "75%", c: "bg-blue-500" }, { w: "55%", c: "bg-emerald-400" }, { w: "30%", c: "bg-red-400" }].map((b, i) => (
-                        <div key={i} className="h-1.5 bg-slate-100 rounded-full overflow-hidden">
-                          <div className={`h-full ${b.c} rounded-full`} style={{ width: b.w }} />
+                  <div className="mb-4 grid grid-cols-2 gap-2 lg:grid-cols-4">
+                    {[
+                      { label: "Commandes livrées", value: "128", color: "bg-[#E97858]" },
+                      { label: "CA encaissé", value: "24 850 MAD", color: "bg-[#172044]" },
+                      { label: "Taux livraison", value: "87,4%", color: "bg-[#172044]" },
+                      { label: "Bénéfice net", value: "8 450 MAD", color: "bg-[#172044]" },
+                    ].map(card => <div key={card.label} className={`${card.color} rounded-xl p-3`}><p className="mb-2 text-[8px] text-white/70">{card.label}</p><p className="text-xs font-extrabold sm:text-sm">{card.value}</p></div>)}
+                  </div>
+                  <div className="grid gap-3 lg:grid-cols-2">
+                    <div className="rounded-xl border border-white/10 bg-[#111936] p-3">
+                      <div className="mb-3 flex justify-between text-[9px]"><span className="font-semibold">Commandes & revenus</span><span className="text-slate-500">7 derniers jours</span></div>
+                      <div className="flex h-28 items-end gap-2 border-b border-white/10 px-1">
+                        {[36, 55, 43, 74, 59, 88, 68, 96, 70, 82, 57, 91].map((h, i) => <div key={i} className={`flex-1 rounded-t-sm ${i % 3 === 0 ? "bg-[#E97858]" : "bg-[#4B5A85]"}`} style={{height:`${h}%`}} />)}
+                      </div>
+                      <div className="mt-2 flex justify-between text-[8px] text-slate-500"><span>Lun</span><span>Mer</span><span>Ven</span><span>Dim</span></div>
+                    </div>
+                    <div className="rounded-xl border border-white/10 bg-[#111936] p-3">
+                      <div className="mb-3 text-[9px] font-semibold">Performance par ville</div>
+                      <div className="flex h-28 items-center justify-center">
+                        <div className="relative flex h-24 w-28 items-center justify-center">
+                          <div className="absolute h-14 w-14 rotate-45 rounded-[40%_15%_40%_15%] bg-[#E97858]" />
+                          <div className="absolute ml-7 mt-6 h-10 w-10 rotate-45 rounded-[40%_15%_40%_15%] bg-[#F5B49E]" />
+                          <div className="absolute -bottom-1 left-0 text-[8px] text-slate-400">Maroc · commandes livrées</div>
                         </div>
-                      ))}
+                        <div className="ml-3 space-y-2 text-[8px] text-slate-400"><p><span className="mr-1 inline-block h-2 w-2 rounded-sm bg-[#E97858]"/>Casablanca</p><p><span className="mr-1 inline-block h-2 w-2 rounded-sm bg-[#F5B49E]"/>Rabat</p></div>
+                      </div>
                     </div>
                   </div>
                 </div>
               </div>
             </div>
-            {/* Glow */}
-            <div className="absolute inset-0 -z-10 blur-3xl opacity-20 bg-blue-500 rounded-full" />
           </div>
         </div>
       </section>
 
-      {/* ── Stats ── */}
-      <section className="bg-white py-12 border-b border-slate-100">
-        <div className="max-w-5xl mx-auto px-4 sm:px-8">
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-6 sm:gap-8 text-center">
-            {STATS.map(s => (
-              <div key={s.label}>
-                <p className="text-3xl sm:text-4xl font-extrabold text-blue-600 mb-1">{s.value}</p>
-                <p className="text-sm text-slate-500 font-medium">{s.label}</p>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* ── Features ── */}
-      <section id="features" className="py-20 bg-[#F8FAFF]">
-        <div className="max-w-6xl mx-auto px-4 sm:px-8">
-          <div className="text-center mb-14">
-            <span className="text-blue-600 font-bold text-sm uppercase tracking-widest">Fonctionnalités</span>
-            <h2 className="text-3xl sm:text-4xl font-extrabold text-slate-900 mt-2 mb-4">Tout ce dont vous avez besoin</h2>
-            <p className="text-slate-500 text-lg max-w-xl mx-auto">Une seule plateforme pour gérer votre activité COD de A à Z.</p>
-          </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
-            {FEATURES.map(f => (
-              <div key={f.title} className="bg-white rounded-2xl p-6 border border-slate-100 shadow-sm hover:shadow-md hover:border-blue-100 transition-all group">
-                <f.icon size={28} className="mb-4 text-blue-600" />
-                <h3 className="text-base font-bold text-slate-900 mb-2 group-hover:text-blue-600 transition-colors">{f.title}</h3>
-                <p className="text-sm text-slate-500 leading-relaxed">{f.desc}</p>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* ── How it works ── */}
-      <section id="how" className="py-20 bg-white">
-        <div className="max-w-4xl mx-auto px-4 sm:px-8">
-          <div className="text-center mb-14">
-            <span className="text-blue-600 font-bold text-sm uppercase tracking-widest">Démarrage rapide</span>
-            <h2 className="text-3xl sm:text-4xl font-extrabold text-slate-900 mt-2 mb-4">Opérationnel en 5 minutes</h2>
-          </div>
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-8">
-            {STEPS.map((s, i) => (
-              <div key={s.step} className="text-center relative">
-                {i < STEPS.length - 1 && (
-                  <div className="hidden sm:block absolute top-8 left-[calc(50%+2.5rem)] w-[calc(100%-5rem)] h-px bg-blue-100" />
-                )}
-                <div className="w-16 h-16 rounded-2xl bg-blue-600 text-white text-xl font-extrabold flex items-center justify-center mx-auto mb-5 shadow-lg shadow-blue-200">
-                  {s.step}
-                </div>
-                <h3 className="text-base font-bold text-slate-900 mb-2">{s.title}</h3>
-                <p className="text-sm text-slate-500 leading-relaxed">{s.desc}</p>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* ── Integrations ── */}
-      <section id="integrations" className="py-20 bg-[#F8FAFF]">
-        <div className="max-w-4xl mx-auto px-4 sm:px-8 text-center">
-          <span className="text-blue-600 font-bold text-sm uppercase tracking-widest">Intégrations</span>
-          <h2 className="text-3xl sm:text-4xl font-extrabold text-slate-900 mt-2 mb-4">Compatible avec votre stack</h2>
-          <p className="text-slate-500 text-lg max-w-xl mx-auto mb-12">Tous les outils des e-commerçants COD marocains, connectés en quelques clics.</p>
-          <div className="flex flex-wrap justify-center gap-3">
+      <section id="integrations" className="border-y border-white/10 bg-[#0B0F31] py-12 sm:py-16">
+        <div className="mx-auto max-w-6xl px-4 text-center sm:px-8">
+          <h2 className="mb-8 text-3xl font-bold sm:text-4xl">Partenaires & intégrations</h2>
+          <div className="flex flex-wrap items-center justify-center gap-x-10 gap-y-5">
             {INTEGRATIONS.map(integ => (
-              <div key={integ.name} className={`flex items-center gap-2 px-5 py-3 rounded-2xl border font-semibold text-sm ${integ.color}`}>
-                <integ.icon size={16} />
-                {integ.name}
+              <div key={integ.name} className="flex items-center gap-2 text-sm font-bold text-slate-300 sm:text-base">
+                <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-white/10 text-[#F49A7E]"><integ.icon size={18} /></span>{integ.name}
               </div>
             ))}
           </div>
         </div>
       </section>
 
-      {/* ── CTA ── */}
-      <section className="py-20 bg-gradient-to-br from-blue-600 to-indigo-700">
-        <div className="max-w-3xl mx-auto px-4 sm:px-8 text-center">
-          <h2 className="text-3xl sm:text-4xl font-extrabold text-white mb-4">
-            Prêt à passer à la vitesse supérieure ?
-          </h2>
-          <p className="text-blue-100 text-lg mb-10 max-w-xl mx-auto">
-            Rejoignez des centaines de vendeurs COD marocains qui gèrent leur business avec COD CRM.
-          </p>
-          <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
-            <Link href="/login"
-              className="w-full sm:w-auto bg-white hover:bg-blue-50 text-blue-700 font-bold px-8 py-4 rounded-2xl transition-all shadow-xl text-lg">
-              Créer mon compte gratuitement →
-            </Link>
-            <Link href="/login"
-              className="w-full sm:w-auto bg-white/10 hover:bg-white/20 border border-white/30 text-white font-semibold px-8 py-4 rounded-2xl transition-all text-lg">
-              Se connecter
-            </Link>
+      <section id="features" className="bg-[#080B2C] py-20">
+        <div className="mx-auto max-w-6xl px-4 sm:px-8">
+          <div className="mb-12 text-center">
+            <p className="mb-2 text-sm font-bold uppercase tracking-[0.2em] text-[#F08061]">Fonctionnalités</p>
+            <h2 className="text-3xl font-extrabold sm:text-4xl">Tout votre COD au même endroit</h2>
+            <p className="mx-auto mt-4 max-w-xl text-slate-400">Commandes, stock, équipe et finances : gardez une vue claire sur votre activité.</p>
           </div>
-          <p className="text-blue-200 text-sm mt-6">Gratuit pour commencer · Aucune carte bancaire</p>
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {FEATURES.slice(0, 6).map(f => <div key={f.title} className="rounded-2xl border border-white/10 bg-[#101535] p-6 transition hover:border-[#E97858]/50">
+              <f.icon size={26} className="mb-4 text-[#E97858]" /><h3 className="mb-2 font-bold">{f.title}</h3><p className="text-sm leading-relaxed text-slate-400">{f.desc}</p>
+            </div>)}
+          </div>
         </div>
       </section>
 
-      {/* ── Footer ── */}
-      <footer className="bg-slate-900 text-slate-400 py-10 px-4 sm:px-8">
-        <div className="max-w-6xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-6">
-          <div className="flex items-center gap-2.5">
-            <CodCrmLogo size={28} />
-            <span className="text-white font-bold text-base">COD CRM</span>
-          </div>
-          <div className="flex flex-wrap items-center justify-center gap-6 text-sm">
-            <a href="#features" className="hover:text-white transition-colors">Fonctionnalités</a>
-            <a href="#integrations" className="hover:text-white transition-colors">Intégrations</a>
-            <Link href="/privacy" className="hover:text-white transition-colors">Confidentialité</Link>
-            <Link href="/login" className="hover:text-white transition-colors">Connexion</Link>
+      <section id="pricing" className="border-y border-white/10 bg-[#0B0F31] py-16">
+        <div className="mx-auto max-w-4xl px-4 text-center sm:px-8">
+          <p className="mb-2 text-sm font-bold uppercase tracking-[0.2em] text-[#F08061]">Tarifs</p>
+          <h2 className="text-3xl font-extrabold sm:text-4xl">Commencez gratuitement</h2>
+          <p className="mx-auto mb-7 mt-4 max-w-xl text-slate-300">Créez votre espace COD CRM et découvrez les outils pour piloter votre activité.</p>
+          <Link href="/login" className="inline-flex rounded-xl bg-[#E97858] px-7 py-3.5 font-bold text-white transition hover:bg-[#F28B6C]">Démarrer gratuitement</Link>
+          <p className="mt-4 text-sm text-slate-500">Aucune carte bancaire requise</p>
+        </div>
+      </section>
+
+      <footer className="bg-[#070A24] px-4 py-8 text-slate-400 sm:px-8">
+        <div className="mx-auto flex max-w-6xl flex-col items-center justify-between gap-5 sm:flex-row">
+          <Link href="/" className="flex items-center gap-2"><CodCrmLogo size={28}/><span className="font-bold text-white">COD Maroc CRM</span></Link>
+          <div className="flex flex-wrap justify-center gap-6 text-sm">
+            <a href="#features" className="transition hover:text-[#F08061]">Fonctionnalités</a><a href="#pricing" className="transition hover:text-[#F08061]">Tarifs</a>
+            <Link href="/privacy" className="transition hover:text-[#F08061]">Confidentialité</Link><Link href="/login" className="transition hover:text-[#F08061]">Connexion</Link>
           </div>
           <p className="text-xs text-slate-500">© {new Date().getFullYear()} COD CRM. Tous droits réservés.</p>
         </div>

@@ -5,6 +5,7 @@ import { getSettings, saveSettings } from "@/lib/supabaseSettingsStore";
 import { supabase } from "@/lib/supabase";
 
 type CommissionRecord = { boutiqueNom: string; agentId: string; agentName: string; commissionAmount: number };
+type StockMovement = { id: string; productId: string; quantity: number; unitCost: number; totalCost: number; note: string; createdAt: string; stockAfter: number };
 
 export async function GET() {
   const user = await getRequestUser();
@@ -15,6 +16,7 @@ export async function GET() {
     getSettings(user.workspaceId),
   ]);
   const productPixels: Record<string, string> = (settings.productPixels as Record<string, string>) ?? {};
+  const stockMovements = (Array.isArray(settings.productStockMovements) ? settings.productStockMovements : []) as StockMovement[];
   const productCommissions = (settings.productCommissions as Record<string, CommissionRecord>) ?? {};
 
   const { data: pageOrders } = await supabase
@@ -33,6 +35,7 @@ export async function GET() {
     const commission = productCommissions[p.id];
     return {
       ...p,
+      stockMovements: stockMovements.filter(movement => movement.productId === p.id).sort((a, b) => b.createdAt.localeCompare(a.createdAt)),
       pageOrders: pageOrderMap[p.name] ?? 0,
       facebookPixelId: productPixels[p.id] ?? "",
       boutiqueNom: commission?.boutiqueNom ?? "",
@@ -110,16 +113,30 @@ export async function PATCH(request: NextRequest) {
       if (!existing) return NextResponse.json({ error: "Produit introuvable." }, { status: 404 });
       let updated = await addStock(id, user.workspaceId, addedQty);
       if (!updated) return NextResponse.json({ error: "Produit introuvable." }, { status: 404 });
-      if (rest.purchasePrice !== null && rest.purchasePrice !== undefined && Number.isFinite(Number(rest.purchasePrice))) {
-        const nextStock = existing.stock + addedQty;
-        const unitCost = Math.max(0, Number(rest.purchasePrice));
-        const averagePurchasePrice = nextStock > 0
-          ? (existing.purchasePrice * existing.stock + unitCost * addedQty) / nextStock
-          : unitCost;
-        const costUpdated = await updateProduct(id, user.workspaceId, { purchasePrice: averagePurchasePrice });
-        if (costUpdated) updated = costUpdated;
-      }
-      return NextResponse.json({ ok: true, product: updated });
+      const hasPurchasePrice = rest.purchasePrice !== null && rest.purchasePrice !== undefined && Number.isFinite(Number(rest.purchasePrice));
+      const unitCost = hasPurchasePrice ? Math.max(0, Number(rest.purchasePrice)) : existing.purchasePrice;
+      const note = String(rest.note ?? "").trim();
+      const nextStock = existing.stock + addedQty;
+      const averagePurchasePrice = nextStock > 0
+        ? (existing.purchasePrice * existing.stock + unitCost * addedQty) / nextStock
+        : unitCost;
+      const costUpdated = await updateProduct(id, user.workspaceId, { purchasePrice: averagePurchasePrice });
+      if (costUpdated) updated = costUpdated;
+
+      const settings = await getSettings(user.workspaceId);
+      const movements = (Array.isArray(settings.productStockMovements) ? settings.productStockMovements : []) as StockMovement[];
+      const movement: StockMovement = {
+        id: crypto.randomUUID(),
+        productId: id,
+        quantity: addedQty,
+        unitCost,
+        totalCost: unitCost * addedQty,
+        note,
+        createdAt: new Date().toISOString(),
+        stockAfter: nextStock,
+      };
+      await saveSettings(user.workspaceId, { productStockMovements: [...movements, movement] });
+      return NextResponse.json({ ok: true, product: updated, movement });
     }
 
     const patch: Record<string, unknown> = {};
