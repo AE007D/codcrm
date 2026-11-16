@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { CodCrmLogo } from "@/components/CodCrmLogo";
-import { Package, Bird, BarChart3, DollarSign, Users, Bot, ShoppingBag, TrendingUp, Zap, ShoppingCart, Megaphone, Music2, Send, MessageCircle, type LucideIcon } from "lucide-react";
+import { Package, Bird, BarChart3, DollarSign, Users, Bot, ShoppingBag, TrendingUp, Rocket, Zap, ShoppingCart, Megaphone, Music2, Send, MessageCircle, type LucideIcon } from "lucide-react";
 
 const FEATURES: { icon: LucideIcon; title: string; desc: string }[] = [
   {
