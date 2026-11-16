@@ -273,8 +273,49 @@ export default function FinancesPage() {
     })
     .reduce((s, r) => s + r.amount, 0);
 
-  const totalCost = productCost + adsCost + shippingCost + commissionCost;
+  const confirmationCost = confirmed.length * costs.confirmationCostPerOrder;
+  const totalCost = productCost + adsCost + shippingCost + confirmationCost + commissionCost;
   const netProfit = revenue - totalCost;
+
+  // Campaign spend and agent commissions are distributed by order volume for per-product reporting.
+  const productProfitMap: Record<string, {
+    name: string; orderCount: number; confirmedOrders: number; deliveredOrders: number;
+    shippedOrders: number; returnedOrders: number; deliveredQty: number; revenue: number;
+    purchaseCost: number;
+  }> = {};
+  for (const o of filtered) {
+    const name = String(o.product ?? "").trim() || "Inconnu";
+    const key = name.toLowerCase();
+    const row = productProfitMap[key] ?? {
+      name, orderCount: 0, confirmedOrders: 0, deliveredOrders: 0, shippedOrders: 0,
+      returnedOrders: 0, deliveredQty: 0, revenue: 0, purchaseCost: 0,
+    };
+    const status = String(o.status ?? "").toLowerCase();
+    const isDelivered = status === "livré" || status === "livre" || status === "delivered";
+    const isConfirmed = ["confirmé", "confirme", "confirmed", "expédié", "expedie", "livré", "livre", "retourné", "retourne"].includes(status);
+    const isShipped = ["expédié", "expedie", "livré", "livre", "retourné", "retourne"].includes(status);
+    const isReturned = ["retourné", "retourne", "returned"].includes(status);
+    const qty = Number(o.quantity) || 1;
+    row.orderCount += 1;
+    if (isConfirmed) row.confirmedOrders += 1;
+    if (isShipped) row.shippedOrders += 1;
+    if (isReturned) row.returnedOrders += 1;
+    if (isDelivered) {
+      row.deliveredOrders += 1;
+      row.deliveredQty += qty;
+      row.revenue += parsePrice(o.totalPrice ?? o.total_price);
+      row.purchaseCost += (purchaseMap[key] ?? 0) * qty;
+    }
+    productProfitMap[key] = row;
+  }
+  const productProfitRows = Object.values(productProfitMap).map(row => {
+    const productConfirmation = row.confirmedOrders * costs.confirmationCostPerOrder;
+    const productShipping = row.deliveredOrders * costs.shippingCostPerOrder;
+    const productAds = filtered.length ? adsCost * row.orderCount / filtered.length : 0;
+    const productCommissions = delivered.length ? commissionCost * row.deliveredOrders / delivered.length : 0;
+    const totalProductCosts = row.purchaseCost + productConfirmation + productShipping + productAds + productCommissions;
+    return { ...row, productConfirmation, productShipping, productAds, productCommissions, totalProductCosts, profit: row.revenue - totalProductCosts };
+  });
   const roi = totalCost > 0 ? (netProfit / totalCost) * 100 : 0;
   const profitPerDay = netProfit / days;
   const profitPerWeek = profitPerDay * 7;
@@ -376,7 +417,8 @@ export default function FinancesPage() {
 
   const costFields: { key: keyof CostSettings; label: string; placeholder: string }[] = [
     { key: "dailyAdsBudget", label: "Budget pub / jour (MAD)", placeholder: "ex: 150" },
-    { key: "shippingCostPerOrder", label: "Frais livraison / commande (MAD)", placeholder: "ex: 38" },
+    { key: "confirmationCostPerOrder", label: "Frais confirmation / commande confirmée (MAD)", placeholder: "ex: 5" },
+    { key: "shippingCostPerOrder", label: "Frais livraison / commande livrée (MAD)", placeholder: "ex: 38" },
   ];
 
   return (
@@ -493,6 +535,7 @@ export default function FinancesPage() {
                     {[
                       { label: "Achats produits", value: productCost, sub: `${delivered.length} cmds livrées`, color: "bg-orange-500", breakdown: Object.entries(productCostByProduct).sort((a, b) => b[1].cost - a[1].cost) },
                       { label: "Budget publicité", value: adsCost, sub: campaignAdSpend > 0 ? `${campaignsInPeriod.length} campagne(s) — Ads Manager` : `${costs.dailyAdsBudget} MAD × ${days} jours`, color: "bg-blue-500" },
+                      { label: "Confirmation", value: confirmationCost, sub: `${confirmed.length} commandes confirmées × ${costs.confirmationCostPerOrder} MAD`, color: "bg-violet-500" },
                       { label: "Livraison Eagle Express", value: shippingCost, sub: `${delivered.length} colis livrés × ${costs.shippingCostPerOrder} MAD`, color: "bg-amber-500" },
                       { label: "Commissions agents", value: commissionCost, sub: `${paymentRequests.filter(r => r.status !== "rejected" && new Date(r.created_at) >= start && new Date(r.created_at) <= now).length} commission(s)`, color: "bg-blue-400" },
                     ].map(item => {
@@ -595,6 +638,48 @@ export default function FinancesPage() {
                     })}
                   </div>
                 </div>
+              )}
+
+              {/* ── Product profitability ── */}
+              {productProfitRows.length > 0 && (
+                <section className="bg-white rounded-2xl p-5 shadow-sm border border-slate-100 mb-5">
+                  <div className="flex flex-wrap items-start justify-between gap-2 mb-1">
+                    <h2 className="text-sm font-bold text-slate-700 flex items-center gap-1.5"><Package size={15} /> Résultat par produit</h2>
+                    <span className="text-xs text-slate-400">{filtered.length} commandes · frais pub répartis selon le nombre de commandes</span>
+                  </div>
+                  <p className="text-xs text-slate-400 mb-4">Le coût de la marchandise est compté sur les commandes livrées. Les retours sont gratuits; les frais de livraison s&apos;appliquent aux colis livrés.</p>
+                  <div className="overflow-x-auto">
+                    <table className="w-full min-w-[880px] text-sm">
+                      <thead><tr className="text-left text-[11px] uppercase tracking-wide text-slate-400 border-b border-slate-100">
+                        <th className="py-2 pr-3">Produit</th><th className="py-2 px-2 text-right">Conf. / livrées</th>
+                        <th className="py-2 px-2 text-right">CA livré</th><th className="py-2 px-2 text-right">Marchandise</th>
+                        <th className="py-2 px-2 text-right">Confirmation + livraison</th><th className="py-2 px-2 text-right">Pub répartie</th>
+                        <th className="py-2 px-2 text-right">Commission</th><th className="py-2 pl-2 text-right">Bénéfice net</th>
+                      </tr></thead>
+                      <tbody>{productProfitRows.map(row => (
+                        <tr key={row.name} className="border-b border-slate-50 last:border-0">
+                          <td className="py-3 pr-3 font-semibold text-slate-700">{row.name}</td>
+                          <td className="py-3 px-2 text-right text-slate-500">{row.confirmedOrders} / {row.deliveredOrders}</td>
+                          <td className="py-3 px-2 text-right font-medium text-slate-700">{fmt(row.revenue)} MAD</td>
+                          <td className="py-3 px-2 text-right text-orange-600">{fmt(row.purchaseCost)} MAD</td>
+                          <td className="py-3 px-2 text-right text-slate-500">{fmt(row.productConfirmation + row.productShipping)} MAD</td>
+                          <td className="py-3 px-2 text-right text-blue-600">{fmt(row.productAds)} MAD</td>
+                          <td className="py-3 px-2 text-right text-slate-500">{fmt(row.productCommissions)} MAD</td>
+                          <td className={`py-3 pl-2 text-right font-black ${row.profit >= 0 ? "text-emerald-600" : "text-red-600"}`}>{row.profit >= 0 ? "+" : ""}{fmt(row.profit)} MAD</td>
+                        </tr>
+                      ))}</tbody>
+                      <tfoot><tr className="border-t-2 border-slate-200 font-bold">
+                        <td className="py-3 pr-3 text-slate-700">Total</td><td className="py-3 px-2 text-right text-slate-500">—</td>
+                        <td className="py-3 px-2 text-right">{fmt(productProfitRows.reduce((sum, row) => sum + row.revenue, 0))} MAD</td>
+                        <td className="py-3 px-2 text-right text-orange-600">{fmt(productProfitRows.reduce((sum, row) => sum + row.purchaseCost, 0))} MAD</td>
+                        <td className="py-3 px-2 text-right">{fmt(productProfitRows.reduce((sum, row) => sum + row.productConfirmation + row.productShipping, 0))} MAD</td>
+                        <td className="py-3 px-2 text-right text-blue-600">{fmt(productProfitRows.reduce((sum, row) => sum + row.productAds, 0))} MAD</td>
+                        <td className="py-3 px-2 text-right">{fmt(productProfitRows.reduce((sum, row) => sum + row.productCommissions, 0))} MAD</td>
+                        <td className={`py-3 pl-2 text-right ${netProfit >= 0 ? "text-emerald-600" : "text-red-600"}`}>{netProfit >= 0 ? "+" : ""}{fmt(netProfit)} MAD</td>
+                      </tr></tfoot>
+                    </table>
+                  </div>
+                </section>
               )}
 
               {/* ── City + Product return rates ── */}
