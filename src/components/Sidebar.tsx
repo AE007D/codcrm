@@ -91,21 +91,10 @@ const navItems: NavItem[] = [
       <path d="M21 11.5a8.38 8.38 0 01-.9 3.8 8.5 8.5 0 01-7.6 4.7 8.38 8.38 0 01-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 01-.9-3.8 8.5 8.5 0 014.7-7.6 8.38 8.38 0 013.8-.9h.5a8.48 8.48 0 018 8v.5z"/>
     </svg>
   )},
-  { labelKey: "nav_telegram", href: "/telegram", adminOnly: true, icon: (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="w-5 h-5">
-      <path d="M21.5 4.5L2.5 10.5l7 2m12-8L17 21.5l-7.5-9m12-8l-10 7"/>
-    </svg>
-  )},
   { labelKey: "nav_integrations", href: "/integrations", adminOnly: true, icon: (
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="w-5 h-5">
       <path d="M10 13a5 5 0 007.54.54l3-3a5 5 0 00-7.07-7.07l-1.72 1.71"/>
       <path d="M14 11a5 5 0 00-7.54-.54l-3 3a5 5 0 007.07 7.07l1.71-1.71"/>
-    </svg>
-  )},
-  { labelKey: "nav_reports", href: "/rapports", adminOnly: true, icon: (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="w-5 h-5">
-      <line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/>
-      <line x1="6" y1="20" x2="6" y2="14"/><line x1="2" y1="20" x2="22" y2="20"/>
     </svg>
   )},
   { labelKey: "nav_ai", href: "/ai", adminOnly: true, icon: (

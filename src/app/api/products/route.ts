@@ -104,8 +104,21 @@ export async function PATCH(request: NextRequest) {
     if (!id) return NextResponse.json({ error: "ID requis." }, { status: 400 });
 
     if (action === "addStock") {
-      const updated = await addStock(id, user.workspaceId, parseInt(qty) || 0);
+      const addedQty = parseInt(qty) || 0;
+      if (addedQty <= 0) return NextResponse.json({ error: "Quantité invalide." }, { status: 400 });
+      const existing = (await getProducts(user.workspaceId)).find(p => p.id === id);
+      if (!existing) return NextResponse.json({ error: "Produit introuvable." }, { status: 404 });
+      let updated = await addStock(id, user.workspaceId, addedQty);
       if (!updated) return NextResponse.json({ error: "Produit introuvable." }, { status: 404 });
+      if (rest.purchasePrice !== null && rest.purchasePrice !== undefined && Number.isFinite(Number(rest.purchasePrice))) {
+        const nextStock = existing.stock + addedQty;
+        const unitCost = Math.max(0, Number(rest.purchasePrice));
+        const averagePurchasePrice = nextStock > 0
+          ? (existing.purchasePrice * existing.stock + unitCost * addedQty) / nextStock
+          : unitCost;
+        const costUpdated = await updateProduct(id, user.workspaceId, { purchasePrice: averagePurchasePrice });
+        if (costUpdated) updated = costUpdated;
+      }
       return NextResponse.json({ ok: true, product: updated });
     }
 
