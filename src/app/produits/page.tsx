@@ -6,7 +6,10 @@ import Image from "next/image";
 import Sidebar from "@/components/Sidebar";
 import { useLang } from "@/lib/i18n";
 
+type StockMovement = { id: string; productId: string; quantity: number; unitCost: number; totalCost: number; note: string; createdAt: string; stockAfter: number };
+
 type Product = {
+  stockMovements?: StockMovement[];
   id: string;
   name: string;
   sku: string;
@@ -228,7 +231,7 @@ export default function ProduitsPage() {
     if (!qty || qty === 0) return;
     setStockSaving(true);
     try {
-      await fetch("/api/products", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id: stockModal.id, action: "addStock", qty, purchasePrice: stockPurchasePrice.trim() ? (parseFloat(stockPurchasePrice) || 0) : null }) });
+      await fetch("/api/products", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id: stockModal.id, action: "addStock", qty, purchasePrice: stockPurchasePrice.trim() ? (parseFloat(stockPurchasePrice) || 0) : null, note: stockNote }) });
       setStockModal(null); setStockQty(""); setStockPurchasePrice(""); setStockNote("");
       fetchProducts();
     } finally { setStockSaving(false); }
@@ -660,7 +663,7 @@ export default function ProduitsPage() {
       {/* Add Stock modal */}
       {stockModal && (
         <div className="fixed inset-0 bg-black/30 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm p-6">
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-lg p-6 max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-base font-bold text-slate-900">Alimenter le stock</h2>
               <button onClick={() => setStockModal(null)} className="text-slate-400 hover:text-slate-600">
@@ -706,6 +709,31 @@ export default function ProduitsPage() {
                 <input type="text" placeholder="Ex: Réception fournisseur du 15/05" value={stockNote} onChange={e => setStockNote(e.target.value)}
                   className="w-full text-sm border border-slate-200 rounded-xl px-4 py-2.5 outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-50" />
               </div>
+            </div>
+
+            <div className="mt-6 border-t border-slate-100 pt-4">
+              <div className="mb-3 flex items-center justify-between">
+                <h3 className="text-sm font-bold text-slate-800">Historique des achats</h3>
+                <span className="text-xs text-slate-400">{stockModal.stockMovements?.length ?? 0} réception(s)</span>
+              </div>
+              {!stockModal.stockMovements?.length ? (
+                <p className="rounded-xl bg-slate-50 px-3 py-4 text-center text-xs text-slate-400">Les prochains achats apparaîtront ici.</p>
+              ) : (
+                <div className="max-h-48 space-y-2 overflow-y-auto">
+                  {stockModal.stockMovements.map(movement => (
+                    <div key={movement.id} className="rounded-xl bg-slate-50 p-3">
+                      <div className="flex items-center justify-between gap-3 text-xs">
+                        <span className="font-bold text-slate-700">{new Date(movement.createdAt).toLocaleDateString("fr-MA")}</span>
+                        <span className="font-semibold text-slate-600">+{movement.quantity} · {movement.unitCost} MAD/unité</span>
+                        <span className="font-bold text-slate-800">{movement.totalCost.toLocaleString("fr-MA")} MAD</span>
+                      </div>
+                      <div className="mt-1 flex justify-between text-[11px] text-slate-400">
+                        <span>{movement.note || "Aucune note"}</span><span>Stock après achat : {movement.stockAfter}</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
 
             <div className="flex gap-3 mt-5">

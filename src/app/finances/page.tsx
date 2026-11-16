@@ -273,7 +273,7 @@ export default function FinancesPage() {
     })
     .reduce((s, r) => s + r.amount, 0);
 
-  const confirmationCost = confirmed.length * costs.confirmationCostPerOrder;
+  const confirmationCost = delivered.length * costs.confirmationCostPerOrder;
   const totalCost = productCost + adsCost + shippingCost + confirmationCost + commissionCost;
   const netProfit = revenue - totalCost;
 
@@ -309,7 +309,7 @@ export default function FinancesPage() {
     productProfitMap[key] = row;
   }
   const productProfitRows = Object.values(productProfitMap).map(row => {
-    const productConfirmation = row.confirmedOrders * costs.confirmationCostPerOrder;
+    const productConfirmation = row.deliveredOrders * costs.confirmationCostPerOrder;
     const productShipping = row.deliveredOrders * costs.shippingCostPerOrder;
     const productAds = filtered.length ? adsCost * row.orderCount / filtered.length : 0;
     const productCommissions = delivered.length ? commissionCost * row.deliveredOrders / delivered.length : 0;
@@ -533,7 +533,7 @@ export default function FinancesPage() {
                     {[
                       { label: "Achats produits", value: productCost, sub: `${delivered.length} cmds livrées`, color: "bg-orange-500", breakdown: Object.entries(productCostByProduct).sort((a, b) => b[1].cost - a[1].cost) },
                       { label: "Budget publicité", value: adsCost, sub: campaignAdSpend > 0 ? `${campaignsInPeriod.length} campagne(s) — Ads Manager` : `${costs.dailyAdsBudget} MAD × ${days} jours`, color: "bg-blue-500" },
-                      { label: "Confirmation", value: confirmationCost, sub: `${confirmed.length} commandes confirmées × ${costs.confirmationCostPerOrder} MAD`, color: "bg-violet-500" },
+                      { label: "Confirmation", value: confirmationCost, sub: `${delivered.length} commandes livrées × ${costs.confirmationCostPerOrder} MAD`, color: "bg-violet-500" },
                       { label: "Livraison Eagle Express", value: shippingCost, sub: `${delivered.length} colis livrés × ${costs.shippingCostPerOrder} MAD`, color: "bg-amber-500" },
                       { label: "Commissions agents", value: commissionCost, sub: `${paymentRequests.filter(r => r.status !== "rejected" && new Date(r.created_at) >= start && new Date(r.created_at) <= now).length} commission(s)`, color: "bg-blue-400" },
                     ].map(item => {
@@ -651,7 +651,7 @@ export default function FinancesPage() {
                       <thead><tr className="text-left text-[11px] uppercase tracking-wide text-slate-400 border-b border-slate-100">
                         <th className="py-2 pr-3">Produit</th><th className="py-2 px-2 text-right">Conf. / livrées</th>
                         <th className="py-2 px-2 text-right">CA livré</th><th className="py-2 px-2 text-right">Marchandise</th>
-                        <th className="py-2 px-2 text-right">Confirmation + livraison</th><th className="py-2 px-2 text-right">Pub répartie</th>
+                        <th className="py-2 px-2 text-right">Confirmation (livrée) + livraison</th><th className="py-2 px-2 text-right">Pub répartie</th>
                         <th className="py-2 px-2 text-right">Commission</th><th className="py-2 pl-2 text-right">Bénéfice net</th>
                       </tr></thead>
                       <tbody>{productProfitRows.map(row => (
