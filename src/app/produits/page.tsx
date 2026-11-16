@@ -101,6 +101,7 @@ export default function ProduitsPage() {
   // Stock modal
   const [stockModal, setStockModal] = useState<Product | null>(null);
   const [stockQty, setStockQty] = useState("");
+  const [stockPurchasePrice, setStockPurchasePrice] = useState("");
   const [stockNote, setStockNote] = useState("");
   const [stockSaving, setStockSaving] = useState(false);
 
@@ -227,8 +228,8 @@ export default function ProduitsPage() {
     if (!qty || qty === 0) return;
     setStockSaving(true);
     try {
-      await fetch("/api/products", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id: stockModal.id, action: "addStock", qty }) });
-      setStockModal(null); setStockQty(""); setStockNote("");
+      await fetch("/api/products", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id: stockModal.id, action: "addStock", qty, purchasePrice: stockPurchasePrice.trim() ? (parseFloat(stockPurchasePrice) || 0) : null }) });
+      setStockModal(null); setStockQty(""); setStockPurchasePrice(""); setStockNote("");
       fetchProducts();
     } finally { setStockSaving(false); }
   }
@@ -390,7 +391,7 @@ export default function ProduitsPage() {
                       {/* Actions */}
                       <div className="flex gap-2 mt-auto flex-col">
                         <div className="flex gap-2">
-                          <button onClick={() => { setStockModal(p); setStockQty(""); setStockNote(""); }}
+                          <button onClick={() => { setStockModal(p); setStockQty(""); setStockPurchasePrice(String(p.purchasePrice ?? "")); setStockNote(""); }}
                             className="flex-1 flex items-center justify-center gap-1.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold py-2 rounded-xl transition-colors shadow-sm shadow-blue-200">
                             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} className="w-3.5 h-3.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
                             Stock
@@ -692,6 +693,13 @@ export default function ProduitsPage() {
                     Nouveau stock: {stockModal.stock + parseInt(stockQty)} unités
                   </p>
                 )}
+              </div>
+              <div>
+                <label className="text-xs font-semibold text-slate-600 mb-1.5 block">Nouveau prix d&apos;achat unitaire (MAD)</label>
+                <input type="number" min="0" placeholder="ex: 120" value={stockPurchasePrice}
+                  onChange={e => setStockPurchasePrice(e.target.value)}
+                  className="w-full text-sm border border-slate-200 rounded-xl px-4 py-2.5 outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-50" />
+                <p className="text-[11px] text-slate-400 mt-1">Le coût moyen d&apos;achat du stock sera recalculé après réception.</p>
               </div>
               <div>
                 <label className="text-xs font-semibold text-slate-600 mb-1.5 block">Note (optionnel)</label>

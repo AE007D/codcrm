@@ -78,6 +78,9 @@ export default function AdsPage() {
   const [productSearch, setProductSearch] = useState("");
   const [productSearchFocused, setProductSearchFocused] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [dailyAdsBudget, setDailyAdsBudget] = useState("0");
+  const [budgetSaving, setBudgetSaving] = useState(false);
+  const [budgetSaved, setBudgetSaved] = useState(false);
   const [viewMode, setViewMode] = useState<"campaigns" | "daily">("campaigns");
 
   // Load campaigns, catalog, and orders
@@ -89,6 +92,8 @@ export default function AdsPage() {
     ]).then(([settingsData, productsData, ordersData]) => {
       const saved = settingsData?.settings?.adCampaigns;
       if (Array.isArray(saved)) setCampaigns(saved);
+      const savedCosts = settingsData?.settings?.financeCosts;
+      if (savedCosts) setDailyAdsBudget(String(Number(savedCosts.dailyAdsBudget) || 0));
       setCatalog(productsData?.products ?? []);
       setAllOrders(ordersData?.orders ?? []);
       setLoaded(true);
@@ -121,6 +126,27 @@ export default function AdsPage() {
     }));
     setAutoFilled(true);
   }, [form.date, form.sku, allOrders, catalog]);
+
+  async function saveDailyAdsBudget() {
+    setBudgetSaving(true);
+    setBudgetSaved(false);
+    try {
+      const settingsRes = await fetch("/api/settings");
+      const settingsData = settingsRes.ok ? await settingsRes.json() : {};
+      const financeCosts = { ...(settingsData.settings?.financeCosts ?? {}), dailyAdsBudget: Math.max(0, Number(dailyAdsBudget) || 0) };
+      const res = await fetch("/api/settings", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ financeCosts }),
+      });
+      if (!res.ok) throw new Error("Échec de sauvegarde");
+      setBudgetSaved(true);
+    } catch {
+      setError("Impossible d'enregistrer le budget publicitaire.");
+    } finally {
+      setBudgetSaving(false);
+    }
+  }
 
   // Persist campaigns to Supabase whenever they change
   const saveToServer = useCallback((updated: Campaign[]) => {
@@ -234,6 +260,22 @@ export default function AdsPage() {
         </header>
 
         <main className="flex-1 p-4 lg:p-8 overflow-y-auto">
+          <section className="bg-white rounded-2xl p-4 lg:p-5 shadow-sm border border-slate-100 mb-5 flex flex-wrap items-end gap-3">
+            <div className="flex-1 min-w-[220px]">
+              <h2 className="text-sm font-bold text-slate-700">Budget publicitaire quotidien</h2>
+              <p className="text-xs text-slate-400 mt-1">Utilisé dans Finances quand aucune dépense de campagne n&apos;est saisie.</p>
+            </div>
+            <label className="text-xs font-semibold text-slate-600">
+              MAD / jour
+              <input type="number" min="0" value={dailyAdsBudget}
+                onChange={e => { setDailyAdsBudget(e.target.value); setBudgetSaved(false); }}
+                className="mt-1 block w-36 text-sm border border-slate-200 rounded-xl px-3 py-2.5 outline-none focus:border-blue-400" />
+            </label>
+            <button onClick={saveDailyAdsBudget} disabled={budgetSaving}
+              className="px-4 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 disabled:opacity-60 text-white text-sm font-semibold">
+              {budgetSaving ? "Enregistrement…" : budgetSaved ? "Enregistré ✓" : "Enregistrer le budget"}
+            </button>
+          </section>
 
           {/* Global KPIs */}
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 lg:gap-5 mb-6">

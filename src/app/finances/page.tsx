@@ -416,8 +416,6 @@ export default function FinancesPage() {
   ];
 
   const costFields: { key: keyof CostSettings; label: string; placeholder: string }[] = [
-    { key: "dailyAdsBudget", label: "Budget pub / jour (MAD)", placeholder: "ex: 150" },
-    { key: "confirmationCostPerOrder", label: "Frais confirmation / commande confirmée (MAD)", placeholder: "ex: 5" },
     { key: "shippingCostPerOrder", label: "Frais livraison / commande livrée (MAD)", placeholder: "ex: 38" },
   ];
 
@@ -845,7 +843,7 @@ export default function FinancesPage() {
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="w-5 h-5"><path d="M18 6L6 18M6 6l12 12"/></svg>
               </button>
             </div>
-            <p className="text-xs text-slate-400 mb-5">Ces valeurs servent à calculer votre investissement total. Les achats produits sont automatiquement tirés du catalogue.</p>
+            <p className="text-xs text-slate-400 mb-5">Ce tarif complète le coût d&apos;achat produit, le budget publicitaire et les frais de confirmation configurés dans leurs pages respectives.</p>
             <div className="flex flex-col gap-4">
               {costFields.map(f => (
                 <div key={f.key}>
