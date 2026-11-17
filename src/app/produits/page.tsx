@@ -281,6 +281,7 @@ export default function ProduitsPage() {
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
               {displayed.map(p => {
                 const stats = orderStats.get(p.name);
+                return (
                   <div key={p.id} className="bg-white rounded-2xl border border-slate-100 shadow-sm hover:shadow-md transition-shadow flex flex-col">
                     {/* Image */}
                     <div className="relative rounded-t-2xl overflow-hidden bg-slate-50 aspect-square max-h-44 flex items-center justify-center">

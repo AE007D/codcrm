@@ -20,7 +20,7 @@ export const viewport: Viewport = {
   themeColor: "#2563EB",
   width: "device-width",
   initialScale: 1,
-  maximumScale: 1,
+  viewportFit: "cover",
 };
 
 export const metadata: Metadata = {
@@ -46,8 +46,20 @@ export default function RootLayout({
   return (
     <html
       lang="fr"
+      suppressHydrationWarning
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
+      <head>
+        <script dangerouslySetInnerHTML={{ __html: `
+          (() => {
+            let theme;
+            try { theme = localStorage.getItem("codcrm-theme"); } catch {}
+            document.documentElement.dataset.theme = theme === "dark" || theme === "light"
+              ? theme
+              : (matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light");
+          })();
+        ` }} />
+      </head>
       <body className="min-h-full flex flex-col">
         <LangProvider>
           <NavigationProgress />

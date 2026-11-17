@@ -143,8 +143,6 @@ export default function CommandesPage() {
   const [noteText, setNoteText] = useState("");
   const [drawer, setDrawer] = useState<Order | null>(null);
   const [toast, setToast] = useState<{ msg: string; ok: boolean } | null>(null);
-  const [confirmationCostDraft, setConfirmationCostDraft] = useState("0");
-  const [confirmationCostSaving, setConfirmationCostSaving] = useState(false);
   function showToast(msg: string, ok = true) { setToast({ msg, ok }); setTimeout(() => setToast(null), 3500); }
 
   // Catalog
@@ -156,11 +154,8 @@ export default function CommandesPage() {
     Promise.all([
       fetch("/api/products").then(r => r.ok ? r.json() : null),
       fetch("/api/auth/me").then(r => r.ok ? r.json() : null),
-      fetch("/api/settings").then(r => r.ok ? r.json() : null),
-    ]).then(([productsData, meData, settingsData]) => {
+    ]).then(([productsData, meData]) => {
       if (productsData?.products) setCatalog(productsData.products);
-      const savedCosts = settingsData?.settings?.financeCosts;
-      if (savedCosts) setConfirmationCostDraft(String(Number(savedCosts.confirmationCostPerOrder) || 0));
       if (meData?.role) {
         setUserRole(meData.role);
         // For agents: record which product names are assigned to them
@@ -173,29 +168,6 @@ export default function CommandesPage() {
       }
     }).catch(() => {});
   }, []);
-
-  async function saveConfirmationCost() {
-    setConfirmationCostSaving(true);
-    try {
-      const settingsRes = await fetch("/api/settings");
-      const settingsData = settingsRes.ok ? await settingsRes.json() : {};
-      const financeCosts = {
-        ...(settingsData.settings?.financeCosts ?? {}),
-        confirmationCostPerOrder: Math.max(0, Number(confirmationCostDraft) || 0),
-      };
-      const res = await fetch("/api/settings", {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ financeCosts }),
-      });
-      if (!res.ok) throw new Error("Échec de sauvegarde");
-      showToast("Frais de confirmation enregistrés.");
-    } catch {
-      showToast("Impossible d'enregistrer les frais de confirmation.", false);
-    } finally {
-      setConfirmationCostSaving(false);
-    }
-  }
 
   function applyCatalogProduct(p: CatalogProduct) {
     setForm(f => ({ ...f, product: p.name, amount: String(p.sellPrice) }));
@@ -887,27 +859,9 @@ export default function CommandesPage() {
           </div>
         </header>
 
-        <main className="flex-1 overflow-y-auto p-4 lg:p-8">
-          {isAdmin && (
-            <section className="bg-white rounded-2xl p-4 shadow-sm border border-slate-100 mb-5 flex flex-wrap items-end gap-3">
-              <div className="flex-1 min-w-[220px]">
-                <h2 className="text-sm font-bold text-slate-700">Frais du centre de confirmation</h2>
-                <p className="text-xs text-slate-400 mt-1">Montant appliqué par commande confirmée, utilisé dans Finances.</p>
-              </div>
-              <label className="text-xs font-semibold text-slate-600">
-                MAD / commande confirmée
-                <input type="number" min="0" value={confirmationCostDraft}
-                  onChange={e => setConfirmationCostDraft(e.target.value)}
-                  className="mt-1 block w-44 text-sm border border-slate-200 rounded-xl px-3 py-2.5 outline-none focus:border-blue-400" />
-              </label>
-              <button onClick={saveConfirmationCost} disabled={confirmationCostSaving}
-                className="px-4 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 disabled:opacity-60 text-white text-sm font-semibold">
-                {confirmationCostSaving ? "Enregistrement…" : "Enregistrer"}
-              </button>
-            </section>
-          )}
+        <main className="min-w-0 flex-1 overflow-y-auto p-3 sm:p-4 lg:p-8">
           {/* Pipeline counters */}
-          <div className="grid grid-cols-4 sm:grid-cols-4 lg:grid-cols-8 gap-2 lg:gap-3 mb-5">
+          <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-2 lg:gap-3 mb-5">
             {PIPELINE.map(s => {
               const cfg = STATUS_CONFIG[s];
               const active = filter === s;
