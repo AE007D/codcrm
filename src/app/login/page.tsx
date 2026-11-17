@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback, useId, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { CodCrmWordmark } from "@/components/CodCrmLogo";
 import { useLang, type Lang } from "@/lib/i18n";
@@ -41,13 +41,15 @@ function Input({
   onChange: (v: string) => void; placeholder?: string;
   required?: boolean; minLength?: number; autoComplete?: string;
 }) {
+  const id = useId();
   const [show, setShow] = useState(false);
   const isPassword = type === "password";
   return (
     <div>
-      <label className="block text-sm font-medium text-slate-700 mb-1.5">{label}</label>
+      <label htmlFor={id} className="block text-sm font-medium text-slate-700 mb-1.5">{label}</label>
       <div className="relative">
         <input
+          id={id}
           type={isPassword && show ? "text" : type}
           value={value}
           onChange={e => onChange(e.target.value)}
@@ -55,13 +57,13 @@ function Input({
           required={required}
           minLength={minLength}
           autoComplete={autoComplete}
-          className="w-full text-sm border border-slate-200 rounded-xl px-4 py-3 outline-none focus:border-blue-500 focus:ring-3 focus:ring-blue-100 transition-all bg-slate-50 focus:bg-white placeholder:text-slate-400"
+          className={`w-full text-base border border-slate-200 rounded-xl ps-4 py-3 outline-none focus:border-blue-500 focus:ring-3 focus:ring-blue-100 transition-all bg-slate-50 focus:bg-white placeholder:text-slate-400 ${isPassword ? "pe-24" : "pe-4"}`}
         />
         {isPassword && (
           <button
             type="button"
             onClick={() => setShow(s => !s)}
-            className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 text-xs font-medium"
+            className="absolute end-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 text-xs font-medium"
           >
             {show ? "Masquer" : "Afficher"}
           </button>
@@ -93,11 +95,12 @@ export default function LoginPage() {
   const [regError, setRegError] = useState("");
   const [regLoading, setRegLoading] = useState(false);
 
+  const [googleReady, setGoogleReady] = useState(false);
   const [googleError, setGoogleError] = useState("");
   const googleBtnRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    fetch("/api/auth/me").then(r => { if (r.ok) router.replace("/dashboard"); }).finally(() => setCheckingAuth(false));
+    fetch("/api/auth/me").then(r => { if (r.ok) router.replace("/dashboard"); }).catch(() => {}).finally(() => setCheckingAuth(false));
   }, [router]);
 
   const handleGoogleCredential = useCallback(async (credential: string) => {
@@ -115,24 +118,50 @@ export default function LoginPage() {
 
   useEffect(() => {
     if (checkingAuth) return;
+    const container = googleBtnRef.current;
+    if (!container) return;
+    let observer: ResizeObserver | undefined;
+    let lastWidth = 0;
+
     function init() {
-      if (!window.google || !googleBtnRef.current) return;
+      if (!window.google || !container) return;
       window.google.accounts.id.initialize({
         client_id: GOOGLE_CLIENT_ID,
         callback: (r: { credential: string }) => handleGoogleCredential(r.credential),
       });
-      window.google.accounts.id.renderButton(googleBtnRef.current, {
-        theme: "outline", size: "large", width: 368, text: "continue_with",
-        shape: "rectangular", locale: "fr",
-      });
+
+      function renderButton() {
+        if (!window.google || !container) return;
+        const width = Math.min(368, Math.floor(container.clientWidth));
+        if (!width || width === lastWidth) return;
+        lastWidth = width;
+        container.replaceChildren();
+        window.google.accounts.id.renderButton(container, {
+          theme: "outline", size: "large", width, text: "continue_with",
+          shape: "rectangular", locale: lang === "mr" ? "fr" : lang,
+        });
+        setGoogleReady(true);
+      }
+
+      renderButton();
+      observer = new ResizeObserver(renderButton);
+      observer.observe(container);
     }
-    if (window.google) { init(); return; }
-    const s = document.createElement("script");
-    s.src = "https://accounts.google.com/gsi/client";
-    s.async = true; s.defer = true; s.onload = init;
-    document.head.appendChild(s);
-    return () => { if (document.head.contains(s)) document.head.removeChild(s); };
-  }, [checkingAuth, handleGoogleCredential]);
+
+    if (window.google) {
+      init();
+      return () => observer?.disconnect();
+    }
+    const script = document.createElement("script");
+    script.src = "https://accounts.google.com/gsi/client";
+    script.async = true;
+    script.onload = init;
+    document.head.appendChild(script);
+    return () => {
+      observer?.disconnect();
+      script.remove();
+    };
+  }, [checkingAuth, handleGoogleCredential, lang, mode]);
 
   async function handleLogin(e: React.FormEvent) {
     e.preventDefault();
@@ -181,9 +210,9 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="min-h-screen flex">
+    <div className="crm-login min-h-dvh flex">
       {/* Left panel — branding */}
-      <div className="hidden md:flex md:w-[48%] lg:w-[52%] bg-gradient-to-br from-slate-900 via-blue-950 to-slate-900 flex-col justify-between p-8 lg:p-12 relative overflow-hidden">
+      <div className="hidden md:flex md:w-[48%] lg:w-[52%] bg-gradient-to-br from-[#080B2C] via-[#101535] to-[#172044] flex-col justify-between p-8 lg:p-12 relative overflow-hidden">
         {/* Background decoration */}
         <div className="absolute inset-0 pointer-events-none">
           <div className="absolute top-[-80px] right-[-80px] w-[400px] h-[400px] bg-blue-600/10 rounded-full blur-3xl" />
@@ -207,7 +236,7 @@ export default function LoginPage() {
           </p>
 
           {/* Features */}
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             {FEATURES.map(f => (
               <div key={f.label} className="flex items-center gap-3 bg-white/5 rounded-xl px-4 py-3 border border-white/8">
                 <f.icon size={18} className="text-blue-300 shrink-0" />
@@ -229,11 +258,11 @@ export default function LoginPage() {
       </div>
 
       {/* Right panel — form */}
-      <div className="flex-1 flex flex-col items-center justify-center p-6 sm:p-8 lg:p-12 bg-slate-50 relative">
+      <div className="relative flex min-w-0 flex-1 flex-col items-center justify-center bg-slate-50 px-4 pb-8 pt-16 sm:px-8 lg:px-12">
         {/* Language picker */}
-        <div className="absolute top-4 right-4 flex gap-1">
-          {(["fr", "ar", "en"] as Lang[]).map(l => (
-            <button key={l} onClick={() => setLang(l)}
+        <div className="absolute top-4 end-4 flex gap-1">
+          {(["fr", "ar", "en", "mr"] as Lang[]).map(l => (
+            <button key={l} type="button" aria-pressed={lang === l} onClick={() => setLang(l)}
               className={`text-xs font-bold px-2.5 py-1 rounded-lg border transition-colors uppercase ${
                 lang === l ? "bg-blue-600 text-white border-blue-600" : "text-slate-400 border-slate-200 hover:border-slate-300 hover:text-slate-600"
               }`}>
@@ -256,13 +285,13 @@ export default function LoginPage() {
               </div>
 
               {/* Google button */}
-              <div ref={googleBtnRef} className="flex justify-center min-h-[48px] mb-4" />
+              <div ref={googleBtnRef} className="flex w-full justify-center" />
 
-              <div className="flex items-center gap-3 mb-4">
+              {googleReady && <div className="mb-4 mt-4 flex items-center gap-3">
                 <div className="h-px flex-1 bg-slate-200" />
                 <span className="text-xs text-slate-400 font-medium px-1">{t("or_with_email")}</span>
                 <div className="h-px flex-1 bg-slate-200" />
-              </div>
+              </div>}
 
               {(loginError || googleError) && (
                 <div className="bg-red-50 border border-red-200 text-red-700 text-sm px-4 py-3 rounded-xl mb-4 flex items-start gap-2">
@@ -277,7 +306,7 @@ export default function LoginPage() {
                 <Input label={t("password")} type="password" value={password} onChange={setPassword}
                   placeholder="••••••••" required autoComplete="current-password" />
                 <button type="submit" disabled={loginLoading}
-                  className="w-full py-3 bg-blue-600 hover:bg-blue-700 active:bg-blue-800 disabled:opacity-50 text-white text-sm font-semibold rounded-xl shadow-lg shadow-blue-200 transition-all">
+                  className="w-full py-3 bg-blue-600 hover:bg-blue-700 active:bg-blue-800 disabled:opacity-50 text-white text-sm font-semibold rounded-xl transition-all">
                   {loginLoading ? (
                     <span className="flex items-center justify-center gap-2">
                       <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
@@ -303,13 +332,13 @@ export default function LoginPage() {
               </div>
 
               {/* Google button */}
-              <div ref={googleBtnRef} className="flex justify-center min-h-[48px] mb-4" />
+              <div ref={googleBtnRef} className="flex w-full justify-center" />
 
-              <div className="flex items-center gap-3 mb-4">
+              {googleReady && <div className="mb-4 mt-4 flex items-center gap-3">
                 <div className="h-px flex-1 bg-slate-200" />
                 <span className="text-xs text-slate-400 font-medium px-1">{t("or_with_email")}</span>
                 <div className="h-px flex-1 bg-slate-200" />
-              </div>
+              </div>}
 
               {regError && (
                 <div className="bg-red-50 border border-red-200 text-red-700 text-sm px-4 py-3 rounded-xl mb-4 flex items-start gap-2">
@@ -382,7 +411,7 @@ export default function LoginPage() {
                 )}
 
                 <button type="submit" disabled={regLoading}
-                  className="w-full py-3 bg-blue-600 hover:bg-blue-700 active:bg-blue-800 disabled:opacity-50 text-white text-sm font-semibold rounded-xl shadow-lg shadow-blue-200 transition-all mt-1">
+                  className="w-full py-3 bg-blue-600 hover:bg-blue-700 active:bg-blue-800 disabled:opacity-50 text-white text-sm font-semibold rounded-xl transition-all mt-1">
                   {regLoading ? (
                     <span className="flex items-center justify-center gap-2">
                       <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />

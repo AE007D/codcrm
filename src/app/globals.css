@@ -114,7 +114,7 @@ html[data-theme="dark"] {
 }
 
 /* CRM colors use the landing page's navy and coral palette. */
-body:has(.mobile-dock) {
+body:has(:is(.mobile-dock, .crm-login)) {
   --background: #faf6f3;
   --foreground: #080b2c;
   --primary: #b64532;
@@ -132,7 +132,7 @@ body:has(.mobile-dock) {
   --color-blue-950: #381a18;
 }
 
-html[data-theme="dark"] body:has(.mobile-dock) {
+html[data-theme="dark"] body:has(:is(.mobile-dock, .crm-login)) {
   --background: #080b2c;
   --foreground: #f0edf6;
   --primary: #e97858;
@@ -150,7 +150,7 @@ html[data-theme="dark"] body:has(.mobile-dock) {
 
 @layer utilities {
   body:has(.mobile-dock) .bg-\[\#F0F4FF\] { background-color: var(--background); }
-  html[data-theme="dark"] body:has(.mobile-dock) :is(.text-blue-500, .text-blue-600, .text-blue-700, .text-blue-800) {
+  html[data-theme="dark"] body:has(:is(.mobile-dock, .crm-login)) :is(.text-blue-500, .text-blue-600, .text-blue-700, .text-blue-800) {
     color: #f5b49e;
   }
 }

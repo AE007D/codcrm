@@ -21,6 +21,7 @@ type Product = {
   name: string;
   purchasePrice: number;
   sellPrice: number;
+  stockMovements?: { createdAt: string; quantity: number; totalCost: number }[];
 };
 
 type Period = "today" | "week" | "month" | "all";
@@ -207,6 +208,13 @@ export default function FinancesPage() {
   const days = period === "all" ? daysBetween(
     orders.length ? getDate(orders[orders.length - 1]) : now, now
   ) : period === "today" ? 1 : period === "week" ? 7 : 30;
+
+  const stockPurchases = products.flatMap(product => product.stockMovements ?? []).filter(movement => {
+    const date = new Date(movement.createdAt);
+    return date >= start && date <= now;
+  });
+  const stockPurchaseTotal = stockPurchases.reduce((total, movement) => total + (Number(movement.totalCost) || 0), 0);
+  const stockUnitsReceived = stockPurchases.reduce((total, movement) => total + (Number(movement.quantity) || 0), 0);
 
   // Build purchase price map from product catalog
   const purchaseMap: Record<string, number> = {};
@@ -524,6 +532,14 @@ export default function FinancesPage() {
                 </div>
               </div>
 
+              <section className="mb-5 rounded-2xl border border-slate-100 bg-white p-5">
+                <div className="flex flex-wrap items-baseline justify-between gap-2">
+                  <h2 className="flex items-center gap-2 text-sm font-bold text-slate-700"><Package size={16} aria-hidden /> Achats de stock</h2>
+                  <p className="text-xl font-black text-slate-900">{stockPurchaseTotal.toLocaleString("fr-MA", { maximumFractionDigits: 2 })} MAD</p>
+                </div>
+                <p className="mt-1 text-xs text-slate-500">{stockUnitsReceived} unités reçues sur la période</p>
+              </section>
+
               {/* ── Cost breakdown ── */}
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-5">
                 {/* Investment breakdown */}
@@ -531,7 +547,7 @@ export default function FinancesPage() {
                   <h2 className="text-sm font-bold text-slate-700 mb-4 flex items-center gap-1.5"><TrendingDown size={15} /> Détail des coûts</h2>
                   <div className="space-y-3">
                     {[
-                      { label: "Achats produits", value: productCost, sub: `${delivered.length} cmds livrées`, color: "bg-orange-500", breakdown: Object.entries(productCostByProduct).sort((a, b) => b[1].cost - a[1].cost) },
+                      { label: "Coût des produits livrés", value: productCost, sub: `${delivered.length} cmds livrées`, color: "bg-orange-500", breakdown: Object.entries(productCostByProduct).sort((a, b) => b[1].cost - a[1].cost) },
                       { label: "Budget publicité", value: adsCost, sub: campaignAdSpend > 0 ? `${campaignsInPeriod.length} campagne(s) — Ads Manager` : `${costs.dailyAdsBudget} MAD × ${days} jours`, color: "bg-blue-500" },
                       { label: "Confirmation", value: confirmationCost, sub: `${delivered.length} commandes livrées × ${costs.confirmationCostPerOrder} MAD`, color: "bg-violet-500" },
                       { label: "Livraison Eagle Express", value: shippingCost, sub: `${delivered.length} colis livrés × ${costs.shippingCostPerOrder} MAD`, color: "bg-amber-500" },
