@@ -156,3 +156,12 @@ body:has(.mobile-dock) :is(*, *::before, *::after) {
   --tw-drop-shadow: drop-shadow(0 0 transparent) !important;
   text-shadow: none !important;
 }
+
+.codcrm-logo-dark,
+html[data-theme="dark"] .codcrm-logo-light {
+  display: none;
+}
+
+html[data-theme="dark"] .codcrm-logo-dark {
+  display: block;
+}

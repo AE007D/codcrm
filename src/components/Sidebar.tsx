@@ -4,7 +4,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { usePathname, useRouter } from "next/navigation";
 import { useState, useEffect, useRef } from "react";
-import { CodCrmLogo } from "@/components/CodCrmLogo";
+import { CodCrmWordmark } from "@/components/CodCrmLogo";
 import { useLang } from "@/lib/i18n";
 import { Phone, Truck, CheckCircle2, Menu, X } from "lucide-react";
 
@@ -352,12 +352,9 @@ export default function Sidebar() {
       `}>
         <div className="px-4 py-4 border-b border-slate-100">
           <div className="flex items-center gap-3">
-            <div className="shrink-0 shadow-md shadow-blue-200 rounded-[10px]">
-              <CodCrmLogo size={36} />
-            </div>
-            <div className="flex-1 min-w-0">
-              <span className="text-base font-extrabold text-slate-900 leading-none tracking-tight">{storeName || "COD CRM"}</span>
-              <p className="text-[10px] text-slate-400 mt-0.5 font-medium">{t("tagline")}</p>
+            <div className="min-w-0 flex-1">
+              <CodCrmWordmark width={156} />
+              {storeName && <p className="mt-1 truncate text-xs font-medium text-slate-500">{storeName}</p>}
             </div>
 
             {/* Notification Bell */}

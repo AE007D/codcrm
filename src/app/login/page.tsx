@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback, useRef } from "react";
 import { useRouter } from "next/navigation";
-import { CodCrmLogo } from "@/components/CodCrmLogo";
+import { CodCrmWordmark } from "@/components/CodCrmLogo";
 import { useLang, type Lang } from "@/lib/i18n";
 import { Package, Truck, BarChart3, Users, Bot, DollarSign, AlertTriangle } from "lucide-react";
 
@@ -192,15 +192,8 @@ export default function LoginPage() {
 
         {/* Logo */}
         <div className="relative z-10">
-          <div className="flex items-center gap-3.5 mb-1">
-            <div className="shadow-xl shadow-blue-950/50 rounded-[11px]">
-              <CodCrmLogo size={44} />
-            </div>
-            <div>
-              <span className="text-2xl font-extrabold text-white tracking-tight leading-none block">COD CRM</span>
-              <span className="text-blue-300/70 text-xs font-medium mt-0.5 block">{t("tagline")}</span>
-            </div>
-          </div>
+          <CodCrmWordmark width={210} onDark />
+          <p className="mt-2 text-xs font-medium text-slate-300">{t("tagline")}</p>
         </div>
 
         {/* Hero */}
@@ -249,14 +242,9 @@ export default function LoginPage() {
           ))}
         </div>
         {/* Mobile logo */}
-        <div className="md:hidden flex items-center gap-2.5 mb-8">
-          <div className="shadow-md shadow-blue-200 rounded-[9px]">
-            <CodCrmLogo size={32} />
-          </div>
-          <div>
-            <span className="text-xl font-extrabold text-slate-900 tracking-tight leading-none block">COD CRM</span>
-            <span className="text-[10px] text-slate-400 font-medium block">{t("tagline")}</span>
-          </div>
+        <div className="mb-8 md:hidden">
+          <CodCrmWordmark width={168} />
+          <p className="mt-2 text-xs font-medium text-slate-500">{t("tagline")}</p>
         </div>
 
         <div className="w-full max-w-[420px]">

@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { CodCrmLogo } from "@/components/CodCrmLogo";
+import { CodCrmWordmark } from "@/components/CodCrmLogo";
 import { Package, Bird, BarChart3, DollarSign, Users, Bot, ShoppingBag, TrendingUp, Rocket, Zap, ShoppingCart, Megaphone, Music2, Send, MessageCircle, type LucideIcon } from "lucide-react";
 
 const FEATURES: { icon: LucideIcon; title: string; desc: string }[] = [
@@ -88,8 +88,7 @@ export default function LandingPage() {
     <div className="min-h-screen bg-[#080B2C] text-white overflow-x-hidden">
       <nav className="sticky top-0 z-50 border-b border-white/10 bg-[#080B2C]/95 backdrop-blur px-4 sm:px-8 py-3 flex items-center justify-between gap-4">
         <Link href="/" className="flex items-center gap-2.5 shrink-0">
-          <CodCrmLogo size={32} />
-          <span className="text-lg font-extrabold tracking-tight text-white">COD Maroc CRM</span>
+          <CodCrmWordmark width={148} onDark />
         </Link>
         <div className="hidden md:flex items-center gap-8 text-sm font-medium text-slate-300">
           <a href="#features" className="hover:text-[#F08061] transition-colors">Fonctionnalités</a>
@@ -215,7 +214,7 @@ export default function LandingPage() {
 
       <footer className="bg-[#070A24] px-4 py-8 text-slate-400 sm:px-8">
         <div className="mx-auto flex max-w-6xl flex-col items-center justify-between gap-5 sm:flex-row">
-          <Link href="/" className="flex items-center gap-2"><CodCrmLogo size={28}/><span className="font-bold text-white">COD Maroc CRM</span></Link>
+          <Link href="/" className="flex items-center gap-2"><CodCrmWordmark width={132} onDark /></Link>
           <div className="flex flex-wrap justify-center gap-6 text-sm">
             <a href="#features" className="transition hover:text-[#F08061]">Fonctionnalités</a><a href="#pricing" className="transition hover:text-[#F08061]">Tarifs</a>
             <Link href="/privacy" className="transition hover:text-[#F08061]">Confidentialité</Link><Link href="/login" className="transition hover:text-[#F08061]">Connexion</Link>

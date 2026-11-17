@@ -1,77 +1,16 @@
-"use client";
+import Image from "next/image";
 
-import { useId } from "react";
+export function CodCrmWordmark({ width, onDark = false }: { width: number; onDark?: boolean }) {
+  const height = Math.round(width * 126 / 600);
 
-/**
- * COD CRM brand logo mark.
- * Visual: C (for COD) + ✓ (delivery confirmed) on a coral gradient background.
- * Tagline: "Commandez. Expédiez. Encaissez."
- */
-export function CodCrmLogo({ size = 36 }: { size?: number }) {
-  const uid = useId();
-  const gid = `codcrm-g-${uid.replace(/:/g, "")}`;
+  if (onDark) {
+    return <Image src="/codcrm-logo-dark.webp" alt="CODCRM.ma" width={width} height={height} className="h-auto max-w-full" />;
+  }
 
   return (
-    <svg width={size} height={size} viewBox="0 0 36 36" fill="none" aria-label="COD CRM">
-      <defs>
-        <linearGradient id={gid} x1="0" y1="0" x2="36" y2="36" gradientUnits="userSpaceOnUse">
-          <stop stopColor="#B64532" />
-          <stop offset="1" stopColor="#E97858" />
-        </linearGradient>
-      </defs>
-
-      {/* Background */}
-      <rect width="36" height="36" rx="10" fill={`url(#${gid})`} />
-
-      {/* C shape — 270° arc, opens to the right */}
-      <path
-        d="M24 12 A9 9 0 1 0 24 24"
-        stroke="white"
-        strokeWidth="3.5"
-        strokeLinecap="round"
-      />
-
-      {/* Check mark — nestled inside the C */}
-      <path
-        d="M11 18 L14.5 22 L20 14"
-        stroke="white"
-        strokeWidth="2.5"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-    </svg>
-  );
-}
-
-/** Full logo lockup — icon + wordmark */
-export function CodCrmWordmark({
-  size = 36,
-  dark = false,
-}: {
-  size?: number;
-  dark?: boolean;
-}) {
-  return (
-    <div className="flex items-center gap-3">
-      <CodCrmLogo size={size} />
-      <div className="flex-1 min-w-0 leading-none">
-        <span
-          className={`block font-extrabold tracking-tight ${
-            dark ? "text-white" : "text-slate-900"
-          }`}
-          style={{ fontSize: size * 0.44, lineHeight: 1 }}
-        >
-          COD CRM
-        </span>
-        <span
-          className={`block mt-0.5 font-medium ${
-            dark ? "text-[#F5B49E]/80" : "text-slate-400"
-          }`}
-          style={{ fontSize: size * 0.28, lineHeight: 1.2 }}
-        >
-          Commandez. Expédiez. Encaissez.
-        </span>
-      </div>
-    </div>
+    <>
+      <Image src="/codcrm-logo-light.webp" alt="CODCRM.ma" width={width} height={height} className="codcrm-logo-light h-auto max-w-full" />
+      <Image src="/codcrm-logo-dark.webp" alt="CODCRM.ma" width={width} height={height} className="codcrm-logo-dark h-auto max-w-full" />
+    </>
   );
 }
