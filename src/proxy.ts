@@ -24,6 +24,7 @@ export function proxy(request: NextRequest) {
     pathname.startsWith("/_next/") ||
     pathname.startsWith("/favicon.ico") ||
     pathname === "/morocco_test.html" ||
+    pathname === "/landing-reference/intro.mp4" ||
     /\.(svg|png|jpg|jpeg|gif|webp|ico|woff|woff2|ttf|otf)$/.test(pathname)
   ) {
     return NextResponse.next();
