@@ -318,10 +318,10 @@ export default function Home() {
           ) : (
             <>
               {/* ── Today's snapshot strip ── */}
-              <div className="bg-blue-600 rounded-2xl p-4 lg:p-5 mb-6 shadow-md shadow-blue-200">
+              <div className="bg-linear-to-br from-[#A73B2A] to-[#BA4B36] rounded-2xl p-4 lg:p-5 mb-6">
                 <div className="flex flex-wrap items-center justify-between gap-3">
                   <div>
-                    <p className="text-blue-200 text-xs font-semibold uppercase tracking-wider mb-0.5">{t("today")}</p>
+                    <p className="text-[#FFE8DF] text-xs font-semibold uppercase tracking-wider mb-0.5">{t("today")}</p>
                     <p className="text-white font-bold text-lg leading-tight">
                       {new Date().toLocaleDateString("fr-MA", { weekday: "long", day: "numeric", month: "long" })}
                     </p>
@@ -331,11 +331,11 @@ export default function Home() {
                       { label: t("today_placed"), value: todayTotal, color: "text-white" },
                       { label: t("kpi_confirmed"), value: todayConfirmed, color: "text-emerald-300" },
                       { label: t("kpi_cancelled"), value: todayCancelled, color: "text-red-300" },
-                      { label: t("kpi_delivered"), value: todayDelivered, color: "text-blue-200" },
+                      { label: t("kpi_delivered"), value: todayDelivered, color: "text-[#FFE8DF]" },
                     ].map(s => (
                       <div key={s.label} className="text-center">
                         <p className={`text-2xl font-bold ${s.color}`}>{s.value}</p>
-                        <p className="text-blue-200 text-xs mt-0.5">{s.label}</p>
+                        <p className="text-[#FFE8DF] text-xs mt-0.5">{s.label}</p>
                       </div>
                     ))}
                   </div>
@@ -347,7 +347,7 @@ export default function Home() {
                 {(["today","yesterday","week","month","year"] as Period[]).map(p => (
                   <button key={p} onClick={() => setPeriod(p)}
                     className={`px-4 py-2 rounded-xl text-sm font-semibold transition-all ${
-                      period === p ? "bg-blue-600 text-white shadow-md shadow-blue-200" : "text-slate-500 hover:bg-slate-50"
+                      period === p ? "bg-linear-to-br from-[#A73B2A] to-[#BA4B36] text-white" : "text-slate-500 hover:bg-slate-50"
                     }`}>
                     {PERIOD_LABELS[p]}
                   </button>
