@@ -1,9 +1,10 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { CodCrmWordmark } from "@/components/CodCrmLogo";
-import { Package, Bird, BarChart3, DollarSign, Users, Bot, ShoppingBag, TrendingUp, Rocket, Zap, ShoppingCart, Megaphone, Music2, Send, MessageCircle, type LucideIcon } from "lucide-react";
+import { Package, Bird, BarChart3, DollarSign, Users, Bot, ShoppingBag, TrendingUp, Rocket, Zap, ShoppingCart, Megaphone, ChevronDown, X, type LucideIcon } from "lucide-react";
 
 const FEATURES: { icon: LucideIcon; title: string; desc: string }[] = [
   {
@@ -53,19 +54,19 @@ const FEATURES: { icon: LucideIcon; title: string; desc: string }[] = [
   },
 ];
 
-const INTEGRATIONS: { name: string; color: string; icon: LucideIcon }[] = [
-  { name: "Eagle Express", color: "bg-amber-50 text-amber-700 border-amber-200", icon: Bird },
-
-  { name: "Lightfunnels", color: "bg-indigo-50 text-indigo-700 border-indigo-200", icon: Zap },
-  { name: "Shopify", color: "bg-emerald-50 text-emerald-700 border-emerald-200", icon: ShoppingCart },
-  { name: "Facebook Ads", color: "bg-blue-50 text-blue-800 border-blue-200", icon: Megaphone },
-  { name: "TikTok Ads", color: "bg-slate-50 text-slate-700 border-slate-200", icon: Music2 },
-  { name: "Telegram", color: "bg-sky-50 text-sky-700 border-sky-200", icon: Send },
-  { name: "WhatsApp", color: "bg-emerald-50 text-emerald-700 border-emerald-200", icon: MessageCircle },
+const PARTNERS = [
+  { name: "Shopify", logo: "shopify", width: 167 },
+  { name: "WooCommerce", logo: "woo", width: 224 },
+  { name: "YouCan", logo: "youcan", width: 167 },
+  { name: "Amana", logo: "amana", width: 135 },
+  { name: "Ozoli", logo: "ozoli", width: 114 },
 ];
+
+const trialLink = "https://wa.me/212644587812?text=" + encodeURIComponent("Bonjour, je souhaite essayer COD Maroc CRM.");
 
 export default function LandingPage() {
   const [authed, setAuthed] = useState(false);
+  const demo = useRef<HTMLDialogElement>(null);
 
   useEffect(() => {
     fetch("/api/auth/me").then(r => {
@@ -85,107 +86,78 @@ export default function LandingPage() {
   }
 
   return (
-    <div className="min-h-screen bg-[#080B2C] text-white overflow-x-hidden">
-      <nav className="sticky top-0 z-50 border-b border-white/10 bg-[#080B2C]/95 backdrop-blur px-4 sm:px-8 py-3 flex items-center justify-between gap-4">
-        <Link href="/" className="flex items-center gap-2.5 shrink-0">
-          <CodCrmWordmark width={148} onDark />
+    <div className="min-h-screen overflow-x-clip bg-[#0A0C2F] text-[#F4F4F7]">
+      <header className="mx-auto flex min-h-[88px] max-w-[1088px] flex-wrap items-center justify-between gap-x-4 gap-y-3 px-5 py-4 sm:px-6">
+        <Link href="/" className="inline-flex shrink-0 items-center gap-2 text-sm font-extrabold tracking-tight sm:text-[21px]">
+          <Image src="/landing-reference/mark.webp" width={35} height={36} alt="" className="size-6 sm:size-8" />
+          COD Maroc CRM
         </Link>
-        <div className="hidden md:flex items-center gap-8 text-sm font-medium text-slate-300">
-          <a href="#features" className="hover:text-[#F08061] transition-colors">Fonctionnalités</a>
-          <a href="#pricing" className="hover:text-[#F08061] transition-colors">Tarifs</a>
-          <a href="#integrations" className="hover:text-[#F08061] transition-colors">Partenaires</a>
-        </div>
-        <Link href="/login" className="rounded-xl bg-[#E97858] hover:bg-[#F28B6C] text-white text-sm font-bold px-5 py-3 shadow-lg shadow-[#E97858]/20 transition-colors whitespace-nowrap">
-          Démarrer gratuitement
-        </Link>
-      </nav>
 
-      <section className="relative overflow-hidden bg-[#080B2C]">
-        <div className="pointer-events-none absolute -top-24 right-0 h-[34rem] w-[34rem] rounded-full bg-[#E97858]/10 blur-[110px]" />
-        <div className="relative mx-auto grid max-w-7xl items-center gap-12 px-4 pb-20 pt-16 sm:px-8 lg:min-h-[610px] lg:grid-cols-[0.9fr_1.1fr] lg:gap-10 lg:pt-20">
-          <div className="relative z-10 max-w-xl">
-            <div className="mb-6 inline-flex items-center gap-2 rounded-full border border-[#E97858]/30 bg-[#E97858]/10 px-4 py-2 text-sm font-semibold text-[#F49A7E]">
-              <span className="h-2 w-2 animate-pulse rounded-full bg-[#E97858]" /> Plateforme COD · Maroc
+        <nav aria-label="Navigation principale" className="order-last flex w-full items-center justify-center gap-5 text-xs font-semibold text-[#CFCDD9] sm:gap-8 sm:text-base lg:order-none lg:w-auto">
+          <details className="relative">
+            <summary className="flex cursor-pointer list-none items-center gap-1.5 hover:text-white [&::-webkit-details-marker]:hidden">
+              Fonctionnalités <ChevronDown size={14} aria-hidden />
+            </summary>
+            <div className="absolute top-full z-20 mt-3 w-48 rounded-xl border border-white/15 bg-[#101535] p-2">
+              <a href="#features" className="block rounded-lg px-3 py-2 text-sm hover:bg-white/10">Toutes les fonctionnalités</a>
+              <button type="button" onClick={() => demo.current?.showModal()} className="block w-full rounded-lg px-3 py-2 text-start text-sm hover:bg-white/10">Voir la Démo</button>
             </div>
-            <h1 className="mb-6 text-4xl font-extrabold leading-[1.08] tracking-tight sm:text-5xl lg:text-[4.25rem]">
-              Gérez votre<br /><span className="text-[#E97858]">E-commerce COD</span><br />au Maroc
-            </h1>
-            <p className="mb-9 max-w-lg text-lg leading-relaxed text-slate-300 sm:text-xl">
-              Automatisez vos confirmations, suivez vos livraisons et maximisez vos revenus.
-            </p>
-            <div className="flex flex-col gap-3 sm:flex-row">
-              <Link href="/login" className="rounded-xl bg-[#E97858] px-7 py-4 text-center text-lg font-bold text-white shadow-xl shadow-[#E97858]/20 transition hover:bg-[#F28B6C]">
-                Essai Gratuit
-              </Link>
-              <a href="#preview" className="rounded-xl border border-white/50 px-7 py-4 text-center text-lg font-semibold text-white transition hover:border-[#E97858] hover:text-[#F49A7E]">
-                Voir la Démo
-              </a>
-            </div>
-            <p className="mt-4 text-sm text-slate-400">Gratuit pour commencer · Aucune carte bancaire</p>
-          </div>
+          </details>
+          <a href="#pricing" className="hover:text-white">Tarifs</a>
+          <a href="#integrations" className="hover:text-white">Partenaires</a>
+        </nav>
 
-          <div id="preview" className="relative lg:-mr-36">
-            <div className="absolute -inset-5 rounded-[2rem] bg-[#E97858]/15 blur-3xl" />
-            <div className="relative overflow-hidden rounded-[1.5rem] border-[3px] border-[#D87558] bg-[#101535] p-2 shadow-[0_0_55px_rgba(233,120,88,0.24)] sm:p-3">
-              <div className="flex min-h-[340px] overflow-hidden rounded-xl border border-white/10 bg-[#0B1030]">
-                <aside className="hidden w-32 shrink-0 border-r border-white/10 bg-[#090E2B] p-4 sm:block">
-                  <div className="mb-8 flex items-center gap-2 text-[10px] font-bold text-white"><span className="h-5 w-5 rounded bg-[#E97858]"/> COD CRM</div>
-                  {["Tableau de bord", "Commandes", "Livraisons", "Produits", "Finances"].map((item, i) => (
-                    <div key={item} className={`mb-2 rounded-lg px-2 py-2 text-[9px] ${i === 0 ? "bg-[#E97858]/15 text-[#F49A7E]" : "text-slate-400"}`}>{item}</div>
-                  ))}
-                </aside>
-                <div className="min-w-0 flex-1 p-3 sm:p-5">
-                  <div className="mb-4 flex items-center justify-between">
-                    <div><p className="text-[9px] text-slate-400">Boutique · Admin</p><p className="text-sm font-bold">Tableau de bord</p></div>
-                    <div className="rounded-lg border border-white/10 px-2 py-1 text-[9px] text-slate-400">Aujourd&apos;hui⌄</div>
-                  </div>
-                  <div className="mb-4 grid grid-cols-2 gap-2 lg:grid-cols-4">
-                    {[
-                      { label: "Commandes livrées", value: "128", color: "bg-[#E97858]" },
-                      { label: "CA encaissé", value: "24 850 MAD", color: "bg-[#172044]" },
-                      { label: "Taux livraison", value: "87,4%", color: "bg-[#172044]" },
-                      { label: "Bénéfice net", value: "8 450 MAD", color: "bg-[#172044]" },
-                    ].map(card => <div key={card.label} className={`${card.color} rounded-xl p-3`}><p className="mb-2 text-[8px] text-white/70">{card.label}</p><p className="text-xs font-extrabold sm:text-sm">{card.value}</p></div>)}
-                  </div>
-                  <div className="grid gap-3 lg:grid-cols-2">
-                    <div className="rounded-xl border border-white/10 bg-[#111936] p-3">
-                      <div className="mb-3 flex justify-between text-[9px]"><span className="font-semibold">Commandes & revenus</span><span className="text-slate-500">7 derniers jours</span></div>
-                      <div className="flex h-28 items-end gap-2 border-b border-white/10 px-1">
-                        {[36, 55, 43, 74, 59, 88, 68, 96, 70, 82, 57, 91].map((h, i) => <div key={i} className={`flex-1 rounded-t-sm ${i % 3 === 0 ? "bg-[#E97858]" : "bg-[#4B5A85]"}`} style={{height:`${h}%`}} />)}
-                      </div>
-                      <div className="mt-2 flex justify-between text-[8px] text-slate-500"><span>Lun</span><span>Mer</span><span>Ven</span><span>Dim</span></div>
-                    </div>
-                    <div className="rounded-xl border border-white/10 bg-[#111936] p-3">
-                      <div className="mb-3 text-[9px] font-semibold">Performance par ville</div>
-                      <div className="flex h-28 items-center justify-center">
-                        <div className="relative flex h-24 w-28 items-center justify-center">
-                          <div className="absolute h-14 w-14 rotate-45 rounded-[40%_15%_40%_15%] bg-[#E97858]" />
-                          <div className="absolute ml-7 mt-6 h-10 w-10 rotate-45 rounded-[40%_15%_40%_15%] bg-[#F5B49E]" />
-                          <div className="absolute -bottom-1 left-0 text-[8px] text-slate-400">Maroc · commandes livrées</div>
-                        </div>
-                        <div className="ml-3 space-y-2 text-[8px] text-slate-400"><p><span className="mr-1 inline-block h-2 w-2 rounded-sm bg-[#E97858]"/>Casablanca</p><p><span className="mr-1 inline-block h-2 w-2 rounded-sm bg-[#F5B49E]"/>Rabat</p></div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
+        <a href={trialLink} className="rounded-[11px] bg-[#D47555] px-3 py-3 text-center text-xs font-bold text-[#FFFDFB] transition hover:bg-[#E38B6C] sm:px-5 sm:py-3.5 sm:text-[17px]">
+          Démarrer Gratuitement
+        </a>
+      </header>
+
+      <main>
+        <section className="relative isolate lg:min-h-[650px]">
+          <div className="mx-auto max-w-[1088px] px-5 pb-10 pt-9 sm:px-6 sm:pt-14 lg:pt-[88px]">
+            <div className="relative z-10 max-w-[570px] lg:w-[56%]">
+              <h1 className="text-[clamp(2.45rem,8vw,4.25rem)] font-extrabold leading-[1.11] tracking-[-0.035em] lg:text-[clamp(3rem,5.58vw,4.25rem)]">
+                Gérez votre
+                <span className="block text-[#D47555]">E-commerce COD</span>
+                au Maroc
+              </h1>
+              <p className="mt-6 max-w-[505px] text-base leading-[1.4] text-[#D5D4DF] sm:text-xl lg:text-[24px]">
+                Automatisez vos confirmations, suivez vos livraisons et maximisez vos revenus.
+              </p>
+              <div className="mt-7 flex flex-wrap gap-3 sm:mt-10 sm:gap-5">
+                <a href={trialLink} className="inline-flex min-h-12 items-center justify-center rounded-[12px] bg-[#D47555] px-5 text-sm font-bold text-[#160C24] transition hover:bg-[#E38B6C] sm:min-h-[68px] sm:px-7 sm:text-xl">Essai Gratuit</a>
+                <button type="button" onClick={() => demo.current?.showModal()} className="inline-flex min-h-12 items-center justify-center rounded-[12px] border-2 border-[#8C8CA3] px-5 text-sm font-semibold text-white transition hover:border-white sm:min-h-[68px] sm:px-7 sm:text-xl">Voir la Démo</button>
               </div>
             </div>
           </div>
-        </div>
-      </section>
-
-      <section id="integrations" className="border-y border-white/10 bg-[#0B0F31] py-12 sm:py-16">
-        <div className="mx-auto max-w-6xl px-4 text-center sm:px-8">
-          <h2 className="mb-8 text-3xl font-bold sm:text-4xl">Partenaires & intégrations</h2>
-          <div className="flex flex-wrap items-center justify-center gap-x-10 gap-y-5">
-            {INTEGRATIONS.map(integ => (
-              <div key={integ.name} className="flex items-center gap-2 text-sm font-bold text-slate-300 sm:text-base">
-                <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-white/10 text-[#F49A7E]"><integ.icon size={18} /></span>{integ.name}
-              </div>
-            ))}
+          <div className="mx-auto max-w-[690px] px-5 sm:px-6 lg:absolute lg:start-[55%] lg:end-0 lg:top-[54px] lg:mx-0 lg:max-w-none lg:px-0">
+            <Image src="/landing-reference/dashboard.webp" width={546} height={521} priority alt="Aperçu du tableau de bord COD Maroc CRM avec les indicateurs et les cartes du Maroc" className="h-auto w-full" />
           </div>
-        </div>
-      </section>
+        </section>
+
+        <section id="integrations" className="relative isolate min-h-[330px] scroll-mt-4 pb-20 pt-14 lg:min-h-[486px] lg:pt-[111px]">
+          <Image src="/landing-reference/ornament-left.webp" width={123} height={238} alt="" className="pointer-events-none absolute start-0 top-[168px] -z-10 hidden opacity-85 lg:block" />
+          <Image src="/landing-reference/ornament-right.webp" width={112} height={200} alt="" className="pointer-events-none absolute end-0 top-0 -z-10 hidden opacity-85 lg:block" />
+          <div className="mx-auto max-w-[1000px] px-5 sm:px-6">
+            <h2 className="mb-8 text-center text-3xl font-extrabold tracking-tight sm:mb-9 lg:text-[48px]">Partenaires</h2>
+            <ul className="flex flex-wrap items-center justify-center gap-x-5 gap-y-3 sm:gap-x-8 lg:flex-nowrap lg:gap-x-9">
+              {PARTNERS.map(partner => (
+                <li key={partner.logo} className="flex min-w-0 justify-center">
+                  <Image src={`/landing-reference/${partner.logo}.webp`} width={partner.width} height={59} alt={partner.name} className="h-auto max-h-[48px] w-auto max-w-[min(42vw,224px)] lg:max-h-[59px]" />
+                </li>
+              ))}
+            </ul>
+          </div>
+        </section>
+
+        <dialog ref={demo} onClick={event => { if (event.target === event.currentTarget) event.currentTarget.close(); }}
+          className="m-auto w-[min(92vw,680px)] rounded-2xl border border-[#D47555]/40 bg-[#101535] p-4 text-white backdrop:bg-[#080B2C]/80" aria-label="Démo du tableau de bord">
+          <div className="mb-3 flex items-center justify-between gap-4">
+            <h2 className="font-bold">Démo du tableau de bord</h2>
+            <button type="button" onClick={() => demo.current?.close()} aria-label="Fermer" className="grid size-10 place-items-center rounded-xl border border-white/15 hover:bg-white/10"><X size={18} aria-hidden /></button>
+          </div>
+          <Image src="/landing-reference/dashboard.webp" width={546} height={521} alt="Aperçu du tableau de bord COD Maroc CRM" className="mx-auto h-auto max-h-[72vh] w-auto rounded-xl object-contain" />
+        </dialog>
 
       <section id="features" className="bg-[#080B2C] py-20">
         <div className="mx-auto max-w-6xl px-4 sm:px-8">
@@ -230,6 +202,8 @@ export default function LandingPage() {
           </div>
         </div>
       </section>
+
+      </main>
 
       <footer className="bg-[#070A24] px-4 py-8 text-slate-400 sm:px-8">
         <div className="mx-auto flex max-w-6xl flex-col items-center justify-between gap-5 sm:flex-row">
