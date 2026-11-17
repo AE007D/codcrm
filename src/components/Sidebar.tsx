@@ -16,7 +16,7 @@ type CurrentUser = {
   avatar?: string | null;
 };
 
-type NavItem = { labelKey: string; href: string; icon: React.ReactNode; adminOnly?: boolean; agentVisible?: boolean };
+type NavItem = { labelKey: string; href: string; icon: React.ReactNode; label?: string; adminOnly?: boolean; agentVisible?: boolean };
 
 const navItems: NavItem[] = [
   { labelKey: "nav_dashboard", href: "/dashboard", adminOnly: true, icon: (
@@ -47,7 +47,7 @@ const navItems: NavItem[] = [
       <circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75"/>
     </svg>
   )},
-  { labelKey: "nav_products", href: "/produits", adminOnly: true, icon: (
+  { labelKey: "nav_stock", label: "Stock & achats", href: "/stock", adminOnly: true, icon: (\n    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="w-5 h-5"><path d="M21 8a2 2 0 00-1-1.73l-7-4a2 2 0 00-2 0l-7 4A2 2 0 003 8v8a2 2 0 001 1.73l7 4a2 2 0 002 0l7-4A2 2 0 0021 16z"/><path d="M3.3 7l8.7 5 8.7-5M12 22V12"/></svg>\n  )},\n  { labelKey: "nav_products", href: "/produits", adminOnly: true, icon: (
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="w-5 h-5">
       <path d="M6 2L3 6v14a2 2 0 002 2h14a2 2 0 002-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/>
       <path d="M16 10a4 4 0 01-8 0"/>
@@ -493,7 +493,7 @@ export default function Sidebar() {
                 }`}
               >
                 {item.icon}
-                <span className="flex-1">{t(item.labelKey)}</span>
+                <span className="flex-1">{item.label ?? t(item.labelKey)}</span>
                 {isPaiementsAdmin && (
                   <span className="w-5 h-5 rounded-full bg-orange-500 text-white text-[10px] font-bold flex items-center justify-center animate-pulse">
                     {pendingPayments}
