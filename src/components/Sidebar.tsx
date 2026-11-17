@@ -6,7 +6,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { useState, useEffect, useRef } from "react";
 import { CodCrmWordmark } from "@/components/CodCrmLogo";
 import { useLang } from "@/lib/i18n";
-import { Phone, Truck, CheckCircle2, Menu, X } from "lucide-react";
+import { Menu, X } from "lucide-react";
 
 type CurrentUser = {
   id: string;
@@ -175,22 +175,6 @@ export default function Sidebar() {
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const audioUnlocked = useRef(false);
 
-  // Notification bell state
-  const [showNotifDropdown, setShowNotifDropdown] = useState(false);
-  const [nouveauOrders, setNouveauOrders] = useState<{ id: string; customerName: string; product: string; totalPrice: number }[]>([]);
-  const [confirmedOrders, setConfirmedOrders] = useState<{ id: string; customerName: string; product: string; totalPrice: number }[]>([]);
-  const notifRef = useRef<HTMLDivElement>(null);
-  const notifTotal = nouveauOrders.length + confirmedOrders.length;
-
-  // Close dropdown when clicking outside
-  useEffect(() => {
-    function handler(e: MouseEvent) {
-      if (notifRef.current && !notifRef.current.contains(e.target as Node)) setShowNotifDropdown(false);
-    }
-    document.addEventListener("mousedown", handler);
-    return () => document.removeEventListener("mousedown", handler);
-  }, []);
-
   // Pre-load the MP3 once
   useEffect(() => {
     const audio = new Audio("/sell-sound.mp3");
@@ -238,24 +222,7 @@ export default function Sidebar() {
         const res = await fetch("/api/orders");
         if (!res.ok) return;
         const data = await res.json();
-        const orders: { id: string; customerName?: string; customer_name?: string; product?: string; totalPrice?: number; total_price?: number; status?: string }[] = data.orders ?? [];
-        const count = orders.length;
-
-        // Update notification buckets
-        const toConfirm = orders.filter(o => o.status === "nouveau").map(o => ({
-          id: o.id,
-          customerName: o.customerName ?? o.customer_name ?? "Client",
-          product: o.product ?? "",
-          totalPrice: Number(o.totalPrice ?? o.total_price ?? 0),
-        }));
-        const toShip = orders.filter(o => o.status === "confirmé").map(o => ({
-          id: o.id,
-          customerName: o.customerName ?? o.customer_name ?? "Client",
-          product: o.product ?? "",
-          totalPrice: Number(o.totalPrice ?? o.total_price ?? 0),
-        }));
-        setNouveauOrders(toConfirm);
-        setConfirmedOrders(toShip);
+        const count = Array.isArray(data.orders) ? data.orders.length : 0;
 
         if (lastOrderCount.current === null) {
           lastOrderCount.current = count;
@@ -357,108 +324,6 @@ export default function Sidebar() {
               {storeName && <p className="mt-1 truncate text-xs font-medium text-slate-500">{storeName}</p>}
             </div>
 
-            {/* Notification Bell */}
-            <div className="relative" ref={notifRef}>
-              <button
-                onClick={() => setShowNotifDropdown(v => !v)}
-                className="relative w-9 h-9 flex items-center justify-center rounded-xl hover:bg-slate-100 transition-colors text-slate-500"
-                title={t("notifications")}
-              >
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="w-5 h-5">
-                  <path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9M13.73 21a2 2 0 01-3.46 0"/>
-                </svg>
-                {notifTotal > 0 && (
-                  <span className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center animate-pulse shadow-md">
-                    {notifTotal > 99 ? "99+" : notifTotal}
-                  </span>
-                )}
-              </button>
-
-              {/* Dropdown */}
-              {showNotifDropdown && (
-                <div className="absolute top-11 left-0 w-80 max-w-[calc(100vw-2rem)] bg-white rounded-2xl shadow-xl border border-slate-100 z-[100] overflow-hidden">
-                  <div className="px-4 py-3 border-b border-slate-100 flex items-center justify-between">
-                    <span className="text-sm font-bold text-slate-900">{t("notifications")}</span>
-                    {notifTotal === 0 && <span className="text-xs text-slate-400">{t("all_up_to_date")}</span>}
-                    {notifTotal > 0 && <span className="text-xs font-semibold text-red-500">{notifTotal} {t("n_pending")}</span>}
-                  </div>
-
-                  <div className="max-h-80 overflow-y-auto">
-                    {/* Orders to confirm */}
-                    {nouveauOrders.length > 0 && (
-                      <div>
-                        <div className="px-4 py-2 bg-amber-50 border-b border-amber-100">
-                          <span className="text-xs font-bold text-amber-700 uppercase tracking-wide">
-                            <Phone size={12} className="inline mr-1" />{t("to_confirm")} ({nouveauOrders.length})
-                          </span>
-                        </div>
-                        {nouveauOrders.slice(0, 5).map(o => (
-                          <Link key={o.id} href="/commandes" onClick={() => setShowNotifDropdown(false)}
-                            className="flex items-center gap-3 px-4 py-3 hover:bg-slate-50 border-b border-slate-50 transition-colors">
-                            <div className="w-2 h-2 rounded-full bg-amber-400 shrink-0" />
-                            <div className="flex-1 min-w-0">
-                              <p className="text-sm font-semibold text-slate-800 truncate">{o.customerName}</p>
-                              <p className="text-xs text-slate-400 truncate">{o.product}</p>
-                            </div>
-                            <span className="text-xs font-bold text-slate-600 shrink-0">{o.totalPrice} MAD</span>
-                          </Link>
-                        ))}
-                        {nouveauOrders.length > 5 && (
-                          <Link href="/commandes" onClick={() => setShowNotifDropdown(false)}
-                            className="block px-4 py-2 text-xs text-center text-amber-600 font-semibold hover:bg-amber-50">
-                            +{nouveauOrders.length - 5} {t("view_all_orders").replace("→", "").trim()} →
-                          </Link>
-                        )}
-                      </div>
-                    )}
-
-                    {/* Orders to ship */}
-                    {confirmedOrders.length > 0 && (
-                      <div>
-                        <div className="px-4 py-2 bg-blue-50 border-b border-blue-100">
-                          <span className="text-xs font-bold text-blue-700 uppercase tracking-wide">
-                            <Truck size={12} className="inline mr-1" />{t("to_ship")} ({confirmedOrders.length})
-                          </span>
-                        </div>
-                        {confirmedOrders.slice(0, 5).map(o => (
-                          <Link key={o.id} href="/commandes" onClick={() => setShowNotifDropdown(false)}
-                            className="flex items-center gap-3 px-4 py-3 hover:bg-slate-50 border-b border-slate-50 transition-colors">
-                            <div className="w-2 h-2 rounded-full bg-blue-400 shrink-0" />
-                            <div className="flex-1 min-w-0">
-                              <p className="text-sm font-semibold text-slate-800 truncate">{o.customerName}</p>
-                              <p className="text-xs text-slate-400 truncate">{o.product}</p>
-                            </div>
-                            <span className="text-xs font-bold text-slate-600 shrink-0">{o.totalPrice} MAD</span>
-                          </Link>
-                        ))}
-                        {confirmedOrders.length > 5 && (
-                          <Link href="/commandes" onClick={() => setShowNotifDropdown(false)}
-                            className="block px-4 py-2 text-xs text-center text-blue-600 font-semibold hover:bg-blue-50">
-                            +{confirmedOrders.length - 5} {t("view_all_orders").replace("→", "").trim()} →
-                          </Link>
-                        )}
-                      </div>
-                    )}
-
-                    {notifTotal === 0 && (
-                      <div className="px-4 py-8 text-center">
-                        <CheckCircle2 size={28} className="text-emerald-400 mx-auto mb-2" />
-                        <p className="text-sm text-slate-500">{t("no_pending_orders")}</p>
-                      </div>
-                    )}
-                  </div>
-
-                  {notifTotal > 0 && (
-                    <div className="px-4 py-3 border-t border-slate-100">
-                      <Link href="/commandes" onClick={() => setShowNotifDropdown(false)}
-                        className="block w-full py-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold rounded-xl text-center transition-colors">
-                        {t("view_all_orders")}
-                      </Link>
-                    </div>
-                  )}
-                </div>
-              )}
-            </div>
           </div>
         </div>
 
