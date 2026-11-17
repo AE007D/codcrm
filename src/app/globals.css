@@ -172,3 +172,34 @@ html[data-theme="dark"] .codcrm-logo-light {
 html[data-theme="dark"] .codcrm-logo-dark {
   display: block;
 }
+
+@keyframes landing-entrance {
+  from { opacity: 0.65; transform: translateY(14px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .landing-enter {
+    animation: landing-entrance 480ms ease-out both;
+  }
+
+  .landing-enter-preview {
+    animation-delay: 90ms;
+  }
+
+  @supports (animation-timeline: view()) {
+    .landing-reveal {
+      animation: landing-entrance ease-out both;
+      animation-timeline: view();
+      animation-range: entry 0% entry 90%;
+    }
+  }
+}
+
+@media (min-width: 1024px) {
+  .landing-preview-art {
+    mask-image: linear-gradient(to right, transparent, black 4%),
+      linear-gradient(to bottom, transparent, black 4%, black 91%, transparent);
+    mask-composite: intersect;
+  }
+}

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback, useId, useRef } from "react";
+import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { CodCrmWordmark } from "@/components/CodCrmLogo";
 import { useLang, type Lang } from "@/lib/i18n";
@@ -222,7 +223,7 @@ export default function LoginPage() {
         {/* Logo */}
         <div className="relative z-10">
           <CodCrmWordmark width={210} onDark />
-          <p className="mt-2 text-xs font-medium text-slate-300">{t("tagline")}</p>
+
         </div>
 
         {/* Hero */}
@@ -249,8 +250,9 @@ export default function LoginPage() {
         {/* Footer */}
         <div className="relative z-10 flex items-center gap-2">
           <div className="flex -space-x-2">
-            {["E", "A", "S"].map((l, i) => (
-              <div key={i} className="w-8 h-8 rounded-full bg-blue-600 border-2 border-slate-900 flex items-center justify-center text-xs font-bold text-white">{l}</div>
+            {[1, 2, 3].map(number => (
+              <Image key={number} src={`/sign-in/avatar-${number}.webp`} width={40} height={40} alt=""
+                className="size-10 rounded-full border-2 border-[#101535] object-cover" />
             ))}
           </div>
           <p className="text-slate-400 text-sm ml-1">Rejoignez des centaines de vendeurs COD</p>
@@ -273,7 +275,7 @@ export default function LoginPage() {
         {/* Mobile logo */}
         <div className="mb-8 md:hidden">
           <CodCrmWordmark width={168} />
-          <p className="mt-2 text-xs font-medium text-slate-500">{t("tagline")}</p>
+
         </div>
 
         <div className="w-full max-w-[420px]">

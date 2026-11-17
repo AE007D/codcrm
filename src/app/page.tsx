@@ -55,11 +55,10 @@ const FEATURES: { icon: LucideIcon; title: string; desc: string }[] = [
 ];
 
 const PARTNERS = [
-  { name: "Shopify", logo: "shopify", width: 167 },
-  { name: "WooCommerce", logo: "woo", width: 224 },
-  { name: "YouCan", logo: "youcan", width: 167 },
-  { name: "Amana", logo: "amana", width: 135 },
-  { name: "Ozoli", logo: "ozoli", width: 114 },
+  { name: "Shopify", logo: "shopify", width: 360, height: 103, href: "https://www.shopify.com/" },
+  { name: "WooCommerce", logo: "woo", width: 360, height: 94, href: "https://woocommerce.com/" },
+  { name: "YouCan", logo: "youcan", width: 360, height: 58, href: "https://youcan.shop/" },
+  { name: "Amana", logo: "amana", width: 101, height: 110, href: "https://www.albaridbank.ma/fr/nos-sites" },
 ];
 
 const trialLink = "https://wa.me/212644587812?text=" + encodeURIComponent("Bonjour, je souhaite essayer COD Maroc CRM.");
@@ -88,9 +87,8 @@ export default function LandingPage() {
   return (
     <div className="min-h-screen overflow-x-clip bg-[#0A0C2F] text-[#F4F4F7]">
       <header className="mx-auto flex min-h-[88px] max-w-[1088px] flex-wrap items-center justify-between gap-x-4 gap-y-3 px-5 py-4 sm:px-6">
-        <Link href="/" className="inline-flex shrink-0 items-center gap-2 text-sm font-extrabold tracking-tight sm:text-[21px]">
-          <Image src="/landing-reference/mark.webp" width={35} height={36} alt="" className="size-6 sm:size-8" />
-          COD Maroc CRM
+        <Link href="/" className="block w-[132px] shrink-0 sm:w-[158px]">
+          <CodCrmWordmark width={158} onDark />
         </Link>
 
         <nav aria-label="Navigation principale" className="order-last flex w-full items-center justify-center gap-5 text-xs font-semibold text-[#CFCDD9] sm:gap-8 sm:text-base lg:order-none lg:w-auto">
@@ -107,43 +105,49 @@ export default function LandingPage() {
           <a href="#integrations" className="hover:text-white">Partenaires</a>
         </nav>
 
-        <a href={trialLink} className="rounded-[11px] bg-[#D47555] px-3 py-3 text-center text-xs font-bold text-[#FFFDFB] transition hover:bg-[#E38B6C] sm:px-5 sm:py-3.5 sm:text-[17px]">
-          Démarrer Gratuitement
-        </a>
+        <div className="flex items-center gap-2 sm:gap-3">
+          <Link href="/login" className="rounded-lg px-2.5 py-2 text-xs font-semibold text-white hover:bg-white/10 sm:text-sm">Connexion</Link>
+          <a href={trialLink} className="rounded-[11px] bg-[#D47555] px-3 py-3 text-center text-xs font-bold text-[#FFFDFB] transition hover:bg-[#E38B6C] sm:px-5 sm:py-3.5 sm:text-[17px]">
+            <span className="sm:hidden">Essai gratuit</span><span className="hidden sm:inline">Démarrer Gratuitement</span>
+          </a>
+        </div>
       </header>
 
       <main>
         <section className="relative isolate lg:min-h-[650px]">
           <div className="mx-auto max-w-[1088px] px-5 pb-10 pt-9 sm:px-6 sm:pt-14 lg:pt-[88px]">
-            <div className="relative z-10 max-w-[570px] lg:w-[56%]">
+            <div className="landing-enter relative z-10 max-w-[570px] lg:w-[56%]">
               <h1 className="text-[clamp(2.45rem,8vw,4.25rem)] font-extrabold leading-[1.11] tracking-[-0.035em] lg:text-[clamp(3rem,5.58vw,4.25rem)]">
                 Gérez votre
                 <span className="block text-[#D47555]">E-commerce COD</span>
                 au Maroc
               </h1>
-              <p className="mt-6 max-w-[505px] text-base leading-[1.4] text-[#D5D4DF] sm:text-xl lg:text-[24px]">
+              <p className="mt-5 max-w-[505px] text-base leading-[1.4] text-[#D5D4DF] sm:text-xl lg:text-[24px]">
                 Automatisez vos confirmations, suivez vos livraisons et maximisez vos revenus.
               </p>
               <div className="mt-7 flex flex-wrap gap-3 sm:mt-10 sm:gap-5">
-                <a href={trialLink} className="inline-flex min-h-12 items-center justify-center rounded-[12px] bg-[#D47555] px-5 text-sm font-bold text-[#160C24] transition hover:bg-[#E38B6C] sm:min-h-[68px] sm:px-7 sm:text-xl">Essai Gratuit</a>
-                <button type="button" onClick={() => demo.current?.showModal()} className="inline-flex min-h-12 items-center justify-center rounded-[12px] border-2 border-[#8C8CA3] px-5 text-sm font-semibold text-white transition hover:border-white sm:min-h-[68px] sm:px-7 sm:text-xl">Voir la Démo</button>
+                <a href={trialLink} className="inline-flex min-h-12 items-center justify-center rounded-[12px] bg-[#D47555] px-5 text-sm font-bold text-[#FFFDFB] transition hover:bg-[#E38B6C] sm:min-h-[68px] sm:min-w-[194px] sm:px-7 sm:text-xl">Essai Gratuit</a>
+                <button type="button" onClick={() => demo.current?.showModal()} className="inline-flex min-h-12 items-center justify-center rounded-[12px] border-2 border-[#8C8CA3] px-5 text-sm font-semibold text-white transition hover:border-white sm:min-h-[68px] sm:min-w-[194px] sm:px-7 sm:text-xl">Voir la Démo</button>
               </div>
             </div>
           </div>
-          <div className="mx-auto max-w-[690px] px-5 sm:px-6 lg:absolute lg:start-[55%] lg:end-0 lg:top-[54px] lg:mx-0 lg:max-w-none lg:px-0">
-            <Image src="/landing-reference/dashboard.webp" width={546} height={521} priority alt="Aperçu du tableau de bord COD Maroc CRM avec les indicateurs et les cartes du Maroc" className="h-auto w-full" />
+          <div className="landing-enter landing-enter-preview mx-auto max-w-[690px] px-5 sm:px-6 lg:absolute lg:start-[55%] lg:end-0 lg:top-[54px] lg:mx-0 lg:max-w-none lg:px-0">
+            <Image src="/landing-reference/dashboard.webp" width={546} height={521} priority alt="Aperçu du tableau de bord COD Maroc CRM avec les indicateurs et les cartes du Maroc" className="landing-preview-art h-auto w-full" />
           </div>
         </section>
 
         <section id="integrations" className="relative isolate min-h-[330px] scroll-mt-4 pb-20 pt-14 lg:min-h-[486px] lg:pt-[111px]">
-          <Image src="/landing-reference/ornament-left.webp" width={123} height={238} alt="" className="pointer-events-none absolute start-0 top-[168px] -z-10 hidden opacity-85 lg:block" />
-          <Image src="/landing-reference/ornament-right.webp" width={112} height={200} alt="" className="pointer-events-none absolute end-0 top-0 -z-10 hidden opacity-85 lg:block" />
-          <div className="mx-auto max-w-[1000px] px-5 sm:px-6">
+          <Image src="/landing-reference/zellige.svg" width={214} height={278} alt="" className="pointer-events-none absolute -start-22 top-[108px] -z-10 w-36 opacity-55 sm:-start-16 sm:w-44 lg:-start-16 lg:top-[145px] lg:w-[214px]" />
+          <Image src="/landing-reference/zellige.svg" width={214} height={278} alt="" className="pointer-events-none absolute -end-22 top-0 -z-10 w-36 -scale-x-100 opacity-55 sm:-end-16 sm:w-44 lg:-end-16 lg:w-[214px]" />
+          <div className="landing-reveal mx-auto max-w-[1000px] px-5 sm:px-6">
             <h2 className="mb-8 text-center text-3xl font-extrabold tracking-tight sm:mb-9 lg:text-[48px]">Partenaires</h2>
             <ul className="flex flex-wrap items-center justify-center gap-x-5 gap-y-3 sm:gap-x-8 lg:flex-nowrap lg:gap-x-9">
               {PARTNERS.map(partner => (
                 <li key={partner.logo} className="flex min-w-0 justify-center">
-                  <Image src={`/landing-reference/${partner.logo}.webp`} width={partner.width} height={59} alt={partner.name} className="h-auto max-h-[48px] w-auto max-w-[min(42vw,224px)] lg:max-h-[59px]" />
+                  <a href={partner.href} className="inline-flex h-14 items-center justify-center rounded-md focus-visible:outline-2 focus-visible:outline-[#E97858] sm:px-2">
+                    <Image src={`/landing-reference/partner-${partner.logo}.webp`} width={partner.width} height={partner.height} alt={partner.name}
+                      className={`h-auto max-h-12 w-auto max-w-[min(39vw,176px)] object-contain ${partner.logo === "amana" ? "rounded-md bg-white p-1" : ""}`} />
+                  </a>
                 </li>
               ))}
             </ul>
@@ -160,7 +164,7 @@ export default function LandingPage() {
         </dialog>
 
       <section id="features" className="bg-[#080B2C] py-20">
-        <div className="mx-auto max-w-6xl px-4 sm:px-8">
+        <div className="landing-reveal mx-auto max-w-6xl px-4 sm:px-8">
           <div className="mb-12 text-center">
             <p className="mb-2 text-sm font-bold uppercase tracking-[0.2em] text-[#F08061]">Fonctionnalités</p>
             <h2 className="text-3xl font-extrabold sm:text-4xl">Tout votre COD au même endroit</h2>
@@ -175,7 +179,7 @@ export default function LandingPage() {
       </section>
 
       <section id="pricing" className="border-y border-white/10 bg-[#0B0F31] py-16">
-        <div className="mx-auto max-w-6xl px-4 sm:px-8">
+        <div className="landing-reveal mx-auto max-w-6xl px-4 sm:px-8">
           <h2 className="mb-8 text-center text-3xl font-extrabold sm:text-4xl">Tarifs</h2>
           <div className="grid gap-4 md:grid-cols-3">
             {[
