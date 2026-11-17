@@ -124,8 +124,8 @@ export default function ProduitsPage() {
   function openEdit(p: Product) {
     setEditProduct(p);
     setForm({
-      name: p.name, sku: p.sku, image: p.image,
       ...emptyForm,
+      name: p.name, sku: p.sku, image: p.image,
       sellPrice: String(p.sellPrice), comparePrice: p.comparePrice ? String(p.comparePrice) : "",
       facebookPixelId: p.facebookPixelId ?? "",
       boutiqueNom: p.boutiqueNom ?? "",
