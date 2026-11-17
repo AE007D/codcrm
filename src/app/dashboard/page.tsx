@@ -293,19 +293,22 @@ export default function Home() {
     <div className="flex min-h-screen bg-[#F0F4FF]">
       <Sidebar />
       <div className="flex-1 flex flex-col overflow-hidden">
-        <header className="sidebar-header-pl bg-white border-b border-slate-100 px-4 lg:px-8 py-4 pl-14 lg:pl-8 flex items-center justify-between gap-4">
-          <div>
-            <h1 className="text-xl font-bold text-slate-900">{t("dashboard")}</h1>
-            <div className="flex items-center gap-1.5">
+        <header className="bg-white border-b border-slate-100 px-4 lg:px-8 py-4 flex flex-nowrap items-center justify-between gap-2 sm:gap-4">
+          <div className="min-w-0 flex-1">
+            <h1 className="text-lg sm:text-xl font-bold text-slate-900 leading-tight">{t("dashboard")}</h1>
+            <div className="flex min-w-0 items-center gap-1.5 mt-1">
               <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse shrink-0" />
-              <p className="text-xs text-slate-400">
-                {lastRefresh
-                  ? `${t("updated_at")} ${lastRefresh.toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })} · auto 1 min`
-                  : t("loading")}
+              <p className="min-w-0 truncate text-[11px] sm:text-xs text-slate-400">
+                {lastRefresh ? (
+                  <>
+                    {`${t("updated_at")} ${lastRefresh.toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })}`}
+                    <span className="hidden sm:inline"> · auto 1 min</span>
+                  </>
+                ) : t("loading")}
               </p>
             </div>
           </div>
-          <a href="/commandes" className="bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold px-4 py-2.5 rounded-xl transition-colors shadow-md shadow-blue-200 whitespace-nowrap">
+          <a href="/commandes" className="shrink-0 bg-blue-600 hover:bg-blue-700 text-white text-xs sm:text-sm font-semibold px-3 sm:px-4 py-2.5 rounded-xl transition-colors shadow-md shadow-blue-200 whitespace-nowrap">
             {t("new_order_btn")}
           </a>
         </header>
