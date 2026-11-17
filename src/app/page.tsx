@@ -66,6 +66,7 @@ const trialLink = "https://wa.me/212644587812?text=" + encodeURIComponent("Bonjo
 export default function LandingPage() {
   const [authed, setAuthed] = useState(false);
   const demo = useRef<HTMLDialogElement>(null);
+  const main = useRef<HTMLElement>(null);
 
   useEffect(() => {
     fetch("/api/auth/me").then(r => {
@@ -74,6 +75,29 @@ export default function LandingPage() {
         window.location.href = "/dashboard";
       }
     }).catch(() => {});
+  }, []);
+
+  useEffect(() => {
+    if (!main.current || typeof IntersectionObserver === "undefined" || matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    const elements = [...main.current.querySelectorAll<HTMLElement>(".landing-scroll-step")];
+    const observer = new IntersectionObserver(entries => {
+      for (const entry of entries) {
+        if (!entry.isIntersecting) continue;
+        entry.target.setAttribute("data-landing-motion", "shown");
+        observer.unobserve(entry.target);
+      }
+    }, { threshold: 0.12 });
+
+    for (const element of elements) {
+      if (element.getBoundingClientRect().top >= window.innerHeight) {
+        element.setAttribute("data-landing-motion", "pending");
+        observer.observe(element);
+      }
+    }
+    return () => {
+      observer.disconnect();
+      elements.forEach(element => element.removeAttribute("data-landing-motion"));
+    };
   }, []);
 
   if (authed) {
@@ -113,37 +137,37 @@ export default function LandingPage() {
         </div>
       </header>
 
-      <main>
+      <main ref={main}>
         <section className="relative isolate lg:min-h-[650px]">
           <div className="mx-auto max-w-[1088px] px-5 pb-10 pt-9 sm:px-6 sm:pt-14 lg:pt-[88px]">
-            <div className="landing-enter relative z-10 max-w-[570px] lg:w-[56%]">
-              <h1 className="text-[clamp(2.45rem,8vw,4.25rem)] font-extrabold leading-[1.11] tracking-[-0.035em] lg:text-[clamp(3rem,5.58vw,4.25rem)]">
+            <div className="relative z-10 max-w-[570px] lg:w-[56%]">
+              <h1 className="landing-enter text-[clamp(2.45rem,8vw,4.25rem)] font-extrabold leading-[1.11] tracking-[-0.035em] lg:text-[clamp(3rem,5.58vw,4.25rem)]">
                 Gérez votre
                 <span className="block text-[#D47555]">E-commerce COD</span>
                 au Maroc
               </h1>
-              <p className="mt-5 max-w-[505px] text-base leading-[1.4] text-[#D5D4DF] sm:text-xl lg:text-[24px]">
+              <p className="landing-enter landing-enter-description mt-5 max-w-[505px] text-base leading-[1.4] text-[#D5D4DF] sm:text-xl lg:text-[24px]">
                 Automatisez vos confirmations, suivez vos livraisons et maximisez vos revenus.
               </p>
-              <div className="mt-7 flex flex-wrap gap-3 sm:mt-10 sm:gap-5">
+              <div className="landing-enter landing-enter-actions mt-7 flex flex-wrap gap-3 sm:mt-10 sm:gap-5">
                 <a href={trialLink} className="inline-flex min-h-12 items-center justify-center rounded-[12px] bg-[#D47555] px-5 text-sm font-bold text-[#FFFDFB] transition hover:bg-[#E38B6C] sm:min-h-[68px] sm:min-w-[194px] sm:px-7 sm:text-xl">Essai Gratuit</a>
                 <button type="button" onClick={() => demo.current?.showModal()} className="inline-flex min-h-12 items-center justify-center rounded-[12px] border-2 border-[#8C8CA3] px-5 text-sm font-semibold text-white transition hover:border-white sm:min-h-[68px] sm:min-w-[194px] sm:px-7 sm:text-xl">Voir la Démo</button>
               </div>
             </div>
           </div>
           <div className="landing-enter landing-enter-preview mx-auto max-w-[690px] px-5 sm:px-6 lg:absolute lg:start-[55%] lg:end-0 lg:top-[54px] lg:mx-0 lg:max-w-none lg:px-0">
-            <Image src="/landing-reference/dashboard.webp" width={546} height={521} priority alt="Aperçu du tableau de bord COD Maroc CRM avec les indicateurs et les cartes du Maroc" className="landing-preview-art h-auto w-full" />
+            <Image src="/landing-reference/dashboard-hd.webp" width={1254} height={1164} sizes="(min-width: 1024px) 45vw, (min-width: 690px) 642px, calc(100vw - 40px)" priority alt="Aperçu du tableau de bord COD Maroc CRM avec les indicateurs et les cartes du Maroc" className="landing-preview-art h-auto w-full" />
           </div>
         </section>
 
         <section id="integrations" className="relative isolate min-h-[330px] scroll-mt-4 pb-20 pt-14 lg:min-h-[486px] lg:pt-[111px]">
           <Image src="/landing-reference/zellige.svg" width={214} height={278} alt="" className="pointer-events-none absolute -start-22 top-[108px] -z-10 w-36 opacity-55 sm:-start-16 sm:w-44 lg:-start-16 lg:top-[145px] lg:w-[214px]" />
           <Image src="/landing-reference/zellige.svg" width={214} height={278} alt="" className="pointer-events-none absolute -end-22 top-0 -z-10 w-36 -scale-x-100 opacity-55 sm:-end-16 sm:w-44 lg:-end-16 lg:w-[214px]" />
-          <div className="landing-reveal mx-auto max-w-[1000px] px-5 sm:px-6">
-            <h2 className="mb-8 text-center text-3xl font-extrabold tracking-tight sm:mb-9 lg:text-[48px]">Partenaires</h2>
-            <ul className="flex flex-wrap items-center justify-center gap-x-5 gap-y-3 sm:gap-x-8 lg:flex-nowrap lg:gap-x-9">
+          <div className="mx-auto max-w-[1000px] px-5 sm:px-6">
+            <h2 className="landing-scroll-step mb-8 text-center text-3xl font-extrabold tracking-tight sm:mb-9 lg:text-[48px]">Partenaires</h2>
+            <ul className="landing-stagger flex flex-wrap items-center justify-center gap-x-5 gap-y-3 sm:gap-x-8 lg:flex-nowrap lg:gap-x-9">
               {PARTNERS.map(partner => (
-                <li key={partner.logo} className="flex min-w-0 justify-center">
+                <li key={partner.logo} className="landing-scroll-step flex min-w-0 justify-center">
                   <a href={partner.href} className="inline-flex h-14 items-center justify-center rounded-md focus-visible:outline-2 focus-visible:outline-[#E97858] sm:px-2">
                     <Image src={`/landing-reference/partner-${partner.logo}.webp`} width={partner.width} height={partner.height} alt={partner.name}
                       className={`h-auto max-h-12 w-auto max-w-[min(39vw,176px)] object-contain ${partner.logo === "amana" ? "rounded-md bg-white p-1" : ""}`} />
@@ -160,18 +184,18 @@ export default function LandingPage() {
             <h2 className="font-bold">Démo du tableau de bord</h2>
             <button type="button" onClick={() => demo.current?.close()} aria-label="Fermer" className="grid size-10 place-items-center rounded-xl border border-white/15 hover:bg-white/10"><X size={18} aria-hidden /></button>
           </div>
-          <Image src="/landing-reference/dashboard.webp" width={546} height={521} alt="Aperçu du tableau de bord COD Maroc CRM" className="mx-auto h-auto max-h-[72vh] w-auto rounded-xl object-contain" />
+          <Image src="/landing-reference/dashboard-hd.webp" width={1254} height={1164} sizes="(max-width: 720px) 90vw, 640px" alt="Aperçu du tableau de bord COD Maroc CRM" className="mx-auto h-auto max-h-[72vh] w-auto rounded-xl object-contain" />
         </dialog>
 
       <section id="features" className="bg-[#080B2C] py-20">
-        <div className="landing-reveal mx-auto max-w-6xl px-4 sm:px-8">
-          <div className="mb-12 text-center">
+        <div className="mx-auto max-w-6xl px-4 sm:px-8">
+          <div className="landing-scroll-step mb-12 text-center">
             <p className="mb-2 text-sm font-bold uppercase tracking-[0.2em] text-[#F08061]">Fonctionnalités</p>
             <h2 className="text-3xl font-extrabold sm:text-4xl">Tout votre COD au même endroit</h2>
             <p className="mx-auto mt-4 max-w-xl text-slate-400">Commandes, stock, équipe et finances : gardez une vue claire sur votre activité.</p>
           </div>
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {FEATURES.slice(0, 6).map(f => <div key={f.title} className="rounded-2xl border border-white/10 bg-[#101535] p-6 transition hover:border-[#E97858]/50">
+          <div className="landing-stagger grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {FEATURES.slice(0, 6).map(f => <div key={f.title} className="landing-scroll-step rounded-2xl border border-white/10 bg-[#101535] p-6 transition hover:border-[#E97858]/50">
               <f.icon size={26} className="mb-4 text-[#E97858]" /><h3 className="mb-2 font-bold">{f.title}</h3><p className="text-sm leading-relaxed text-slate-400">{f.desc}</p>
             </div>)}
           </div>
@@ -179,15 +203,15 @@ export default function LandingPage() {
       </section>
 
       <section id="pricing" className="border-y border-white/10 bg-[#0B0F31] py-16">
-        <div className="landing-reveal mx-auto max-w-6xl px-4 sm:px-8">
-          <h2 className="mb-8 text-center text-3xl font-extrabold sm:text-4xl">Tarifs</h2>
-          <div className="grid gap-4 md:grid-cols-3">
+        <div className="mx-auto max-w-6xl px-4 sm:px-8">
+          <h2 className="landing-scroll-step mb-8 text-center text-3xl font-extrabold sm:text-4xl">Tarifs</h2>
+          <div className="landing-stagger grid gap-4 md:grid-cols-3">
             {[
               { name: "Essentiel", price: 99, features: ["Gestion des commandes et des clients", "Tableau de bord des ventes", "Catalogue produits et suivi du stock", "Expédition et suivi Eagle Express"] },
               { name: "Pro", price: 250, features: ["Tout le plan Essentiel", "Réceptions et historique des achats de stock", "Finances, marges et suivi des virements", "Pages produits et formulaires de commande", "Suivi des visiteurs en direct"] },
               { name: "Équipe", price: 499, features: ["Tout le plan Pro", "Gestion des agents et des rôles", "Commissions et demandes de paiement", "Suivi des campagnes publicitaires", "Alertes et rapports Telegram"] },
             ].map(plan => (
-              <article key={plan.name} className={`flex flex-col rounded-2xl border bg-[#101535] p-6 ${plan.name === "Pro" ? "border-[#E97858]/65" : "border-white/10"}`}>
+              <article key={plan.name} className={`landing-scroll-step flex flex-col rounded-2xl border bg-[#101535] p-6 ${plan.name === "Pro" ? "border-[#E97858]/65" : "border-white/10"}`}>
                 <h3 className="text-lg font-bold">{plan.name}</h3>
                 <p className="mt-3 text-4xl font-extrabold">{plan.price} <span className="text-base text-[#F5B49E]">DH</span></p>
                 <ul className="mb-7 mt-6 flex-1 space-y-3 text-sm text-slate-300">
