@@ -147,3 +147,12 @@ html[data-theme="dark"] body:has(.mobile-dock) {
     color: #f5b49e;
   }
 }
+
+/* Keep focus rings while removing decorative shadows throughout the CRM. */
+body:has(.mobile-dock) :is(*, *::before, *::after) {
+  box-shadow: var(--tw-inset-ring-shadow, 0 0 transparent),
+    var(--tw-ring-offset-shadow, 0 0 transparent),
+    var(--tw-ring-shadow, 0 0 transparent) !important;
+  --tw-drop-shadow: drop-shadow(0 0 transparent) !important;
+  text-shadow: none !important;
+}
