@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getUserByEmail, createUser, updateUser, createSession } from "@/lib/authStore";
+import { getUserByEmail, updateUser, createSession } from "@/lib/authStore";
 import { syncToSupabaseAuth } from "@/lib/supabaseAuthSync";
 import { cookies } from "next/headers";
 
@@ -20,13 +20,13 @@ export async function POST(request: NextRequest) {
   }
 
   // Verify the Google ID token via Google's tokeninfo endpoint
-  let googleUser: { email: string; name: string; sub: string };
+  let email: string;
   try {
     const res = await fetch(
       `https://oauth2.googleapis.com/tokeninfo?id_token=${encodeURIComponent(credential)}`
     );
     const data = await res.json();
-    if (data.error || !data.email) {
+    if (!res.ok || data.error || typeof data.email !== "string" || !data.email || (data.email_verified !== true && data.email_verified !== "true")) {
       return NextResponse.json({ error: "Token Google invalide." }, { status: 401 });
     }
     // Verify audience matches our app (if CLIENT_ID is set)
@@ -35,22 +35,17 @@ export async function POST(request: NextRequest) {
     if (clientId && data.aud !== clientId) {
       return NextResponse.json({ error: "Token Google invalide (audience)." }, { status: 401 });
     }
-    googleUser = { email: data.email, name: data.name ?? data.email.split("@")[0], sub: data.sub };
+    email = data.email.trim().toLowerCase();
   } catch {
     return NextResponse.json({ error: "Erreur vérification Google." }, { status: 500 });
   }
 
-  // Find or create user
-  let user = await getUserByEmail(googleUser.email);
+  let user = await getUserByEmail(email);
   if (!user) {
-    // Brand new user — always admin of their own workspace
-    user = await createUser({
-      name: googleUser.name,
-      email: googleUser.email.toLowerCase(),
-      passwordHash: "GOOGLE_SSO_" + googleUser.sub,
-      role: "admin",
-      active: true,
-    });
+    return NextResponse.json(
+      { error: "Les inscriptions sont fermées. Contactez-nous sur WhatsApp : +212644587812" },
+      { status: 403 },
+    );
   } else if (!user.active) {
     return NextResponse.json({ error: "Compte désactivé." }, { status: 403 });
   } else if (user.role !== "admin" && user.workspaceId === user.id) {

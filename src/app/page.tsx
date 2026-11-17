@@ -203,12 +203,31 @@ export default function LandingPage() {
       </section>
 
       <section id="pricing" className="border-y border-white/10 bg-[#0B0F31] py-16">
-        <div className="mx-auto max-w-4xl px-4 text-center sm:px-8">
-          <p className="mb-2 text-sm font-bold uppercase tracking-[0.2em] text-[#F08061]">Tarifs</p>
-          <h2 className="text-3xl font-extrabold sm:text-4xl">Commencez gratuitement</h2>
-          <p className="mx-auto mb-7 mt-4 max-w-xl text-slate-300">Créez votre espace COD CRM et découvrez les outils pour piloter votre activité.</p>
-          <Link href="/login" className="inline-flex rounded-xl bg-[#E97858] px-7 py-3.5 font-bold text-white transition hover:bg-[#F28B6C]">Démarrer gratuitement</Link>
-          <p className="mt-4 text-sm text-slate-500">Aucune carte bancaire requise</p>
+        <div className="mx-auto max-w-6xl px-4 sm:px-8">
+          <h2 className="mb-8 text-center text-3xl font-extrabold sm:text-4xl">Tarifs</h2>
+          <div className="grid gap-4 md:grid-cols-3">
+            {[
+              { name: "Essentiel", price: 99, features: ["Gestion des commandes et des clients", "Tableau de bord des ventes", "Catalogue produits et suivi du stock", "Expédition et suivi Eagle Express"] },
+              { name: "Pro", price: 250, features: ["Tout le plan Essentiel", "Réceptions et historique des achats de stock", "Finances, marges et suivi des virements", "Pages produits et formulaires de commande", "Suivi des visiteurs en direct"] },
+              { name: "Équipe", price: 499, features: ["Tout le plan Pro", "Gestion des agents et des rôles", "Commissions et demandes de paiement", "Suivi des campagnes publicitaires", "Alertes et rapports Telegram"] },
+            ].map(plan => (
+              <article key={plan.name} className={`flex flex-col rounded-2xl border bg-[#101535] p-6 ${plan.name === "Pro" ? "border-[#E97858]/65" : "border-white/10"}`}>
+                <h3 className="text-lg font-bold">{plan.name}</h3>
+                <p className="mt-3 text-4xl font-extrabold">{plan.price} <span className="text-base text-[#F5B49E]">DH</span></p>
+                <ul className="mb-7 mt-6 flex-1 space-y-3 text-sm text-slate-300">
+                  {plan.features.map(feature => (
+                    <li key={feature} className="flex items-start gap-2">
+                      <span aria-hidden className="font-bold text-[#F5B49E]">✓</span>{feature}
+                    </li>
+                  ))}
+                </ul>
+                <a href={`https://wa.me/212644587812?text=${encodeURIComponent(`Bonjour, je souhaite activer le plan ${plan.name} à ${plan.price} DH pour COD CRM.`)}`}
+                  className="rounded-xl bg-[#B64532] px-4 py-3 text-center text-sm font-bold text-white transition hover:bg-[#963725]">
+                  Choisir {plan.name}
+                </a>
+              </article>
+            ))}
+          </div>
         </div>
       </section>
 
