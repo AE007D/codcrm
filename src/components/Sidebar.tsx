@@ -5,8 +5,8 @@ import Image from "next/image";
 import { usePathname, useRouter } from "next/navigation";
 import { useState, useEffect, useRef } from "react";
 import { CodCrmLogo } from "@/components/CodCrmLogo";
-import { useLang, type Lang } from "@/lib/i18n";
-import { Phone, Truck, CheckCircle2, Menu, Moon, Sun, X } from "lucide-react";
+import { useLang } from "@/lib/i18n";
+import { Phone, Truck, CheckCircle2, Menu, X } from "lucide-react";
 
 type CurrentUser = {
   id: string;
@@ -113,7 +113,7 @@ const navItems: NavItem[] = [
 export default function Sidebar() {
   const pathname = usePathname();
   const router = useRouter();
-  const { lang, setLang, t } = useLang();
+  const { t } = useLang();
   const [open, setOpen] = useState(false);
   const [currentUser, setCurrentUser] = useState<CurrentUser | null>(null);
   const [loggingOut, setLoggingOut] = useState(false);
@@ -171,10 +171,6 @@ export default function Sidebar() {
   }
 
   // ── New order sound + polling ─────────────────────────────────────────────
-  const [soundEnabled, setSoundEnabled] = useState(true);
-  useEffect(() => {
-    try { setSoundEnabled(localStorage.getItem("codcrm_sound") !== "0"); } catch {}
-  }, []);
   const lastOrderCount = useRef<number | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const audioUnlocked = useRef(false);
@@ -266,6 +262,8 @@ export default function Sidebar() {
         } else if (count > lastOrderCount.current) {
           const newCount = count - lastOrderCount.current;
           lastOrderCount.current = count;
+          let soundEnabled = true;
+          try { soundEnabled = localStorage.getItem("codcrm_sound") !== "0"; } catch {}
           if (soundEnabled && audioUnlocked.current) {
             const plays = Math.min(newCount, 3);
             for (let i = 0; i < plays; i++) setTimeout(() => playChaChing(), i * 700);
@@ -291,7 +289,7 @@ export default function Sidebar() {
     const interval = setInterval(checkOrders, 60_000);
     return () => clearInterval(interval);
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [soundEnabled]);
+  }, []);
 
   // Pending payment requests badge (admin only)
   const [pendingPayments, setPendingPayments] = useState(0);
@@ -331,25 +329,6 @@ export default function Sidebar() {
   const mobileItems = visibleItems.filter(item =>
     (userRole === "admin" ? ["/dashboard", "/commandes", "/produits", "/stock"] : ["/commandes", "/funnels", "/paiements"]).includes(item.href),
   );
-
-  const [theme, setTheme] = useState<"dark" | "light" | null>(null);
-  useEffect(() => {
-    const root = document.documentElement;
-    const observer = new MutationObserver(() => setTheme(root.dataset.theme === "dark" ? "dark" : "light"));
-    observer.observe(root, { attributes: true, attributeFilter: ["data-theme"] });
-    setTheme(root.dataset.theme === "dark" ? "dark" : "light");
-    return () => observer.disconnect();
-  }, []);
-
-  function toggleTheme() {
-    const next = document.documentElement.dataset.theme === "dark" ? "light" : "dark";
-    document.documentElement.dataset.theme = next;
-    try {
-      localStorage.setItem("codcrm-theme", next);
-    } catch {
-      // The theme still applies for the current visit.
-    }
-  }
 
   const userInitial = (currentUser?.name ?? "?")[0].toUpperCase();
 
@@ -514,54 +493,6 @@ export default function Sidebar() {
         </nav>
 
         <div className="p-3 border-t border-slate-100">
-          {/* Language picker */}
-          <div className="flex items-center gap-1 mb-1 px-3 py-1.5">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="w-4 h-4 text-slate-400 shrink-0">
-              <circle cx="12" cy="12" r="10"/><path d="M2 12h20M12 2a15.3 15.3 0 010 20M12 2a15.3 15.3 0 000 20"/>
-            </svg>
-            <div className="flex gap-0.5 ml-1">
-              {(["fr", "ar", "en", "mr"] as Lang[]).map(l => (
-                <button key={l} onClick={() => setLang(l)}
-                  className={`text-xs font-bold px-2 py-1 rounded-lg transition-colors uppercase ${
-                    lang === l ? "bg-blue-600 text-white" : "text-slate-400 hover:text-slate-700 hover:bg-slate-100"
-                  }`}>
-                  {l}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {/* Sound toggle */}
-          <button
-            onClick={() => setSoundEnabled(v => { const next = !v; try { localStorage.setItem("codcrm_sound", next ? "1" : "0"); } catch {} return next; })}
-            title={soundEnabled ? t("sound_off") : t("sound_on")}
-            className="w-full mb-1 flex items-center gap-2 px-3 py-2 rounded-xl text-sm text-slate-400 hover:bg-slate-50 hover:text-slate-700 transition-colors"
-          >
-            {soundEnabled ? (
-              <>
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="w-4 h-4 text-emerald-500">
-                  <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/>
-                  <path d="M15.54 8.46a5 5 0 010 7.07M19.07 4.93a10 10 0 010 14.14"/>
-                </svg>
-                <span className="text-slate-500">{t("sound_on")}</span>
-                <span className="ml-auto w-2 h-2 rounded-full bg-emerald-400"/>
-              </>
-            ) : (
-              <>
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="w-4 h-4">
-                  <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/>
-                  <line x1="23" y1="9" x2="17" y2="15"/><line x1="17" y1="9" x2="23" y2="15"/>
-                </svg>
-                <span>{t("sound_off")}</span>
-              </>
-            )}
-          </button>
-
-          <button type="button" onClick={toggleTheme} aria-pressed={theme === "dark"}
-            className="mb-1 flex w-full items-center gap-3 rounded-xl px-3 py-2 text-sm font-medium text-slate-600 hover:bg-slate-50">
-            {theme === "dark" ? <Sun className="size-4" aria-hidden /> : <Moon className="size-4" aria-hidden />}
-            {t(theme === "dark" ? "theme_light" : "theme_dark")}
-          </button>
           <Link href="/compte" className="flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-slate-50 transition-colors group">
             {/* Avatar */}
             <div className="w-8 h-8 rounded-xl shrink-0 overflow-hidden shadow-md shadow-blue-100">

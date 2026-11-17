@@ -24,6 +24,7 @@ const T: Record<Lang, Record<string, string>> = {
     role_agent: "Agent",
     role_viewer: "Viewer",
     language: "Langue",
+    account_preferences: "Préférences",
 
     // ── Nav ──────────────────────────────────────────────────────────────────
     nav_dashboard: "Dashboard",
@@ -347,6 +348,7 @@ const T: Record<Lang, Record<string, string>> = {
     role_agent: "وكيل",
     role_viewer: "مشاهد",
     language: "اللغة",
+    account_preferences: "التفضيلات",
 
     // ── Nav ──────────────────────────────────────────────────────────────────
     nav_dashboard: "لوحة التحكم",
@@ -670,6 +672,7 @@ const T: Record<Lang, Record<string, string>> = {
     role_agent: "Agent",
     role_viewer: "Viewer",
     language: "Language",
+    account_preferences: "Preferences",
 
     // ── Nav ──────────────────────────────────────────────────────────────────
     nav_dashboard: "Dashboard",
@@ -993,6 +996,7 @@ const T: Record<Lang, Record<string, string>> = {
     role_agent: "Agent",
     role_viewer: "Viewer",
     language: "Lugha",
+    account_preferences: "Préférences",
 
     // ── Nav ──────────────────────────────────────────────────────────────────
     nav_dashboard: "Dashboard",

@@ -2,8 +2,9 @@
 
 import { useState, useEffect, useRef } from "react";
 import Image from "next/image";
+import { Globe, Moon, Sun, Volume2, VolumeX } from "lucide-react";
 import Sidebar from "@/components/Sidebar";
-import { useLang } from "@/lib/i18n";
+import { useLang, type Lang } from "@/lib/i18n";
 
 type User = {
   id: string;
@@ -34,7 +35,28 @@ function AvatarDisplay({ avatar, name, size = 88 }: { avatar: string | null; nam
 }
 
 export default function ComptePage() {
-  const { t } = useLang();
+  const { lang, setLang, t } = useLang();
+  const [soundEnabled, setSoundEnabled] = useState(true);
+  const [darkMode, setDarkMode] = useState(false);
+
+  useEffect(() => {
+    setDarkMode(document.documentElement.dataset.theme === "dark");
+    try { setSoundEnabled(localStorage.getItem("codcrm_sound") !== "0"); } catch {}
+  }, []);
+
+  function toggleSound() {
+    const enabled = !soundEnabled;
+    setSoundEnabled(enabled);
+    try { localStorage.setItem("codcrm_sound", enabled ? "1" : "0"); } catch {}
+  }
+
+  function toggleTheme() {
+    const enabled = !darkMode;
+    const theme = enabled ? "dark" : "light";
+    setDarkMode(enabled);
+    document.documentElement.dataset.theme = theme;
+    try { localStorage.setItem("codcrm-theme", theme); } catch {}
+  }
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -168,6 +190,35 @@ export default function ComptePage() {
             <p className="text-red-500 text-sm">Impossible de charger le profil.</p>
           ) : (
             <div className="max-w-2xl flex flex-col gap-6">
+
+              <section className="rounded-2xl border border-slate-100 bg-white p-4 sm:p-6">
+                <h2 className="mb-4 text-base font-bold text-slate-900">{t("account_preferences")}</h2>
+                <div className="flex flex-wrap items-center justify-between gap-3 pb-3">
+                  <span className="flex items-center gap-2 text-sm font-medium text-slate-700">
+                    <Globe className="size-4" aria-hidden />{t("language")}
+                  </span>
+                  <div role="group" aria-label={t("language")} className="flex flex-wrap gap-1">
+                    {(["fr", "ar", "en", "mr"] as Lang[]).map(option => (
+                      <button key={option} type="button" aria-pressed={lang === option} onClick={() => setLang(option)}
+                        className={`rounded-lg px-3 py-2 text-xs font-bold uppercase ${lang === option ? "bg-blue-600 text-white" : "bg-slate-50 text-slate-600 hover:bg-slate-100"}`}>
+                        {option}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                <div className="flex flex-wrap gap-2 border-t border-slate-100 pt-3">
+                  <button type="button" aria-pressed={soundEnabled} onClick={toggleSound}
+                    className="flex items-center gap-2 rounded-xl border border-slate-200 px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50">
+                    {soundEnabled ? <Volume2 className="size-4" aria-hidden /> : <VolumeX className="size-4" aria-hidden />}
+                    {t(soundEnabled ? "sound_on" : "sound_off")}
+                  </button>
+                  <button type="button" aria-pressed={darkMode} onClick={toggleTheme}
+                    className="flex items-center gap-2 rounded-xl border border-slate-200 px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50">
+                    {darkMode ? <Sun className="size-4" aria-hidden /> : <Moon className="size-4" aria-hidden />}
+                    {t(darkMode ? "theme_light" : "theme_dark")}
+                  </button>
+                </div>
+              </section>
 
               {/* Profile card */}
               <form onSubmit={handleSaveProfile} className="bg-white rounded-2xl border border-slate-100 shadow-sm p-6">
