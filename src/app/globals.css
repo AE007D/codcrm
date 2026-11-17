@@ -68,7 +68,7 @@ body {
   }
 }
 
-html[data-theme="dark"] {
+html[data-theme="dark"]:where(:not(:has(.customer-order-page))) {
   color-scheme: dark;
   --background: #101827;
   --foreground: #e2e8f0;
@@ -102,15 +102,15 @@ html[data-theme="dark"] {
 }
 
 @layer utilities {
-  html[data-theme="dark"] :is(.bg-white, .hover\:bg-white:hover) { background-color: var(--card); }
-  html[data-theme="dark"] :is(.bg-slate-800, .bg-slate-900) { background-color: #0f172a; }
-  html[data-theme="dark"] .bg-white\/95 { background-color: color-mix(in srgb, var(--card) 95%, transparent); }
-  html[data-theme="dark"] .bg-\[\#F0F4FF\] { background-color: var(--background); }
-  html[data-theme="dark"] :is(.text-blue-600, .text-blue-700, .text-blue-800) { color: #93c5fd; }
-  html[data-theme="dark"] :is(.text-emerald-600, .text-emerald-700, .text-emerald-800, .text-green-600, .text-green-700) { color: #6ee7b7; }
-  html[data-theme="dark"] :is(.text-amber-600, .text-amber-700, .text-amber-800, .text-orange-600, .text-orange-700) { color: #fcd38d; }
-  html[data-theme="dark"] :is(.text-red-600, .text-red-700, .text-rose-600, .text-rose-700) { color: #fda4af; }
-  html[data-theme="dark"] :is(.text-violet-600, .text-violet-700, .text-violet-800) { color: #c4b5fd; }
+  html[data-theme="dark"]:where(:not(:has(.customer-order-page))) :is(.bg-white, .hover\:bg-white:hover) { background-color: var(--card); }
+  html[data-theme="dark"]:where(:not(:has(.customer-order-page))) :is(.bg-slate-800, .bg-slate-900) { background-color: #0f172a; }
+  html[data-theme="dark"]:where(:not(:has(.customer-order-page))) .bg-white\/95 { background-color: color-mix(in srgb, var(--card) 95%, transparent); }
+  html[data-theme="dark"]:where(:not(:has(.customer-order-page))) .bg-\[\#F0F4FF\] { background-color: var(--background); }
+  html[data-theme="dark"]:where(:not(:has(.customer-order-page))) :is(.text-blue-600, .text-blue-700, .text-blue-800) { color: #93c5fd; }
+  html[data-theme="dark"]:where(:not(:has(.customer-order-page))) :is(.text-emerald-600, .text-emerald-700, .text-emerald-800, .text-green-600, .text-green-700) { color: #6ee7b7; }
+  html[data-theme="dark"]:where(:not(:has(.customer-order-page))) :is(.text-amber-600, .text-amber-700, .text-amber-800, .text-orange-600, .text-orange-700) { color: #fcd38d; }
+  html[data-theme="dark"]:where(:not(:has(.customer-order-page))) :is(.text-red-600, .text-red-700, .text-rose-600, .text-rose-700) { color: #fda4af; }
+  html[data-theme="dark"]:where(:not(:has(.customer-order-page))) :is(.text-violet-600, .text-violet-700, .text-violet-800) { color: #c4b5fd; }
 }
 
 /* CRM colors use the landing page's navy and coral palette. */
@@ -132,7 +132,7 @@ body:has(:is(.mobile-dock, .crm-login)) {
   --color-blue-950: #381a18;
 }
 
-html[data-theme="dark"] body:has(:is(.mobile-dock, .crm-login)) {
+html[data-theme="dark"]:where(:not(:has(.customer-order-page))) body:has(:is(.mobile-dock, .crm-login)) {
   --background: #080b2c;
   --foreground: #f0edf6;
   --primary: #e97858;
@@ -150,7 +150,7 @@ html[data-theme="dark"] body:has(:is(.mobile-dock, .crm-login)) {
 
 @layer utilities {
   body:has(.mobile-dock) .bg-\[\#F0F4FF\] { background-color: var(--background); }
-  html[data-theme="dark"] body:has(:is(.mobile-dock, .crm-login)) :is(.text-blue-500, .text-blue-600, .text-blue-700, .text-blue-800) {
+  html[data-theme="dark"]:where(:not(:has(.customer-order-page))) body:has(:is(.mobile-dock, .crm-login)) :is(.text-blue-500, .text-blue-600, .text-blue-700, .text-blue-800) {
     color: #f5b49e;
   }
 }
@@ -165,11 +165,11 @@ body:has(.mobile-dock) :is(*, *::before, *::after) {
 }
 
 .codcrm-logo-dark,
-html[data-theme="dark"] .codcrm-logo-light {
+html[data-theme="dark"]:where(:not(:has(.customer-order-page))) .codcrm-logo-light {
   display: none;
 }
 
-html[data-theme="dark"] .codcrm-logo-dark {
+html[data-theme="dark"]:where(:not(:has(.customer-order-page))) .codcrm-logo-dark {
   display: block;
 }
 

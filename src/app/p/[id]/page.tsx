@@ -103,13 +103,13 @@ export default function ProductPage() {
   }
 
   if (loading) return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center">
+    <div className="customer-order-page min-h-screen bg-white flex items-center justify-center">
       <div className="w-10 h-10 border-[3px] border-blue-600 border-t-transparent rounded-full animate-spin" />
     </div>
   );
 
   if (notFound || !product) return (
-    <div dir="rtl" className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 flex items-center justify-center p-4">
+    <div dir="rtl" className="customer-order-page min-h-screen bg-white flex items-center justify-center p-4">
       <div className="bg-white rounded-3xl shadow-xl p-10 text-center max-w-sm w-full">
         <HelpCircle size={60} className="text-slate-300 mx-auto mb-4" />
         <h1 className="text-xl font-bold text-slate-800 mb-2">المنتج غير موجود</h1>
@@ -122,7 +122,7 @@ export default function ProductPage() {
   const total = productOrderTotal(product.price, qty).toLocaleString("ar-MA");
 
   if (submitted) return (
-    <div dir="rtl" className="min-h-screen bg-gradient-to-br from-emerald-50 to-teal-100 flex items-center justify-center p-4">
+    <div dir="rtl" className="customer-order-page min-h-screen bg-white flex items-center justify-center p-4">
       <div className="bg-white rounded-3xl shadow-xl p-10 text-center max-w-sm w-full">
         <div className="w-20 h-20 bg-emerald-100 rounded-full flex items-center justify-center mx-auto mb-5">
           <svg viewBox="0 0 24 24" fill="none" stroke="#059669" strokeWidth={2.5} className="w-10 h-10"><polyline points="20 6 9 17 4 12"/></svg>
@@ -141,7 +141,7 @@ export default function ProductPage() {
   );
 
   return (
-    <div dir="rtl" className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50">
+    <div dir="rtl" className="customer-order-page min-h-screen bg-white">
       <LiveTracker
         page={`/p/${id}`}
         pageTitle={product.name}

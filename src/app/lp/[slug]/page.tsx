@@ -82,7 +82,7 @@ export default function LandingPageView() {
   }
 
   if (notFound) return (
-    <div className="min-h-screen bg-slate-50 flex items-center justify-center p-8">
+    <div className="customer-order-page min-h-screen bg-white flex items-center justify-center p-8">
       <div className="text-center">
         <HelpCircle size={60} className="text-slate-300 mx-auto mb-4" />
         <p className="text-xl font-bold text-slate-800">Page introuvable</p>
@@ -92,13 +92,13 @@ export default function LandingPageView() {
   );
 
   if (!page) return (
-    <div className="min-h-screen bg-slate-50 flex items-center justify-center">
+    <div className="customer-order-page min-h-screen bg-white flex items-center justify-center">
       <div className="w-8 h-8 border-2 border-blue-600 border-t-transparent rounded-full animate-spin" />
     </div>
   );
 
   if (!page.active) return (
-    <div className="min-h-screen bg-slate-50 flex items-center justify-center p-8">
+    <div className="customer-order-page min-h-screen bg-white flex items-center justify-center p-8">
       <div className="text-center">
         <Lock size={60} className="text-slate-300 mx-auto mb-4" />
         <p className="text-xl font-bold text-slate-800">Page temporairement indisponible</p>
@@ -107,12 +107,11 @@ export default function LandingPageView() {
   );
 
   const pct = page.originalPrice > 0 ? Math.round(((page.originalPrice - page.price) / page.originalPrice) * 100) : 0;
-  const bg = page.theme === "dark" ? "bg-gray-950" : "bg-gray-50";
-  const textMain = page.theme === "dark" ? "text-white" : "text-slate-900";
-  const cardBg = page.theme === "dark" ? "bg-gray-900 border-gray-800" : "bg-white border-slate-100";
+  const textMain = "text-slate-900";
+  const cardBg = "bg-white border-slate-100";
 
   if (submitted) return (
-    <div className={`min-h-screen ${bg} flex items-center justify-center p-6`}>
+    <div className={`customer-order-page min-h-screen bg-white flex items-center justify-center p-6`}>
       <div className="max-w-md w-full text-center">
         <div className="w-24 h-24 rounded-full flex items-center justify-center text-5xl mx-auto mb-6" style={{ backgroundColor: page.primaryColor + "20" }}>
           <CheckCircle2 size={48} style={{ color: page.primaryColor }} className="mx-auto" />
@@ -131,7 +130,7 @@ export default function LandingPageView() {
   );
 
   return (
-    <div className={`min-h-screen ${bg} font-sans`}>
+    <div className={`customer-order-page min-h-screen bg-white font-sans`}>
       <LiveTracker page={`/lp/${slug}`} pageTitle={page.title} workspaceId={page.ownerId} />
       {/* Urgency top bar */}
       {page.urgencyText && (
