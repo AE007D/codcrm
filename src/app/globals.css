@@ -32,6 +32,8 @@ body {
 @media (max-width: 1023px) {
   body:has(.mobile-dock) {
     --dock-height: calc(3.75rem + env(safe-area-inset-bottom, 0px));
+    /* iOS home-screen apps draw underneath the translucent status bar. */
+    padding-top: env(safe-area-inset-top, 0px);
     padding-bottom: var(--dock-height);
   }
 
@@ -43,6 +45,11 @@ body {
   .sidebar-panel,
   .mobile-sidebar-backdrop {
     bottom: var(--dock-height);
+  }
+
+  /* Keep the mobile drawer logo and notification bell below the iPhone clock. */
+  .sidebar-panel {
+    padding-top: env(safe-area-inset-top, 0px);
   }
 
   .sidebar-header-pl {
