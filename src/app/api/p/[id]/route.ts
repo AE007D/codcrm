@@ -119,7 +119,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
   // Get product info
   const { data: product, error: pErr } = await supabase
     .from("crm_products")
-    .select("id, name, sell_price, owner_id, stock")
+    .select("id, name, sell_price, owner_id")
     .eq("id", id)
     .maybeSingle();
 
@@ -138,6 +138,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     city: String(city).trim(),
     address: String(address ?? "").trim(),
     product: product.name,
+    inventory_product_id: product.id,
     total_price: totalPrice,
     currency: "MAD",
     quantity: orderQuantity,
@@ -153,14 +154,6 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
   if (oErr) {
     console.error("Page order insert:", oErr.message);
     return NextResponse.json({ error: "Erreur lors de la commande." }, { status: 500 });
-  }
-
-  // Reduce stock by quantity ordered
-  if (product.stock > 0) {
-    await supabase
-      .from("crm_products")
-      .update({ stock: Math.max(0, product.stock - orderQuantity) })
-      .eq("id", id);
   }
 
   return NextResponse.json({ ok: true, orderId, totalPrice });
