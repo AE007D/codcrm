@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { CodCrmWordmark } from "@/components/CodCrmLogo";
-import { Package, Bird, BarChart3, DollarSign, Users, Bot, ShoppingBag, TrendingUp, Rocket, Zap, ShoppingCart, Megaphone, ChevronDown, X, type LucideIcon } from "lucide-react";
+import { Package, Bird, BarChart3, DollarSign, Users, Bot, ShoppingBag, TrendingUp, Rocket, Zap, ShoppingCart, Megaphone, ChevronDown, Pause, Play, X, type LucideIcon } from "lucide-react";
 
 const FEATURES: { icon: LucideIcon; title: string; desc: string }[] = [
   {
@@ -74,6 +74,7 @@ export default function LandingPage() {
   const [showIntro, setShowIntro] = useState(false);
   const [allowMotion, setAllowMotion] = useState(false);
   const [introExiting, setIntroExiting] = useState(false);
+  const [previewPaused, setPreviewPaused] = useState(false);
 
   useEffect(() => {
     const preference = matchMedia("(prefers-reduced-motion: no-preference)");
@@ -211,8 +212,16 @@ export default function LandingPage() {
                 <button type="button" onClick={() => demo.current?.showModal()} className="inline-flex min-h-12 items-center justify-center rounded-[12px] border-2 border-[#8C8CA3] px-5 text-sm font-semibold text-white transition hover:border-white sm:min-h-[68px] sm:min-w-[194px] sm:px-7 sm:text-xl">Voir la Démo</button>
               </div>
             </div>
-            <div className="landing-enter landing-enter-preview mx-auto w-full max-w-[590px] lg:mx-0">
-            <Image src="/landing-reference/dashboard-hd.webp" width={1254} height={1164} sizes="(min-width: 1180px) 510px, (min-width: 1024px) 44vw, (min-width: 640px) 590px, calc(100vw - 40px)" priority alt="Aperçu du tableau de bord COD Maroc CRM avec les indicateurs et les cartes du Maroc" className="landing-preview-art h-auto w-full" />
+            <div className="landing-enter landing-enter-preview relative mx-auto w-full max-w-[590px] lg:mx-0">
+              <div className="landing-preview-float" data-paused={previewPaused}>
+              <Image src="/landing-reference/dashboard-hd.webp" width={1254} height={1164} sizes="(min-width: 1180px) 510px, (min-width: 1024px) 44vw, (min-width: 640px) 590px, calc(100vw - 40px)" priority alt="Aperçu du tableau de bord COD Maroc CRM avec les indicateurs et les cartes du Maroc" className="landing-preview-art h-auto w-full" />
+              </div>
+              <button type="button" onClick={() => setPreviewPaused(paused => !paused)}
+                aria-label={previewPaused ? "Animer l’aperçu" : "Mettre l’aperçu en pause"}
+                title={previewPaused ? "Animer l’aperçu" : "Mettre l’aperçu en pause"}
+                className="absolute bottom-1 end-1 grid size-9 place-items-center rounded-lg border border-white/20 bg-[#101535]/90 text-white/80 hover:text-white motion-reduce:hidden">
+                {previewPaused ? <Play className="size-4" aria-hidden /> : <Pause className="size-4" aria-hidden />}
+              </button>
             </div>
           </div>
         </section>

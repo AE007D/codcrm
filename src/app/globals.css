@@ -228,3 +228,13 @@ html[data-theme="dark"] .codcrm-logo-dark {
     transform-origin: 50% min(50dvh, 420px);
   }
 }
+
+@keyframes landing-preview-float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-9px); }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .landing-preview-float { animation: landing-preview-float 5.5s ease-in-out infinite; }
+  .landing-preview-float[data-paused="true"] { animation-play-state: paused; }
+}
