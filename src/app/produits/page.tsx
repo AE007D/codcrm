@@ -3,20 +3,17 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { Package, AlertTriangle } from "lucide-react";
 import Image from "next/image";
+import { ProductImage, StockBadge } from "@/components/ProductStockDisplay";
 import Sidebar from "@/components/Sidebar";
 import { useLang } from "@/lib/i18n";
 
-type StockMovement = { id: string; productId: string; quantity: number; unitCost: number; totalCost: number; note: string; createdAt: string; stockAfter: number };
-
 type Product = {
-  stockMovements?: StockMovement[];
   id: string;
   name: string;
   sku: string;
   image: string;
   sellPrice: number;
   comparePrice?: number;
-  purchasePrice: number;
   stock: number;
   minStock: number;
   createdAt: string;
@@ -36,26 +33,6 @@ const emptyForm = {
   boutiqueNom: "", agentId: "", agentName: "", commissionAmount: "",
 };
 
-function ProductImage({ image, name, size = 48 }: { image: string; name: string; size?: number }) {
-  const colors = ["bg-blue-500", "bg-violet-500", "bg-emerald-500", "bg-amber-500", "bg-rose-500"];
-  const color = colors[(name.charCodeAt(0) || 0) % colors.length];
-  if (image) return (
-    <div className="rounded-xl overflow-hidden bg-slate-100 shrink-0" style={{ width: size, height: size }}>
-      <Image src={image} alt={name} width={size} height={size} className="object-cover w-full h-full" unoptimized />
-    </div>
-  );
-  return (
-    <div className={`${color} rounded-xl flex items-center justify-center text-white font-bold shrink-0`} style={{ width: size, height: size, fontSize: size * 0.3 }}>
-      {name.slice(0, 2).toUpperCase()}
-    </div>
-  );
-}
-
-function StockBadge({ stock, minStock }: { stock: number; minStock: number }) {
-  if (stock === 0) return <span className="text-xs font-bold px-2.5 py-1 rounded-xl bg-red-100 text-red-600">Rupture</span>;
-  if (stock <= minStock) return <span className="text-xs font-bold px-2.5 py-1 rounded-xl bg-amber-100 text-amber-700">Stock bas · {stock}</span>;
-  return <span className="text-xs font-bold px-2.5 py-1 rounded-xl bg-emerald-100 text-emerald-700">{stock} en stock</span>;
-}
 
 export default function ProduitsPage() {
   const { t } = useLang();
@@ -101,12 +78,6 @@ export default function ProduitsPage() {
     });
   }
 
-  // Stock modal
-  const [stockModal, setStockModal] = useState<Product | null>(null);
-  const [stockQty, setStockQty] = useState("");
-  const [stockPurchasePrice, setStockPurchasePrice] = useState("");
-  const [stockNote, setStockNote] = useState("");
-  const [stockSaving, setStockSaving] = useState(false);
 
   const fetchProducts = useCallback(async () => {
     try {
@@ -154,8 +125,8 @@ export default function ProduitsPage() {
     setEditProduct(p);
     setForm({
       name: p.name, sku: p.sku, image: p.image,
-      sellPrice: String(p.sellPrice), comparePrice: p.comparePrice ? String(p.comparePrice) : "", purchasePrice: String(p.purchasePrice),
-      stock: String(p.stock), minStock: String(p.minStock),
+      ...emptyForm,
+      sellPrice: String(p.sellPrice), comparePrice: p.comparePrice ? String(p.comparePrice) : "",
       facebookPixelId: p.facebookPixelId ?? "",
       boutiqueNom: p.boutiqueNom ?? "",
       agentId: p.agentId ?? "",
@@ -208,7 +179,8 @@ export default function ProduitsPage() {
     setSaving(true); setFormError("");
     try {
       if (editProduct) {
-        const res = await fetch("/api/products", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id: editProduct.id, ...form, sellPrice: parseFloat(form.sellPrice) || 0, comparePrice: parseFloat(form.comparePrice) || null, purchasePrice: parseFloat(form.purchasePrice) || 0, stock: parseInt(form.stock) || 0, minStock: parseInt(form.minStock) || 5 }) });
+        const { purchasePrice, stock, minStock, ...catalog } = form;
+        const res = await fetch("/api/products", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ...catalog, id: editProduct.id, sellPrice: parseFloat(form.sellPrice) || 0, comparePrice: parseFloat(form.comparePrice) || null }) });
         if (!res.ok) { const d = await res.json(); setFormError(d.error || "Erreur."); return; }
       } else {
         const res = await fetch("/api/products", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ...form, sellPrice: parseFloat(form.sellPrice) || 0, comparePrice: parseFloat(form.comparePrice) || null, purchasePrice: parseFloat(form.purchasePrice) || 0, stock: parseInt(form.stock) || 0, minStock: parseInt(form.minStock) || 5 }) });
@@ -225,17 +197,6 @@ export default function ProduitsPage() {
     fetchProducts();
   }
 
-  async function handleAddStock() {
-    if (!stockModal) return;
-    const qty = parseInt(stockQty);
-    if (!qty || qty === 0) return;
-    setStockSaving(true);
-    try {
-      await fetch("/api/products", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id: stockModal.id, action: "addStock", qty, purchasePrice: stockPurchasePrice.trim() ? (parseFloat(stockPurchasePrice) || 0) : null, note: stockNote }) });
-      setStockModal(null); setStockQty(""); setStockPurchasePrice(""); setStockNote("");
-      fetchProducts();
-    } finally { setStockSaving(false); }
-  }
 
   const displayed = products.filter(p => {
     const q = search.toLowerCase();
@@ -320,8 +281,6 @@ export default function ProduitsPage() {
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
               {displayed.map(p => {
                 const stats = orderStats.get(p.name);
-                const margin = p.sellPrice - p.purchasePrice;
-                return (
                   <div key={p.id} className="bg-white rounded-2xl border border-slate-100 shadow-sm hover:shadow-md transition-shadow flex flex-col">
                     {/* Image */}
                     <div className="relative rounded-t-2xl overflow-hidden bg-slate-50 aspect-square max-h-44 flex items-center justify-center">
@@ -349,14 +308,6 @@ export default function ProduitsPage() {
                         <div className="flex-1 bg-emerald-50 rounded-xl p-2.5 text-center">
                           <p className="text-xs text-emerald-600 font-medium">Vente</p>
                           <p className="text-sm font-bold text-emerald-700">{p.sellPrice} MAD</p>
-                        </div>
-                        <div className="flex-1 bg-slate-50 rounded-xl p-2.5 text-center">
-                          <p className="text-xs text-slate-500 font-medium">Achat</p>
-                          <p className="text-sm font-bold text-slate-700">{p.purchasePrice} MAD</p>
-                        </div>
-                        <div className="flex-1 bg-blue-50 rounded-xl p-2.5 text-center">
-                          <p className="text-xs text-blue-600 font-medium">Marge</p>
-                          <p className={`text-sm font-bold ${margin >= 0 ? "text-blue-700" : "text-red-600"}`}>{margin} MAD</p>
                         </div>
                       </div>
 
@@ -394,11 +345,6 @@ export default function ProduitsPage() {
                       {/* Actions */}
                       <div className="flex gap-2 mt-auto flex-col">
                         <div className="flex gap-2">
-                          <button onClick={() => { setStockModal(p); setStockQty(""); setStockPurchasePrice(String(p.purchasePrice ?? "")); setStockNote(""); }}
-                            className="flex-1 flex items-center justify-center gap-1.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold py-2 rounded-xl transition-colors shadow-sm shadow-blue-200">
-                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} className="w-3.5 h-3.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-                            Stock
-                          </button>
                           <button onClick={() => openEdit(p)}
                             className="flex-1 text-xs font-semibold py-2 rounded-xl border border-slate-200 text-slate-600 hover:bg-slate-50 transition-colors">
                             Modifier
@@ -429,7 +375,7 @@ export default function ProduitsPage() {
                 <table className="w-full text-sm min-w-[700px]">
                   <thead>
                     <tr className="text-xs text-slate-400 border-b border-slate-100 bg-slate-50/50">
-                      {["Produit", "SKU", "Prix vente", "Prix achat", "Marge", "Stock", "Vendus", "Actions"].map(h => (
+                      {["Produit", "SKU", "Prix vente", "Stock", "Vendus", "Actions"].map(h => (
                         <th key={h} className="text-left px-5 py-3 font-semibold uppercase tracking-wide">{h}</th>
                       ))}
                     </tr>
@@ -437,7 +383,6 @@ export default function ProduitsPage() {
                   <tbody>
                     {displayed.map(p => {
                       const stats = orderStats.get(p.name);
-                      const margin = p.sellPrice - p.purchasePrice;
                       return (
                         <tr key={p.id} className="border-b border-slate-50 hover:bg-slate-50/60 transition-colors">
                           <td className="px-5 py-3.5">
@@ -448,16 +393,10 @@ export default function ProduitsPage() {
                           </td>
                           <td className="px-5 py-3.5 font-mono text-xs text-slate-400">{p.sku || "—"}</td>
                           <td className="px-5 py-3.5 font-bold text-emerald-700">{p.sellPrice} MAD</td>
-                          <td className="px-5 py-3.5 text-slate-600">{p.purchasePrice} MAD</td>
-                          <td className={`px-5 py-3.5 font-bold ${margin >= 0 ? "text-blue-700" : "text-red-600"}`}>{margin} MAD</td>
                           <td className="px-5 py-3.5"><StockBadge stock={p.stock} minStock={p.minStock} /></td>
                           <td className="px-5 py-3.5 text-slate-500">{stats?.unitsSold ?? 0}</td>
                           <td className="px-5 py-3.5">
                             <div className="flex items-center gap-1.5">
-                              <button onClick={() => { setStockModal(p); setStockQty(""); setStockNote(""); }}
-                                className="flex items-center gap-1 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold px-2.5 py-1.5 rounded-xl transition-colors">
-                                + Stock
-                              </button>
                               <button onClick={() => openEdit(p)} className="text-xs px-2.5 py-1.5 rounded-xl border border-slate-200 text-slate-600 hover:bg-slate-50">Modifier</button>
                               <button onClick={() => handleDelete(p.id)} className="p-1.5 rounded-xl border border-red-100 text-red-400 hover:bg-red-50">
                                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="w-3.5 h-3.5"><path d="M3 6h18M19 6l-1 14H6L5 6"/></svg>
@@ -537,29 +476,32 @@ export default function ProduitsPage() {
                   <input type="number" placeholder="450" min="0" value={form.comparePrice} onChange={e => setForm(f => ({ ...f, comparePrice: e.target.value }))}
                     className="w-full text-sm border border-slate-200 rounded-xl px-4 py-2.5 outline-none focus:border-red-300 focus:ring-2 focus:ring-red-50" />
                 </div>
-                <div>
-                  <label className="text-xs font-semibold text-slate-600 mb-1.5 block">Prix d&apos;achat (MAD)</label>
-                  <input type="number" placeholder="120" min="0" value={form.purchasePrice} onChange={e => setForm(f => ({ ...f, purchasePrice: e.target.value }))}
-                    className="w-full text-sm border border-slate-200 rounded-xl px-4 py-2.5 outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-50" />
-                </div>
+                {!editProduct && (
+                  <div>
+                    <label className="text-xs font-semibold text-slate-600 mb-1.5 block">Prix d&apos;achat (MAD)</label>
+                    <input type="number" placeholder="120" min="0" value={form.purchasePrice} onChange={e => setForm(f => ({ ...f, purchasePrice: e.target.value }))}
+                      className="w-full text-sm border border-slate-200 rounded-xl px-4 py-2.5 outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-50" />
+                  </div>
+                )}
               </div>
 
-              {/* Stock section */}
-              <div className="bg-slate-50 rounded-2xl p-4">
-                <p className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-3">Gestion du stock</p>
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <label className="text-xs font-semibold text-slate-600 mb-1.5 block">Stock initial (unités)</label>
-                    <input type="number" placeholder="0" min="0" value={form.stock} onChange={e => setForm(f => ({ ...f, stock: e.target.value }))}
-                      className="w-full text-sm border border-slate-200 rounded-xl px-4 py-2.5 outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-50 bg-white" />
-                  </div>
-                  <div>
-                    <label className="text-xs font-semibold text-slate-600 mb-1.5 block">Seuil d&apos;alerte stock bas</label>
-                    <input type="number" placeholder="5" min="0" value={form.minStock} onChange={e => setForm(f => ({ ...f, minStock: e.target.value }))}
-                      className="w-full text-sm border border-slate-200 rounded-xl px-4 py-2.5 outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-50 bg-white" />
+              {!editProduct && (
+                <div className="bg-slate-50 rounded-2xl p-4">
+                  <p className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-3">Gestion du stock</p>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="text-xs font-semibold text-slate-600 mb-1.5 block">Stock initial (unités)</label>
+                      <input type="number" placeholder="0" min="0" value={form.stock} onChange={e => setForm(f => ({ ...f, stock: e.target.value }))}
+                        className="w-full text-sm border border-slate-200 rounded-xl px-4 py-2.5 outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-50 bg-white" />
+                    </div>
+                    <div>
+                      <label className="text-xs font-semibold text-slate-600 mb-1.5 block">Seuil d&apos;alerte stock bas</label>
+                      <input type="number" placeholder="5" min="0" value={form.minStock} onChange={e => setForm(f => ({ ...f, minStock: e.target.value }))}
+                        className="w-full text-sm border border-slate-200 rounded-xl px-4 py-2.5 outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-50 bg-white" />
+                    </div>
                   </div>
                 </div>
-              </div>
+              )}
 
               {/* Facebook Pixel */}
               <div className="bg-blue-50 rounded-2xl p-4">
@@ -639,7 +581,7 @@ export default function ProduitsPage() {
               </div>
 
               {/* Margin preview */}
-              {(form.sellPrice || form.purchasePrice) && (
+              {!editProduct && (form.sellPrice || form.purchasePrice) && (
                 <div className="flex items-center gap-3 bg-blue-50 rounded-2xl px-4 py-3">
                   <svg viewBox="0 0 24 24" fill="none" stroke="#2563EB" strokeWidth={2} className="w-5 h-5 shrink-0"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/></svg>
                   <div>
@@ -660,92 +602,6 @@ export default function ProduitsPage() {
         </div>
       )}
 
-      {/* Add Stock modal */}
-      {stockModal && (
-        <div className="fixed inset-0 bg-black/30 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl shadow-xl w-full max-w-lg p-6 max-h-[90vh] overflow-y-auto">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-base font-bold text-slate-900">Alimenter le stock</h2>
-              <button onClick={() => setStockModal(null)} className="text-slate-400 hover:text-slate-600">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="w-5 h-5"><path d="M18 6L6 18M6 6l12 12"/></svg>
-              </button>
-            </div>
-
-            <div className="flex items-center gap-3 bg-slate-50 rounded-2xl p-4 mb-5">
-              <ProductImage image={stockModal.image} name={stockModal.name} size={44} />
-              <div>
-                <p className="font-bold text-slate-900 text-sm">{stockModal.name}</p>
-                {stockModal.sku && <p className="text-xs text-slate-400 font-mono">SKU: {stockModal.sku}</p>}
-                <p className="text-xs text-slate-500 mt-0.5">Stock actuel: <strong className="text-slate-800">{stockModal.stock}</strong> unités</p>
-              </div>
-            </div>
-
-            <div className="flex flex-col gap-4">
-              <div>
-                <label className="text-xs font-semibold text-slate-600 mb-1.5 block">Quantité à ajouter <span className="text-red-400">*</span></label>
-                <div className="flex items-center gap-2">
-                  <button onClick={() => setStockQty(q => String(Math.max(1, parseInt(q || "0") - 1)))}
-                    className="w-10 h-10 rounded-xl border border-slate-200 text-slate-600 hover:bg-slate-50 font-bold text-lg flex items-center justify-center">−</button>
-                  <input type="number" min="1" placeholder="0" value={stockQty} onChange={e => setStockQty(e.target.value)}
-                    className="flex-1 text-center text-lg font-bold border border-slate-200 rounded-xl px-4 py-2.5 outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-50" />
-                  <button onClick={() => setStockQty(q => String(parseInt(q || "0") + 1))}
-                    className="w-10 h-10 rounded-xl border border-slate-200 text-slate-600 hover:bg-slate-50 font-bold text-lg flex items-center justify-center">+</button>
-                </div>
-                {stockQty && parseInt(stockQty) > 0 && (
-                  <p className="text-xs text-emerald-600 mt-1.5 font-semibold text-center">
-                    Nouveau stock: {stockModal.stock + parseInt(stockQty)} unités
-                  </p>
-                )}
-              </div>
-              <div>
-                <label className="text-xs font-semibold text-slate-600 mb-1.5 block">Nouveau prix d&apos;achat unitaire (MAD)</label>
-                <input type="number" min="0" placeholder="ex: 120" value={stockPurchasePrice}
-                  onChange={e => setStockPurchasePrice(e.target.value)}
-                  className="w-full text-sm border border-slate-200 rounded-xl px-4 py-2.5 outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-50" />
-                <p className="text-[11px] text-slate-400 mt-1">Le coût moyen d&apos;achat du stock sera recalculé après réception.</p>
-              </div>
-              <div>
-                <label className="text-xs font-semibold text-slate-600 mb-1.5 block">Note (optionnel)</label>
-                <input type="text" placeholder="Ex: Réception fournisseur du 15/05" value={stockNote} onChange={e => setStockNote(e.target.value)}
-                  className="w-full text-sm border border-slate-200 rounded-xl px-4 py-2.5 outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-50" />
-              </div>
-            </div>
-
-            <div className="mt-6 border-t border-slate-100 pt-4">
-              <div className="mb-3 flex items-center justify-between">
-                <h3 className="text-sm font-bold text-slate-800">Historique des achats</h3>
-                <span className="text-xs text-slate-400">{stockModal.stockMovements?.length ?? 0} réception(s)</span>
-              </div>
-              {!stockModal.stockMovements?.length ? (
-                <p className="rounded-xl bg-slate-50 px-3 py-4 text-center text-xs text-slate-400">Les prochains achats apparaîtront ici.</p>
-              ) : (
-                <div className="max-h-48 space-y-2 overflow-y-auto">
-                  {stockModal.stockMovements.map(movement => (
-                    <div key={movement.id} className="rounded-xl bg-slate-50 p-3">
-                      <div className="flex items-center justify-between gap-3 text-xs">
-                        <span className="font-bold text-slate-700">{new Date(movement.createdAt).toLocaleDateString("fr-MA")}</span>
-                        <span className="font-semibold text-slate-600">+{movement.quantity} · {movement.unitCost} MAD/unité</span>
-                        <span className="font-bold text-slate-800">{movement.totalCost.toLocaleString("fr-MA")} MAD</span>
-                      </div>
-                      <div className="mt-1 flex justify-between text-[11px] text-slate-400">
-                        <span>{movement.note || "Aucune note"}</span><span>Stock après achat : {movement.stockAfter}</span>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-
-            <div className="flex gap-3 mt-5">
-              <button onClick={() => setStockModal(null)} className="flex-1 py-2.5 rounded-xl border border-slate-200 text-sm font-semibold text-slate-600 hover:bg-slate-50">{t("cancel")}</button>
-              <button onClick={handleAddStock} disabled={stockSaving || !stockQty || parseInt(stockQty) <= 0}
-                className="flex-1 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 disabled:opacity-60 text-white text-sm font-semibold shadow-md shadow-blue-200">
-                {stockSaving ? t("saving") : `+ ${stockQty || 0} unités`}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }
