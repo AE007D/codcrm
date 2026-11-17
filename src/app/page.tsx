@@ -71,11 +71,9 @@ export default function LandingPage() {
   const demo = useRef<HTMLDialogElement>(null);
   const main = useRef<HTMLElement>(null);
   const intro = useRef<HTMLDialogElement>(null);
-  const backgroundVideo = useRef<HTMLVideoElement>(null);
   const [showIntro, setShowIntro] = useState(false);
   const [allowMotion, setAllowMotion] = useState(false);
-  const [backgroundPlaying, setBackgroundPlaying] = useState(false);
-  const [backgroundAvailable, setBackgroundAvailable] = useState(true);
+  const [introExiting, setIntroExiting] = useState(false);
 
   useEffect(() => {
     const preference = matchMedia("(prefers-reduced-motion: no-preference)");
@@ -92,17 +90,25 @@ export default function LandingPage() {
     if (showIntro && intro.current && !intro.current.open) intro.current.showModal();
   }, [showIntro]);
 
+  useEffect(() => {
+    if (!introExiting) return;
+    const timer = window.setTimeout(() => {
+      intro.current?.close();
+      setShowIntro(false);
+      setIntroExiting(false);
+    }, 540);
+    return () => window.clearTimeout(timer);
+  }, [introExiting]);
+
   function finishIntro() {
+    if (introExiting) return;
     try { sessionStorage.setItem(introSessionKey, "1"); } catch {}
+    if (allowMotion) {
+      setIntroExiting(true);
+      return;
+    }
     intro.current?.close();
     setShowIntro(false);
-  }
-
-  function toggleBackground() {
-    const video = backgroundVideo.current;
-    if (!video) return;
-    if (video.paused) void video.play().catch(() => {});
-    else video.pause();
   }
 
   useEffect(() => {
@@ -150,24 +156,17 @@ export default function LandingPage() {
       {showIntro && (
         <dialog ref={intro} onCancel={event => { event.preventDefault(); finishIntro(); }}
           aria-label="Présentation de CODCRM.ma"
-          className="fixed inset-0 m-0 h-dvh max-h-none w-full max-w-none border-0 bg-[#080B2C] p-0 text-white backdrop:bg-[#080B2C]">
-          <div className="mx-auto flex h-full max-w-[1180px] flex-col gap-3 px-4 py-4 sm:px-6 sm:py-6">
-            <div className="flex shrink-0 flex-wrap items-center justify-between gap-3">
-              <CodCrmWordmark width={148} onDark />
-              <div className="flex items-center gap-2">
-                <Link href="/login" onClick={finishIntro} className="rounded-xl px-3 py-2 text-sm font-semibold hover:bg-white/10">Connexion</Link>
-                <button type="button" onClick={finishIntro} className="rounded-xl border border-white/30 px-3 py-2 text-sm font-semibold hover:bg-white/10">Passer l’intro</button>
-              </div>
-            </div>
-            <div className="flex min-h-0 flex-1 items-center justify-center">
-              <video src={introVideo} autoPlay={allowMotion} muted playsInline controls preload="metadata"
-                onEnded={finishIntro} onError={finishIntro}
-                className="h-auto max-h-full w-full rounded-2xl object-contain" />
-            </div>
+          className={`fixed inset-0 m-0 h-dvh max-h-none w-screen max-w-none overflow-hidden border-0 bg-[#080B2C] p-0 text-white backdrop:bg-transparent ${introExiting ? "landing-intro-exit" : ""}`}>
+          <video src={introVideo} autoPlay={allowMotion} muted playsInline controls preload="metadata"
+            onEnded={finishIntro} onError={finishIntro} className="absolute inset-0 size-full object-cover" />
+          <div className="pointer-events-none absolute inset-x-0 top-0 flex justify-end gap-2 bg-linear-to-b from-black/65 to-transparent p-4 pb-8 sm:p-6">
+            <Link href="/login" onClick={finishIntro} className="pointer-events-auto rounded-xl bg-black/35 px-3 py-2 text-sm font-semibold hover:bg-black/55">Connexion</Link>
+            <button type="button" onClick={finishIntro} className="pointer-events-auto rounded-xl border border-white/45 bg-black/35 px-3 py-2 text-sm font-semibold hover:bg-black/55">Passer l’intro</button>
           </div>
         </dialog>
       )}
 
+      <div className={introExiting ? "landing-zoom-in" : undefined}>
       <header className="mx-auto flex min-h-[88px] max-w-[1180px] flex-wrap items-center justify-between gap-x-4 gap-y-3 px-5 py-4 sm:px-6">
         <Link href="/" className="block w-[132px] shrink-0 sm:w-[158px]">
           <CodCrmWordmark width={158} onDark />
@@ -197,21 +196,6 @@ export default function LandingPage() {
 
       <main ref={main}>
         <section className="relative isolate">
-          {allowMotion && !showIntro && backgroundAvailable && (
-            <>
-              <div aria-hidden="true" className="pointer-events-none absolute inset-0 -z-10 overflow-hidden">
-                <video ref={backgroundVideo} src={introVideo} autoPlay muted playsInline loop preload="none"
-                  onPlay={() => setBackgroundPlaying(true)} onPause={() => setBackgroundPlaying(false)}
-                  onError={() => { setBackgroundPlaying(false); setBackgroundAvailable(false); }}
-                  className="absolute inset-0 size-full object-cover opacity-[0.16]" />
-                <div className="absolute inset-0 bg-linear-to-b from-[#0A0C2F] via-transparent to-[#0A0C2F]" />
-              </div>
-              <button type="button" onClick={toggleBackground}
-                className="absolute bottom-1 end-5 z-10 rounded-lg px-2 py-1 text-xs font-medium text-white/70 hover:bg-white/10 hover:text-white sm:end-6">
-                {backgroundPlaying ? "Mettre la vidéo en pause" : "Lire la vidéo d’arrière-plan"}
-              </button>
-            </>
-          )}
           <div className="mx-auto grid max-w-[1180px] items-center gap-8 px-5 pb-10 pt-9 sm:px-6 sm:pt-14 lg:grid-cols-[minmax(0,1.15fr)_minmax(0,1fr)] lg:gap-10 lg:pb-16 lg:pt-16">
             <div className="relative z-10 min-w-0">
               <h1 className="landing-enter text-[clamp(2.45rem,8vw,4.25rem)] font-extrabold leading-[1.11] tracking-[-0.035em] lg:text-[clamp(3rem,5.3vw,4.25rem)]">
@@ -316,6 +300,7 @@ export default function LandingPage() {
           <p className="text-xs text-slate-500">© {new Date().getFullYear()} COD CRM. Tous droits réservés.</p>
         </div>
       </footer>
+      </div>
     </div>
   );
 }
