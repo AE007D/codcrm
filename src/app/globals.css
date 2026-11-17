@@ -105,3 +105,45 @@ html[data-theme="dark"] {
   html[data-theme="dark"] :is(.text-red-600, .text-red-700, .text-rose-600, .text-rose-700) { color: #fda4af; }
   html[data-theme="dark"] :is(.text-violet-600, .text-violet-700, .text-violet-800) { color: #c4b5fd; }
 }
+
+/* CRM colors use the landing page's navy and coral palette. */
+body:has(.mobile-dock) {
+  --background: #faf6f3;
+  --foreground: #080b2c;
+  --primary: #b64532;
+  --primary-light: #fff1eb;
+  --color-blue-50: #fff1eb;
+  --color-blue-100: #ffe4da;
+  --color-blue-200: #f9c7b6;
+  --color-blue-300: #f5b49e;
+  --color-blue-400: #e97858;
+  --color-blue-500: #cb583e;
+  --color-blue-600: #b64532;
+  --color-blue-700: #963725;
+  --color-blue-800: #772d21;
+  --color-blue-900: #58251f;
+  --color-blue-950: #381a18;
+}
+
+html[data-theme="dark"] body:has(.mobile-dock) {
+  --background: #080b2c;
+  --foreground: #f0edf6;
+  --primary: #e97858;
+  --primary-light: #35213a;
+  --card: #101535;
+  --color-slate-50: #172044;
+  --color-slate-100: #22294b;
+  --color-slate-200: #383d62;
+  --color-blue-50: #35213a;
+  --color-blue-100: #48293e;
+  --color-blue-200: #623748;
+  --color-blue-300: #f5b49e;
+  --color-blue-400: #f49a7e;
+}
+
+@layer utilities {
+  body:has(.mobile-dock) .bg-\[\#F0F4FF\] { background-color: var(--background); }
+  html[data-theme="dark"] body:has(.mobile-dock) :is(.text-blue-500, .text-blue-600, .text-blue-700, .text-blue-800) {
+    color: #f5b49e;
+  }
+}

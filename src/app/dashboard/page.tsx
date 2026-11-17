@@ -8,7 +8,7 @@ import {
   ResponsiveContainer, PieChart, Pie, Cell, Legend,
 } from "recharts";
 
-const COLORS = ["#2563EB", "#3B82F6", "#60A5FA", "#93C5FD", "#BFDBFE"];
+const COLORS = ["#B64532", "#E97858", "#F5B49E", "#4B5A85", "#172044"];
 const MONTHS = ["Jan","Fév","Mar","Avr","Mai","Jun","Jul","Aoû","Sep","Oct","Nov","Déc"];
 const DAYS = ["Dim","Lun","Mar","Mer","Jeu","Ven","Sam"];
 type Period = "today" | "yesterday" | "week" | "month" | "year";
@@ -396,14 +396,14 @@ export default function Home() {
                           <YAxis tick={{ fontSize: 11, fill: "#94A3B8" }} axisLine={false} tickLine={false} allowDecimals={false} />
                           <Tooltip contentStyle={{ background: "#fff", border: "1px solid #E2E8F0", borderRadius: "12px", fontSize: 12 }}
                             formatter={(v) => [v, "Commandes"]} />
-                          <Bar dataKey="commandes" fill="#2563EB" radius={[4, 4, 0, 0]} maxBarSize={32} />
+                          <Bar dataKey="commandes" fill="var(--primary)" radius={[4, 4, 0, 0]} maxBarSize={32} />
                         </BarChart>
                       ) : (
                         <AreaChart data={chartData} margin={{ top: 5, right: 5, bottom: 0, left: -10 }}>
                           <defs>
                             <linearGradient id="gr" x1="0" y1="0" x2="0" y2="1">
-                              <stop offset="5%" stopColor="#2563EB" stopOpacity={0.15}/>
-                              <stop offset="95%" stopColor="#2563EB" stopOpacity={0}/>
+                              <stop offset="5%" stopColor="var(--primary)" stopOpacity={0.15}/>
+                              <stop offset="95%" stopColor="var(--primary)" stopOpacity={0}/>
                             </linearGradient>
                           </defs>
                           <CartesianGrid strokeDasharray="3 3" stroke="#F1F5F9" />
@@ -411,7 +411,7 @@ export default function Home() {
                           <YAxis tick={{ fontSize: 11, fill: "#94A3B8" }} axisLine={false} tickLine={false} tickFormatter={v => v >= 1000 ? `${(v/1000).toFixed(0)}k` : v} />
                           <Tooltip contentStyle={{ background: "#fff", border: "1px solid #E2E8F0", borderRadius: "12px", fontSize: 12 }}
                             formatter={(v) => [`${Number(v).toLocaleString("fr-MA")} MAD`, "Revenue"]} />
-                          <Area type="monotone" dataKey="revenue" stroke="#2563EB" strokeWidth={2.5} fill="url(#gr)" dot={false} activeDot={{ r: 5, fill: "#2563EB" }} />
+                          <Area type="monotone" dataKey="revenue" stroke="var(--primary)" strokeWidth={2.5} fill="url(#gr)" dot={false} activeDot={{ r: 5, fill: "var(--primary)" }} />
                         </AreaChart>
                       )}
                     </ResponsiveContainer>

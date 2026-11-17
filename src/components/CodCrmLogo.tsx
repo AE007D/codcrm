@@ -4,7 +4,7 @@ import { useId } from "react";
 
 /**
  * COD CRM brand logo mark.
- * Visual: C (for COD) + ✓ (delivery confirmed) on a blue→violet gradient background.
+ * Visual: C (for COD) + ✓ (delivery confirmed) on a coral gradient background.
  * Tagline: "Commandez. Expédiez. Encaissez."
  */
 export function CodCrmLogo({ size = 36 }: { size?: number }) {
@@ -15,8 +15,8 @@ export function CodCrmLogo({ size = 36 }: { size?: number }) {
     <svg width={size} height={size} viewBox="0 0 36 36" fill="none" aria-label="COD CRM">
       <defs>
         <linearGradient id={gid} x1="0" y1="0" x2="36" y2="36" gradientUnits="userSpaceOnUse">
-          <stop stopColor="#2563EB" />
-          <stop offset="1" stopColor="#7C3AED" />
+          <stop stopColor="#B64532" />
+          <stop offset="1" stopColor="#E97858" />
         </linearGradient>
       </defs>
 
@@ -65,7 +65,7 @@ export function CodCrmWordmark({
         </span>
         <span
           className={`block mt-0.5 font-medium ${
-            dark ? "text-blue-300/80" : "text-slate-400"
+            dark ? "text-[#F5B49E]/80" : "text-slate-400"
           }`}
           style={{ fontSize: size * 0.28, lineHeight: 1.2 }}
         >
