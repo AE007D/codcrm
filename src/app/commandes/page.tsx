@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback, useMemo, useRef } from "react";
-import { AlertTriangle, PhoneOff, RefreshCw, Bird } from "lucide-react";
+import { AlertTriangle, PhoneOff, RefreshCw, Bird, Plus } from "lucide-react";
 import { AMEEX_CITIES_FALLBACK } from "@/lib/moroccanCities";
 import { cachedFetch, invalidateCache } from "@/lib/clientCache";
 import Sidebar from "@/components/Sidebar";
@@ -853,8 +853,10 @@ export default function CommandesPage() {
                 <span className="hidden sm:inline">{t("ship_order")} ({confirmedCount})</span>
               </button>
             )}
-            <button onClick={() => setShowModal(true)} className="bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold px-3 lg:px-5 py-2.5 rounded-xl shadow-md shadow-blue-200 transition-colors whitespace-nowrap">
-              {t("new_order")}
+            <button type="button" onClick={() => setShowModal(true)}
+              aria-label={t("new_order")} title={t("new_order")}
+              className="grid size-11 shrink-0 place-items-center rounded-xl bg-blue-600 text-white transition-colors hover:bg-blue-700">
+              <Plus className="size-5" aria-hidden />
             </button>
           </div>
         </header>
