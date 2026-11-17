@@ -110,7 +110,7 @@ export default function LandingPage() {
 
   return (
     <div className="min-h-screen overflow-x-clip bg-[#0A0C2F] text-[#F4F4F7]">
-      <header className="mx-auto flex min-h-[88px] max-w-[1088px] flex-wrap items-center justify-between gap-x-4 gap-y-3 px-5 py-4 sm:px-6">
+      <header className="mx-auto flex min-h-[88px] max-w-[1180px] flex-wrap items-center justify-between gap-x-4 gap-y-3 px-5 py-4 sm:px-6">
         <Link href="/" className="block w-[132px] shrink-0 sm:w-[158px]">
           <CodCrmWordmark width={158} onDark />
         </Link>
@@ -138,10 +138,10 @@ export default function LandingPage() {
       </header>
 
       <main ref={main}>
-        <section className="relative isolate lg:min-h-[650px]">
-          <div className="mx-auto max-w-[1088px] px-5 pb-10 pt-9 sm:px-6 sm:pt-14 lg:pt-[88px]">
-            <div className="relative z-10 max-w-[570px] lg:w-[56%]">
-              <h1 className="landing-enter text-[clamp(2.45rem,8vw,4.25rem)] font-extrabold leading-[1.11] tracking-[-0.035em] lg:text-[clamp(3rem,5.58vw,4.25rem)]">
+        <section className="relative isolate">
+          <div className="mx-auto grid max-w-[1180px] items-center gap-8 px-5 pb-10 pt-9 sm:px-6 sm:pt-14 lg:grid-cols-[minmax(0,1.15fr)_minmax(0,1fr)] lg:gap-10 lg:pb-16 lg:pt-16">
+            <div className="relative z-10 min-w-0">
+              <h1 className="landing-enter text-[clamp(2.45rem,8vw,4.25rem)] font-extrabold leading-[1.11] tracking-[-0.035em] lg:text-[clamp(3rem,5.3vw,4.25rem)]">
                 Gérez votre
                 <span className="block text-[#D47555]">E-commerce COD</span>
                 au Maroc
@@ -154,13 +154,13 @@ export default function LandingPage() {
                 <button type="button" onClick={() => demo.current?.showModal()} className="inline-flex min-h-12 items-center justify-center rounded-[12px] border-2 border-[#8C8CA3] px-5 text-sm font-semibold text-white transition hover:border-white sm:min-h-[68px] sm:min-w-[194px] sm:px-7 sm:text-xl">Voir la Démo</button>
               </div>
             </div>
-          </div>
-          <div className="landing-enter landing-enter-preview mx-auto max-w-[690px] px-5 sm:px-6 lg:absolute lg:start-[55%] lg:end-0 lg:top-[54px] lg:mx-0 lg:max-w-none lg:px-0">
-            <Image src="/landing-reference/dashboard-hd.webp" width={1254} height={1164} sizes="(min-width: 1024px) 45vw, (min-width: 690px) 642px, calc(100vw - 40px)" priority alt="Aperçu du tableau de bord COD Maroc CRM avec les indicateurs et les cartes du Maroc" className="landing-preview-art h-auto w-full" />
+            <div className="landing-enter landing-enter-preview mx-auto w-full max-w-[590px] lg:mx-0">
+            <Image src="/landing-reference/dashboard-hd.webp" width={1254} height={1164} sizes="(min-width: 1180px) 510px, (min-width: 1024px) 44vw, (min-width: 640px) 590px, calc(100vw - 40px)" priority alt="Aperçu du tableau de bord COD Maroc CRM avec les indicateurs et les cartes du Maroc" className="landing-preview-art h-auto w-full" />
+            </div>
           </div>
         </section>
 
-        <section id="integrations" className="relative isolate min-h-[330px] scroll-mt-4 pb-20 pt-14 lg:min-h-[486px] lg:pt-[111px]">
+        <section id="integrations" className="relative isolate min-h-[330px] scroll-mt-4 pb-20 pt-12 lg:min-h-[380px] lg:pt-16">
           <Image src="/landing-reference/zellige.svg" width={214} height={278} alt="" className="pointer-events-none absolute -start-22 top-[108px] -z-10 w-36 opacity-55 sm:-start-16 sm:w-44 lg:-start-16 lg:top-[145px] lg:w-[214px]" />
           <Image src="/landing-reference/zellige.svg" width={214} height={278} alt="" className="pointer-events-none absolute -end-22 top-0 -z-10 w-36 -scale-x-100 opacity-55 sm:-end-16 sm:w-44 lg:-end-16 lg:w-[214px]" />
           <div className="mx-auto max-w-[1000px] px-5 sm:px-6">
