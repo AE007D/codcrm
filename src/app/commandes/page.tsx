@@ -720,6 +720,7 @@ export default function CommandesPage() {
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
               action: "add",
+              crmOrderId: order.id,
               tk: creds.tk ?? "",
               sk: creds.sk ?? "",
               code: order.orderNumber || order.id.slice(-8),
@@ -739,16 +740,12 @@ export default function CommandesPage() {
         }
         const data = await res.json();
         const trackingCode = data.code ?? data.CODE ?? data.tracking ?? data.barcode ?? data.id ?? data.parcel_id ?? null;
-        const eagleOk = data?.message?.toLowerCase?.()?.includes("success") || data?.status?.toLowerCase?.()?.includes("success");
-        const ok = res.ok && (trackingCode != null || eagleOk);
+        const ok = res.ok && data.crmShipmentSaved === true;
+        if (data.crmShipmentSaved === false) {
+          results.push({ id: order.id, ok: false, msg: "Eagle a accepté le colis, mais la commande n’a pas été enregistrée dans COD CRM. Vérifiez le suivi avant tout nouvel envoi." });
+          continue;
+        }
         if (ok) {
-          const patchBody: Record<string, unknown> = { id: order.id, status: "expédié", carrierName: "eagle" };
-          if (trackingCode) patchBody.carrierTracking = String(trackingCode);
-          fetch("/api/orders", {
-            method: "PATCH",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(patchBody),
-          }).catch(() => {});
           setOrders(prev => prev.map(o => o.id === order.id
             ? { ...o, status: "expédié", carrierName: "eagle", ...(trackingCode ? { carrierTracking: String(trackingCode) } : {}) }
             : o));

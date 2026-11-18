@@ -3,6 +3,7 @@ import { getRequestUser } from "@/lib/getRequestUser";
 import { getProducts, createProduct, updateProduct, deleteProduct, addStock } from "@/lib/supabaseProductStore";
 import { getSettings, saveSettings } from "@/lib/supabaseSettingsStore";
 import { supabase } from "@/lib/supabase";
+import { parseStockCorrection } from "@/lib/stockCorrection";
 
 type CommissionRecord = { boutiqueNom: string; agentId: string; agentName: string; commissionAmount: number };
 type StockMovement = { id: string; productId: string; quantity: number; unitCost: number; totalCost: number; note: string; createdAt: string; stockAfter: number };
@@ -105,6 +106,26 @@ export async function PATCH(request: NextRequest) {
     const body = await request.json();
     const { id, action, qty, ...rest } = body;
     if (!id) return NextResponse.json({ error: "ID requis." }, { status: 400 });
+
+    if (action === "correctStock") {
+      if (user.role !== "admin") return NextResponse.json({ error: "Accès administrateur requis." }, { status: 403 });
+      const correction = parseStockCorrection(rest);
+      if (!correction) return NextResponse.json({ error: "Stock entier positif ou nul et motif requis." }, { status: 400 });
+      const { error } = await supabase.rpc("correct_product_stock", {
+        p_workspace_id: user.workspaceId,
+        p_product_id: id,
+        p_expected_stock: correction.expectedStock,
+        p_stock: correction.stock,
+        p_note: correction.note,
+      });
+      if (error) {
+        const status = error.code === "40001" ? 409 : error.code === "P0002" ? 404 : 500;
+        return NextResponse.json({ error: status === 409
+          ? "Le stock a changé. Rechargez la page avant de corriger."
+          : "Impossible de corriger le stock." }, { status });
+      }
+      return NextResponse.json({ ok: true, stock: correction.stock });
+    }
 
     if (action === "addStock") {
       const addedQty = parseInt(qty) || 0;

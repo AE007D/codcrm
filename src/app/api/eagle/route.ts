@@ -1,9 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 
+import { getRequestUser } from "@/lib/getRequestUser";
+import { supabase } from "@/lib/supabase";
+
 const BASE = "https://eagleexpress.ma";
 
 export async function POST(request: NextRequest) {
-  const { action, ...params } = await request.json();
+  const { action, crmOrderId, ...params } = await request.json();
 
   const endpoints: Record<string, string> = {
     add:    "/addcolis.php",
@@ -15,6 +18,28 @@ export async function POST(request: NextRequest) {
 
   const path = endpoints[action];
   if (!path) return NextResponse.json({ error: "Unknown action" }, { status: 400 });
+
+  let workspaceId: string | undefined;
+  if (action === "add" && crmOrderId !== undefined) {
+    if (typeof crmOrderId !== "string" || !crmOrderId) {
+      return NextResponse.json({ error: "Commande invalide." }, { status: 400 });
+    }
+    const user = await getRequestUser();
+    if (!user) return NextResponse.json({ error: "Non authentifié." }, { status: 401 });
+    workspaceId = user.workspaceId;
+    const { data: order, error } = await supabase
+      .from("crm_orders")
+      .select("eagle_shipped_at, carrier_tracking, carrier_name, status")
+      .eq("workspace_id", workspaceId)
+      .eq("id", crmOrderId)
+      .maybeSingle();
+    if (error) return NextResponse.json({ error: "Impossible de vérifier la commande." }, { status: 503 });
+    if (!order) return NextResponse.json({ error: "Commande introuvable." }, { status: 404 });
+    if (order.eagle_shipped_at || (order.carrier_name === "eagle" && order.carrier_tracking
+      && ["expédié", "livré", "retourné"].includes(order.status))) {
+      return NextResponse.json({ error: "Cette commande a déjà été envoyée à Eagle Express." }, { status: 409 });
+    }
+  }
 
   const commonHeaders = {
     "Accept": "application/json, text/plain, */*",
@@ -44,7 +69,26 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ ...p, _sentKeys: sentKeys, _rawBody: text.slice(0, 500) });
     }
 
-    return NextResponse.json(parsed);
+    if (workspaceId && fetchRes.ok && p && typeof p === "object") {
+      const tracking = p.code ?? p.CODE ?? p.tracking ?? p.barcode ?? p.id ?? p.parcel_id;
+      const success = [p.message, p.status].some(value =>
+        typeof value === "string" && /\bsuccess(?:ful|fully)?\b/i.test(value),
+      );
+      if (!p.error && (tracking != null || success)) {
+        const { error } = await supabase.from("crm_orders").update({
+          status: "expédié",
+          carrier_name: "eagle",
+          eagle_shipped_at: new Date().toISOString(),
+          ...(tracking ? { carrier_tracking: String(tracking) } : {}),
+        })
+          .eq("workspace_id", workspaceId)
+          .eq("id", crmOrderId)
+          .is("eagle_shipped_at", null);
+        return NextResponse.json({ ...p, crmShipmentSaved: !error });
+      }
+    }
+
+    return NextResponse.json(parsed, { status: fetchRes.ok ? 200 : 502 });
   } catch (err) {
     return NextResponse.json({ error: String(err) }, { status: 500 });
   }

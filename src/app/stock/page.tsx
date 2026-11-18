@@ -31,6 +31,9 @@ export default function StockPage() {
   const [saving, setSaving] = useState(false);
   const [loadError, setLoadError] = useState("");
   const [saveError, setSaveError] = useState("");
+  const [purchased, setPurchased] = useState("");
+  const [sent, setSent] = useState("");
+  const [correctionMessage, setCorrectionMessage] = useState("");
 
   useEffect(() => {
     const controller = new AbortController();
@@ -66,6 +69,38 @@ export default function StockPage() {
     setCost("");
     setNote("");
     setSaveError("");
+    setPurchased("");
+    setSent("");
+    setCorrectionMessage("");
+  }
+
+  const correctedStock = purchased.trim() && sent.trim()
+    && Number.isSafeInteger(Number(purchased)) && Number.isSafeInteger(Number(sent))
+    && Number(purchased) >= Number(sent) && Number(sent) >= 0
+    ? Number(purchased) - Number(sent) : null;
+
+  async function correctStock(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!selected || saving || correctedStock === null) return;
+    setSaving(true);
+    setCorrectionMessage("");
+    try {
+      const response = await fetch("/api/products", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: selected.id, action: "correctStock", stock: correctedStock,
+          expectedStock: selected.stock,
+          note: `Inventaire corrigé : ${Number(purchased)} achetées − ${Number(sent)} sorties = ${correctedStock} restantes.` }),
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || "Impossible de corriger le stock.");
+      setProducts(current => current.map(product => product.id === selected.id ? { ...product, stock: data.stock } : product));
+      setCorrectionMessage(`Stock corrigé : ${data.stock} pièces restantes.`);
+    } catch (error) {
+      setCorrectionMessage(error instanceof Error ? error.message : "Impossible de corriger le stock.");
+    } finally {
+      setSaving(false);
+    }
   }
 
   async function receiveStock(event: FormEvent<HTMLFormElement>) {
@@ -159,6 +194,25 @@ export default function StockPage() {
                 <button type="submit" disabled={saving} className="rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-blue-700 disabled:opacity-60">
                   {saving ? "Enregistrement…" : "Enregistrer la réception"}
                 </button>
+              </form>
+              <form className="mt-6 space-y-3 border-t border-slate-100 pt-4" onSubmit={correctStock}>
+                <h3 className="text-sm font-bold text-slate-800">Corriger le stock actuel</h3>
+                <p className="text-xs text-slate-500">Indiquez le total acheté et les sorties nettes de retours pour la même période. La correction conserve l’historique des achats et le coût unitaire.</p>
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <label className="space-y-1 text-sm text-slate-700">
+                    <span>Total acheté (pièces)</span>
+                    <input className={fieldClass} type="number" min="0" step="1" required value={purchased} onChange={event => setPurchased(event.target.value)} />
+                  </label>
+                  <label className="space-y-1 text-sm text-slate-700">
+                    <span>Total sorti (pièces)</span>
+                    <input className={fieldClass} type="number" min="0" step="1" required value={sent} onChange={event => setSent(event.target.value)} />
+                  </label>
+                </div>
+                {correctedStock !== null && <p className="text-sm font-semibold text-slate-700">{Number(purchased)} − {Number(sent)} = {correctedStock} pièces restantes</p>}
+                <button type="submit" disabled={saving || correctedStock === null} className="rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white disabled:opacity-60">
+                  {saving ? "Enregistrement…" : "Enregistrer la correction"}
+                </button>
+                {correctionMessage && <p role="status" className="text-sm text-slate-700">{correctionMessage}</p>}
               </form>
               <div className="mt-6 border-t border-slate-100 pt-4">
                 <div className="mb-3 flex items-center justify-between">
