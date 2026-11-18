@@ -14,6 +14,8 @@ DO $$ BEGIN
   ASSERT (SELECT stock = 72 FROM public.crm_products WHERE id = 'heater'), 'repeat shipment must not deduct again';
 END $$;
 UPDATE public.crm_products SET stock = 83 WHERE id = 'heater';
+INSERT INTO public.crm_orders (id, workspace_id, product, quantity, source, status, carrier_name)
+VALUES ('legacy-pending', 'workspace-a', 'Heater', 1, 'page', 'confirmé', 'eagle');
 SELECT public.correct_product_stock('workspace-a', 'heater', 83, 72, '100 purchased, 28 shipped');
 DO $$ BEGIN
   ASSERT (SELECT stock = 72 AND purchase_price = 63 FROM public.crm_products WHERE id = 'heater'), 'correction preserves costs';
@@ -29,5 +31,9 @@ DO $$ BEGIN
   EXCEPTION WHEN no_data_found THEN NULL;
   END;
   ASSERT (SELECT count(*) = 1 FROM public.crm_stock_corrections), 'failed corrections must not log';
+END $$;
+UPDATE public.crm_orders SET status = 'expédié', eagle_shipped_at = now() WHERE id = 'legacy-pending';
+DO $$ BEGIN
+  ASSERT (SELECT stock = 71 FROM public.crm_products WHERE id = 'heater'), 'pending legacy orders must deduct after corrected count';
 END $$;
 ROLLBACK;
