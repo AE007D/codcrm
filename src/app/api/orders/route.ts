@@ -32,9 +32,13 @@ export async function POST(request: NextRequest) {
   if (!user) return NextResponse.json({ error: "Non authentifié." }, { status: 401 });
 
   const body = await request.json();
-  const { customer, phone, city, address, product, amount, notes, source } = body;
+  const { customer, phone, city, address, product, amount, notes, source, quantity = 1 } = body;
   if (!customer || !phone || !product || !amount) {
     return NextResponse.json({ error: "Champs requis manquants." }, { status: 400 });
+  }
+
+  if (typeof quantity !== "number" || !Number.isSafeInteger(quantity) || quantity < 1) {
+    return NextResponse.json({ error: "La quantité doit être un entier supérieur ou égal à 1." }, { status: 400 });
   }
 
   const id = crypto.randomUUID();
@@ -51,7 +55,7 @@ export async function POST(request: NextRequest) {
     product: String(product),
     totalPrice: parseFloat(amount) || 0,
     currency: "MAD",
-    quantity: 1,
+    quantity,
     funnel: "",
     source: source ?? "manuel",
     status: "nouveau",
@@ -79,6 +83,9 @@ export async function PATCH(request: NextRequest) {
 
   const body = await request.json();
   const { id, ...patch } = body;
+  if (patch.quantity !== undefined && (typeof patch.quantity !== "number" || !Number.isSafeInteger(patch.quantity) || patch.quantity < 1)) {
+    return NextResponse.json({ error: "La quantité doit être un entier supérieur ou égal à 1." }, { status: 400 });
+  }
   if (!id) return NextResponse.json({ error: "ID requis." }, { status: 400 });
 
   const { data: currentRow } = await supabase
