@@ -5,11 +5,14 @@ import { AlertTriangle, PhoneOff, RefreshCw, Bird, Plus } from "lucide-react";
 import { AMEEX_CITIES_FALLBACK } from "@/lib/moroccanCities";
 import { cachedFetch, invalidateCache } from "@/lib/clientCache";
 import Sidebar from "@/components/Sidebar";
+import ManualOrderAssignment from "@/components/ManualOrderAssignment";
 import { useLang } from "@/lib/i18n";
 
 type OrderStatus = "nouveau" | "confirmé" | "annulé" | "injoignable" | "fausse" | "expédié" | "livré" | "retourné";
 
 type Order = {
+  assignedAgentId?: string;
+  assignedAgentName?: string;
   id: string;
   orderNumber: string;
   customer: string;
@@ -259,6 +262,8 @@ export default function CommandesPage() {
       const rows: Record<string, unknown>[] = data.orders ?? [];
       setOrders(rows.map(o => ({
         id: String(o.id),
+        assignedAgentId: o.assignedAgentId ? String(o.assignedAgentId) : undefined,
+        assignedAgentName: o.assignedAgentName ? String(o.assignedAgentName) : undefined,
         orderNumber: String(o.orderNumber ?? o.order_number ?? ""),
         customer: String(o.customerName ?? o.customer_name ?? ""),
         city: String(o.city ?? ""),
@@ -476,7 +481,7 @@ export default function CommandesPage() {
     const matchStatus = filter === "tous" || o.status === filter;
     const q = search.toLowerCase();
     const matchSearch = !q || o.customer.toLowerCase().includes(q) || o.phone.includes(q) || o.product.toLowerCase().includes(q) || o.orderNumber.includes(q) || o.city.toLowerCase().includes(q);
-    const matchAgent = !agentProductFilter || agentProductFilter.includes(o.product.trim().toLowerCase());
+    const matchAgent = Boolean(o.assignedAgentId) || !agentProductFilter || agentProductFilter.includes(o.product.trim().toLowerCase());
     return matchStatus && matchSearch && matchAgent;
   });
 
@@ -862,6 +867,7 @@ export default function CommandesPage() {
         </header>
 
         <main className="min-w-0 flex-1 overflow-y-auto p-3 sm:p-4 lg:p-8">
+          {isAdmin && <ManualOrderAssignment orderIds={orders.filter(order => /^MAN-/i.test(order.orderNumber)).map(order => order.id)} onAssigned={() => { invalidateCache("/api/orders"); void fetchOrders(); }} />}
           {/* Pipeline counters */}
           <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-2 lg:gap-3 mb-5">
             {PIPELINE.map(s => {
@@ -1010,7 +1016,7 @@ export default function CommandesPage() {
                   <div className="flex items-center gap-2 mb-3">
                     <input type="checkbox" checked={isSelected} onChange={() => toggleSelect(o.id)}
                       className="w-4 h-4 rounded accent-blue-600 cursor-pointer shrink-0" />
-                    <span className="font-mono text-xs text-slate-400 flex-1 truncate">{o.orderNumber}</span>
+                    <span className="font-mono text-xs text-slate-400 flex-1 truncate">{o.orderNumber}{o.assignedAgentName && <span className="ml-2 font-sans text-blue-600">{o.assignedAgentName}</span>}</span>
                     <div className="flex flex-col items-end gap-1 shrink-0">
                       <span className={`inline-flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-bold border ${cfg.bg} ${cfg.color} ${cfg.border}`}>
                         <span className={`w-1.5 h-1.5 rounded-full ${cfg.dot}`} />
@@ -1194,7 +1200,7 @@ export default function CommandesPage() {
                           <input type="checkbox" checked={isSelected} onChange={() => toggleSelect(o.id)}
                             className="w-4 h-4 rounded accent-blue-600 cursor-pointer" />
                         </td>
-                        <td className="px-5 py-3.5 font-mono text-xs text-slate-400 whitespace-nowrap" onClick={() => setDrawer(o)}>{o.orderNumber}</td>
+                        <td className="px-5 py-3.5 font-mono text-xs text-slate-400 whitespace-nowrap" onClick={() => setDrawer(o)}>{o.orderNumber}{o.assignedAgentName && <span className="block font-sans text-blue-600">{o.assignedAgentName}</span>}</td>
                         <td className="px-5 py-3.5" onClick={() => setDrawer(o)}>
                           <div className="flex items-center gap-2">
                             <p className="font-semibold text-slate-800">{o.customer}</p>

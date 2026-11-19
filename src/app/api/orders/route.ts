@@ -11,15 +11,19 @@ import { getProducts } from "@/lib/supabaseProductStore";
 import { getSettings } from "@/lib/supabaseSettingsStore";
 import { supabase } from "@/lib/supabase";
 import crypto from "crypto";
+import type { OrderAssignments } from "@/lib/orderAssignment";
 
 export const dynamic = "force-dynamic";
 
 export async function GET() {
   const user = await getRequestUser();
   if (!user) return NextResponse.json({ error: "Non authentifié." }, { status: 401 });
-  const orders = await getOrdersByWorkspace(user.workspaceId);
+  const [rows, settings] = await Promise.all([getOrdersByWorkspace(user.workspaceId), getSettings(user.workspaceId)]);
+  const assignments = (settings.orderAssignments ?? {}) as OrderAssignments;
+  const orders = rows.filter(order => user.role !== "agent" || !assignments[order.id] || assignments[order.id].agentId === user.id)
+    .map(order => ({ ...order, assignedAgentId: assignments[order.id]?.agentId, assignedAgentName: assignments[order.id]?.agentName }));
   return NextResponse.json({ orders }, {
-    headers: { "Cache-Control": "private, max-age=15, stale-while-revalidate=30" },
+    headers: { "Cache-Control": "no-store" },
   });
 }
 
@@ -99,12 +103,15 @@ export async function PATCH(request: NextRequest) {
         type CR = { boutiqueNom: string; agentId: string; agentName: string; commissionAmount: number };
         const commissions = (settings.productCommissions as Record<string, CR>) ?? {};
         const commission = commissions[matched.id];
-        if (commission?.agentId && commission.commissionAmount > 0) {
+        const assignment = (settings.orderAssignments as OrderAssignments | undefined)?.[id];
+        const agentId = assignment?.agentId ?? commission?.agentId;
+        const agentName = assignment?.agentName ?? commission?.agentName;
+        if (agentId && commission?.commissionAmount > 0) {
           await supabase.from("crm_payment_requests").insert({
             id: crypto.randomUUID(),
             workspace_id: user.workspaceId,
-            agent_id: commission.agentId,
-            agent_name: commission.agentName,
+            agent_id: agentId,
+            agent_name: agentName,
             amount: commission.commissionAmount,
             message: `Commission · ${productName}`,
             status: "pending",

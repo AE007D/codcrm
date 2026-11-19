@@ -20,6 +20,8 @@ export async function PATCH(request: NextRequest) {
   let body: Partial<UserSettings>;
   try { body = await request.json(); } catch { return NextResponse.json({ error: "Invalid JSON" }, { status: 400 }); }
 
+  if (body.orderAssignments !== undefined) return NextResponse.json({ error: "Utilisez l’affectation des commandes." }, { status: 400 });
+
   const settings = await saveSettings(user.workspaceId, body);
   return NextResponse.json({ ok: true, settings });
 }
