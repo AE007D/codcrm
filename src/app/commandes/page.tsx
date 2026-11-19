@@ -25,7 +25,7 @@ type Order = {
   status: OrderStatus;
   date: string;
   receivedAt: string; // ISO string for date calculations
-  source: "lightfunnels" | "shopify" | "manuel";
+  source: "lightfunnels" | "shopify" | "manuel" | "whatsapp";
   notes: string;
   quantity: number;
   attempts: number;
@@ -48,7 +48,7 @@ const STATUS_CONFIG_COLORS: Record<OrderStatus, { color: string; bg: string; bor
 };
 
 const PIPELINE: OrderStatus[] = ["nouveau", "confirmé", "annulé", "injoignable", "fausse", "expédié", "livré", "retourné"];
-const emptyForm = { customer: "", city: "", phone: "", address: "", product: "", amount: "", notes: "", source: "manuel" as Order["source"] };
+const emptyForm = { customer: "", city: "", phone: "", address: "", product: "", amount: "", quantity: "1", notes: "", source: "manuel" as Order["source"] };
 
 function LightfunnelsIcon() {
   return (
@@ -94,6 +94,11 @@ function SourceBadge({ source }: { source: Order["source"] }) {
     <span className="inline-flex items-center gap-1.5 bg-slate-50 border border-slate-200 text-slate-700 text-xs font-semibold px-2.5 py-1 rounded-lg">
       <LightfunnelsIcon />
       Lightfunnels
+    </span>
+  );
+  if (source === "whatsapp") return (
+    <span className="inline-flex items-center gap-1.5 bg-green-50 text-green-700 text-xs font-semibold px-2.5 py-1 rounded-lg">
+      WhatsApp
     </span>
   );
   if (source === "shopify") return (
@@ -421,6 +426,11 @@ export default function CommandesPage() {
   }
 
   async function addOrder() {
+    const quantity = Number(form.quantity);
+    if (!Number.isSafeInteger(quantity) || quantity < 1) {
+      showToast("La quantité doit être un entier supérieur ou égal à 1.", false);
+      return;
+    }
     if (!form.customer || !form.phone || !form.product || !form.amount) {
       showToast("Remplissez : nom, téléphone, produit et montant.", false);
       return;
@@ -436,6 +446,7 @@ export default function CommandesPage() {
           address: form.address,
           product: form.product,
           amount: form.amount,
+          quantity,
           notes: form.notes,
           source: form.source,
         }),
@@ -1360,7 +1371,7 @@ export default function CommandesPage() {
               ].map(({ key, label, ph, full }) => (
                 <div key={key} className={full ? "col-span-2" : ""}>
                   <label className="text-xs font-semibold text-slate-600 mb-1 block">{label}</label>
-                  <input type="text" placeholder={ph} value={form[key as keyof typeof emptyForm] as string}
+                  <input type={key === "quantity" ? "number" : "text"} min={key === "quantity" ? 1 : undefined} step={key === "quantity" ? 1 : undefined} placeholder={ph} value={form[key as keyof typeof emptyForm] as string}
                     onChange={e => setForm(f => ({ ...f, [key]: e.target.value }))}
                     className="w-full text-sm border border-slate-200 rounded-xl px-4 py-2.5 outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-50" />
                 </div>
@@ -1440,11 +1451,12 @@ export default function CommandesPage() {
 
               {[
                 { key: "amount", label: "Montant COD (MAD) *", ph: "350" },
+                { key: "quantity", label: `${t("quantity")} *`, ph: "1" },
                 { key: "notes", label: "Notes", ph: "Optionnel" },
               ].map(({ key, label, ph }) => (
                 <div key={key} className={key === "notes" ? "col-span-2" : ""}>
                   <label className="text-xs font-semibold text-slate-600 mb-1 block">{label}</label>
-                  <input type="text" placeholder={ph} value={form[key as keyof typeof emptyForm] as string}
+                  <input type={key === "quantity" ? "number" : "text"} min={key === "quantity" ? 1 : undefined} step={key === "quantity" ? 1 : undefined} placeholder={ph} value={form[key as keyof typeof emptyForm] as string}
                     onChange={e => setForm(f => ({ ...f, [key]: e.target.value }))}
                     className="w-full text-sm border border-slate-200 rounded-xl px-4 py-2.5 outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-50" />
                 </div>
@@ -1452,9 +1464,9 @@ export default function CommandesPage() {
               <div className="col-span-2">
                 <label className="text-xs font-semibold text-slate-600 mb-1 block">Source</label>
                 <div className="flex gap-2">
-                  {(["manuel", "lightfunnels", "shopify"] as Order["source"][]).map(s => (
+                  {(["manuel", "lightfunnels", "shopify", "whatsapp"] as Order["source"][]).map(s => (
                     <button key={s} onClick={() => setForm(f => ({ ...f, source: s }))}
-                      className={`flex-1 py-2 rounded-xl border-2 text-xs font-semibold capitalize transition-all ${form.source === s ? "border-blue-600 bg-blue-600 text-white" : "border-slate-200 text-slate-500"}`}>{s}</button>
+                      className={`flex-1 py-2 rounded-xl border-2 text-xs font-semibold capitalize transition-all ${form.source === s ? "border-blue-600 bg-blue-600 text-white" : "border-slate-200 text-slate-500"}`}>{s === "whatsapp" ? "WhatsApp" : s}</button>
                   ))}
                 </div>
               </div>
