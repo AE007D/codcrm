@@ -4,11 +4,11 @@ import { useEffect, useState, useMemo, useCallback, useRef } from "react";
 import Sidebar from "@/components/Sidebar";
 import { useLang } from "@/lib/i18n";
 import {
-  AreaChart, Area, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip,
-  ResponsiveContainer, PieChart, Pie, Cell, Legend,
+  AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip,
+  ResponsiveContainer,
 } from "recharts";
 
-const COLORS = ["#B64532", "#E97858", "#F5B49E", "#4B5A85", "#172044"];
+const COLORS = ["#E97858", "#8B8CF8", "#47BFA6", "#E7B963", "#7893B8"];
 const MONTHS = ["Jan","Fév","Mar","Avr","Mai","Jun","Jul","Aoû","Sep","Oct","Nov","Déc"];
 const DAYS = ["Dim","Lun","Mar","Mer","Jeu","Ven","Sam"];
 type Period = "today" | "yesterday" | "week" | "month" | "year";
@@ -246,12 +246,8 @@ export default function Home() {
       const city = (o.city || "Autre").trim() || "Autre";
       cityCount[city] = (cityCount[city] || 0) + 1;
     });
-    const total = orders.length || 1;
     const sorted = Object.entries(cityCount).sort((a, b) => b[1] - a[1]);
-    const top = sorted.slice(0, 4).map(([name, count]) => ({ name, value: Math.round((count / total) * 100) }));
-    const other = 100 - top.reduce((s, c) => s + c.value, 0);
-    if (other > 0) top.push({ name: "Autre", value: other });
-    return top.length > 0 ? top : [{ name: "Aucune donnée", value: 100 }];
+    return sorted.slice(0, 5).map(([name, count]) => ({ name, value: count / (orders.length || 1) * 100 }));
   }, [orders]);
 
   // ── Best products (period) ────────────────────────────────────────────────────
@@ -371,13 +367,14 @@ export default function Home() {
               {/* ── Chart + cities ── */}
               <div className="grid grid-cols-1 lg:grid-cols-3 gap-3 lg:gap-5 mb-6">
                 {/* Main chart */}
-                <div className="lg:col-span-2 bg-white rounded-2xl p-4 lg:p-6 shadow-sm border border-slate-100">
-                  <div className="flex items-center justify-between mb-4">
-                    <h2 className="text-base font-bold text-slate-900">{t("chart_evolution")} — {PERIOD_LABELS[period]}</h2>
-                    <div className="flex gap-1 bg-slate-50 rounded-xl p-1">
+                <div className="lg:col-span-2 min-w-0 bg-white rounded-3xl p-5 lg:p-7 shadow-sm border border-slate-100">
+                  <div className="flex flex-wrap items-center justify-between gap-4 mb-6">
+                    <div><h2 className="text-sm font-semibold text-slate-500">{t("chart_evolution")}</h2>
+                    <p className="text-3xl font-semibold tracking-tight tabular-nums text-slate-900">{(chartMode === "commandes" ? totalOrders : revenue).toLocaleString("fr-MA")}<span className="ml-2 text-xs font-medium text-slate-400">{chartMode === "revenue" ? "MAD · " : ""}{PERIOD_LABELS[period]}</span></p></div>
+                    <div className="flex gap-1 bg-slate-50 rounded-full p-1">
                       {(["commandes","revenue"] as const).map(m => (
-                        <button key={m} onClick={() => setChartMode(m)}
-                          className={`px-3 py-1 rounded-lg text-xs font-semibold transition-all ${
+                        <button key={m} aria-pressed={chartMode === m} onClick={() => setChartMode(m)}
+                          className={`px-4 py-2 rounded-full text-xs font-semibold transition-all ${
                             chartMode === m ? "bg-white shadow-sm text-slate-800" : "text-slate-400 hover:text-slate-600"
                           }`}>
                           {m === "commandes" ? t("chart_orders") : t("chart_revenue")}
@@ -391,38 +388,27 @@ export default function Home() {
                       <p className="text-sm">{t("no_chart_data")}</p>
                     </div>
                   ) : (
-                    <ResponsiveContainer width="100%" height={200}>
-                      {chartMode === "commandes" ? (
-                        <BarChart data={chartData} margin={{ top: 5, right: 5, bottom: 0, left: -20 }}>
-                          <CartesianGrid strokeDasharray="3 3" stroke="#F1F5F9" />
-                          <XAxis dataKey="label" tick={{ fontSize: 11, fill: "#94A3B8" }} axisLine={false} tickLine={false} interval={period === "month" ? 3 : 0} />
-                          <YAxis tick={{ fontSize: 11, fill: "#94A3B8" }} axisLine={false} tickLine={false} allowDecimals={false} />
-                          <Tooltip contentStyle={{ background: "#fff", border: "1px solid #E2E8F0", borderRadius: "12px", fontSize: 12 }}
-                            formatter={(v) => [v, "Commandes"]} />
-                          <Bar dataKey="commandes" fill="var(--primary)" radius={[4, 4, 0, 0]} maxBarSize={32} />
-                        </BarChart>
-                      ) : (
-                        <AreaChart data={chartData} margin={{ top: 5, right: 5, bottom: 0, left: -10 }}>
-                          <defs>
-                            <linearGradient id="gr" x1="0" y1="0" x2="0" y2="1">
-                              <stop offset="5%" stopColor="var(--primary)" stopOpacity={0.15}/>
-                              <stop offset="95%" stopColor="var(--primary)" stopOpacity={0}/>
-                            </linearGradient>
-                          </defs>
-                          <CartesianGrid strokeDasharray="3 3" stroke="#F1F5F9" />
-                          <XAxis dataKey="label" tick={{ fontSize: 11, fill: "#94A3B8" }} axisLine={false} tickLine={false} interval={period === "month" ? 3 : 0} />
-                          <YAxis tick={{ fontSize: 11, fill: "#94A3B8" }} axisLine={false} tickLine={false} tickFormatter={v => v >= 1000 ? `${(v/1000).toFixed(0)}k` : v} />
-                          <Tooltip contentStyle={{ background: "#fff", border: "1px solid #E2E8F0", borderRadius: "12px", fontSize: 12 }}
-                            formatter={(v) => [`${Number(v).toLocaleString("fr-MA")} MAD`, "Revenue"]} />
-                          <Area type="monotone" dataKey="revenue" stroke="var(--primary)" strokeWidth={2.5} fill="url(#gr)" dot={false} activeDot={{ r: 5, fill: "var(--primary)" }} />
-                        </AreaChart>
-                      )}
+                    <ResponsiveContainer width="100%" height={240}>
+                      <AreaChart data={chartData} margin={{ top: 12, right: 12, bottom: 0, left: -15 }}>
+                        <defs>
+                          <linearGradient id="dashboardTrend" x1="0" y1="0" x2="0" y2="1">
+                            <stop offset="0%" stopColor="#E97858" stopOpacity={0.28}/>
+                            <stop offset="100%" stopColor="#E97858" stopOpacity={0}/>
+                          </linearGradient>
+                        </defs>
+                        <CartesianGrid vertical={false} stroke="var(--muted)" strokeOpacity={0.15} />
+                        <XAxis dataKey="label" tick={{ fontSize: 11, fill: "var(--muted)" }} axisLine={false} tickLine={false} tickMargin={12} minTickGap={24} interval={period === "month" ? 3 : "preserveStartEnd"} />
+                        <YAxis tick={{ fontSize: 11, fill: "var(--muted)" }} axisLine={false} tickLine={false} allowDecimals={false} tickCount={4} tickFormatter={v => v >= 1000 ? `${(v/1000).toFixed(0)}k` : v} />
+                        <Tooltip contentStyle={{ background: "var(--card)", color: "var(--foreground)", border: "1px solid var(--border)", borderRadius: 16, padding: "12px 16px", fontSize: 12, boxShadow: "0 8px 32px #00000018" }} labelStyle={{ color: "var(--muted)" }}
+                          formatter={v => [chartMode === "revenue" ? `${Number(v).toLocaleString("fr-MA")} MAD` : v, chartMode === "commandes" ? t("chart_orders") : t("chart_revenue")]} />
+                        <Area type="monotone" dataKey={chartMode} stroke="#E97858" strokeWidth={3} fill="url(#dashboardTrend)" dot={false} activeDot={{ r: 5, stroke: "var(--card)", strokeWidth: 3 }} />
+                      </AreaChart>
                     </ResponsiveContainer>
                   )}
                 </div>
 
                 {/* Cities pie */}
-                <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-100">
+                <div className="bg-white rounded-3xl p-5 lg:p-7 shadow-sm border border-slate-100">
                   <h2 className="text-base font-bold text-slate-900 mb-4">{t("top_cities")}</h2>
                   {orders.length === 0 ? (
                     <div className="flex flex-col items-center justify-center h-[200px] text-slate-300">
@@ -430,15 +416,22 @@ export default function Home() {
                       <p className="text-sm text-center">{t("no_orders")}</p>
                     </div>
                   ) : (
-                    <ResponsiveContainer width="100%" height={200}>
-                      <PieChart>
-                        <Pie data={cityData} cx="50%" cy="42%" innerRadius={50} outerRadius={72} paddingAngle={3} dataKey="value">
-                          {cityData.map((_, i) => <Cell key={i} fill={COLORS[i % COLORS.length]} />)}
-                        </Pie>
-                        <Legend iconType="circle" iconSize={8} formatter={(v) => <span style={{ fontSize: 11, color: "#64748B" }}>{v}</span>} />
-                        <Tooltip contentStyle={{ background: "#fff", border: "1px solid #E2E8F0", borderRadius: "12px", fontSize: 12 }} formatter={(v) => [`${v}%`, ""]} />
-                      </PieChart>
-                    </ResponsiveContainer>
+                    <ol className="space-y-5 pt-2">
+                      {cityData.map((city, i) => (
+                        <li key={city.name} className="flex items-center gap-3">
+                          <span className="w-5 text-xs tabular-nums text-slate-400">{String(i + 1).padStart(2, "0")}</span>
+                          <div className="min-w-0 flex-1">
+                            <div className="flex justify-between gap-3 mb-2">
+                              <span className="truncate text-sm font-medium text-slate-800" title={city.name}>{city.name}</span>
+                              <span className="text-xs font-semibold tabular-nums text-slate-500">{Math.round(city.value)}%</span>
+                            </div>
+                            <div className="h-1.5 overflow-hidden rounded-full" style={{ background: "color-mix(in srgb, var(--muted) 12%, transparent)" }}>
+                              <div className="h-full rounded-full transition-all duration-500" style={{ width: `${city.value}%`, background: COLORS[i % COLORS.length] }} />
+                            </div>
+                          </div>
+                        </li>
+                      ))}
+                    </ol>
                   )}
                 </div>
               </div>

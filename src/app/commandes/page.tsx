@@ -5,7 +5,6 @@ import { AlertTriangle, PhoneOff, RefreshCw, Bird, Plus } from "lucide-react";
 import { AMEEX_CITIES_FALLBACK } from "@/lib/moroccanCities";
 import { cachedFetch, invalidateCache } from "@/lib/clientCache";
 import Sidebar from "@/components/Sidebar";
-import ManualOrderAssignment from "@/components/ManualOrderAssignment";
 import { useLang } from "@/lib/i18n";
 
 type OrderStatus = "nouveau" | "confirmé" | "annulé" | "injoignable" | "fausse" | "expédié" | "livré" | "retourné";
@@ -878,7 +877,6 @@ export default function CommandesPage() {
         </header>
 
         <main className="min-w-0 flex-1 overflow-y-auto p-3 sm:p-4 lg:p-8">
-          {isAdmin && <ManualOrderAssignment orderIds={orders.filter(order => /^MAN-/i.test(order.orderNumber)).map(order => order.id)} onAssigned={() => { invalidateCache("/api/orders"); void fetchOrders(); }} />}
           {/* Pipeline counters */}
           <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-2 lg:gap-3 mb-5">
             {PIPELINE.map(s => {
