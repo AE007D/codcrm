@@ -18,7 +18,7 @@ export async function PATCH(request: NextRequest) {
     getUsersByWorkspace(user.workspaceId), getOrdersByWorkspace(user.workspaceId),
     supabase.from("crm_settings").select("settings").eq("workspace_id", user.workspaceId).maybeSingle(),
   ]);
-  const agent = users.find(member => member.id === body.agentId && member.active && member.role === "agent");
+  const agent = users.find(member => member.id === body.agentId && member.active && member.role !== "viewer");
   if (!agent) return NextResponse.json({ error: "Agent introuvable dans cette équipe." }, { status: 400 });
   if (result.error || !result.data) return NextResponse.json({ error: "Impossible de lire les affectations." }, { status: 503 });
   const settings = result.data.settings ?? {};

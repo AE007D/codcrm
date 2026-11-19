@@ -21,7 +21,7 @@ export default function ManualOrderAssignment({ orderIds, onAssigned }: {
       const response = await fetch("/api/auth/users", { cache: "no-store" });
       if (!response.ok) throw new Error("Impossible de charger l’équipe.");
       const data = await response.json();
-      setAgents((data.users ?? []).filter((agent: Agent) => agent.active && agent.role === "agent"));
+      setAgents((data.users ?? []).filter((agent: Agent) => agent.active && agent.role !== "viewer"));
     } catch (error) { setMessage((error as Error).message); }
     finally { setBusy(false); }
   }
