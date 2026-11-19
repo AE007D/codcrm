@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback, useRef } from "react";
 import Sidebar from "@/components/Sidebar";
-import { Package, TrendingDown, TrendingUp, Trophy, AlertTriangle, Calendar, Target, Ruler, Bird, CheckCircle2, XCircle } from "lucide-react";
+import { Package, TrendingDown, TrendingUp, Target, Bird, ArrowUpRight, ArrowDownRight, ArrowRight, Wallet, ChevronDown, CheckCircle2 } from "lucide-react";
 import { useLang } from "@/lib/i18n";
 
 type Order = {
@@ -85,6 +85,9 @@ export default function FinancesPage() {
   const [products, setProducts] = useState<Product[]>([]);
   const [campaigns, setCampaigns] = useState<Campaign[]>([]);
   const [loading, setLoading] = useState(true);
+  const [settingsLoading, setSettingsLoading] = useState(true);
+  const [loadError, setLoadError] = useState(false);
+  const [showDetails, setShowDetails] = useState(false);
   const [period, setPeriod] = useState<Period>("week");
   const [costs, setCosts] = useState<CostSettings>(DEFAULT_COSTS);
   const [editingCosts, setEditingCosts] = useState(false);
@@ -101,6 +104,7 @@ export default function FinancesPage() {
     async function loadSettings() {
       try {
         const res = await fetch("/api/settings");
+        if (!res.ok) throw new Error("Settings unavailable");
         const data = await res.json();
         const serverCosts = data.settings?.financeCosts;
         if (serverCosts) setCosts({ ...DEFAULT_COSTS, ...serverCosts });
@@ -112,7 +116,8 @@ export default function FinancesPage() {
         if (Array.isArray(saved)) setCampaigns(saved);
         const savedVirements = data.settings?.virements;
         if (Array.isArray(savedVirements)) setVirements(savedVirements as Virement[]);
-      } catch { /* ignore */ }
+      } catch { setLoadError(true); }
+      finally { setSettingsLoading(false); }
     }
     loadSettings();
   }, []);
@@ -159,8 +164,8 @@ export default function FinancesPage() {
       `📊 <b>Rapport journalier — ${d}</b>`,
       ``,
       `💰 CA livré : <b>${fmt(revenue)} MAD</b> (${delivered.length} cmds)`,
-      `💸 Total investi : <b>${fmt(totalCost)} MAD</b>`,
-      `🏆 Bénéfice net : <b>${netProfit >= 0 ? "+" : ""}${fmt(netProfit)} MAD</b> (ROI ${roi.toFixed(0)}%)`,
+      `💸 Coûts de la période : <b>${fmt(totalCost)} MAD</b>`,
+      `🏆 Bénéfice net : <b>${netProfit >= 0 ? "+" : ""}${fmt(netProfit)} MAD</b> (résultat de la période)`,
       ``,
       `📦 Expédiées : ${shipped.length} · Livrées : ${delivered.length} · Retournées : ${returned.length}`,
       `📈 Taux livraison : ${delivered.length && shipped.length ? ((delivered.length / shipped.length) * 100).toFixed(0) : 0}%`,
@@ -185,17 +190,18 @@ export default function FinancesPage() {
         fetch("/api/products"),
         fetch("/api/payment-requests"),
       ]);
+      if (![oRes, pRes, prRes].every(response => response.ok)) throw new Error("Finance data unavailable");
       const oData = await oRes.json();
       const pData = await pRes.json();
       const prData = await prRes.json();
       setOrders(oData.orders ?? []);
       setProducts(pData.products ?? []);
       setPaymentRequests(prData.requests ?? []);
-    } catch { /* silent */ }
+    } catch { setLoadError(true); }
     finally { setLoading(false); }
   }, []);
 
-  useEffect(() => { fetchData(); }, [fetchData]);
+  useEffect(() => { void Promise.resolve().then(fetchData); }, [fetchData]);
 
   // ── Filtered orders by period ──────────────────────────────────────────
   const start = startOf(period);
@@ -205,9 +211,9 @@ export default function FinancesPage() {
     return d >= start && d <= now;
   });
 
-  const days = period === "all" ? daysBetween(
-    orders.length ? getDate(orders[orders.length - 1]) : now, now
-  ) : period === "today" ? 1 : period === "week" ? 7 : 30;
+  const earliestOrder = new Date(Math.min(now.getTime(), ...orders.map(o => getDate(o).getTime()).filter(Number.isFinite)));
+  earliestOrder.setHours(0, 0, 0, 0);
+  const days = period === "all" ? daysBetween(earliestOrder, now) : period === "today" ? 1 : period === "week" ? 7 : 30;
 
   const stockPurchases = products.flatMap(product => product.stockMovements ?? []).filter(movement => {
     const date = new Date(movement.createdAt);
@@ -231,18 +237,18 @@ export default function FinancesPage() {
     return s === "confirmé" || s === "confirme" || s === "confirmed"
       || s === "expédié" || s === "expedie"
       || s === "livré" || s === "livre"
-      || s === "retourné" || s === "retourne";
+      || s === "retourné" || s === "retourne" || s === "shipped" || s === "delivered" || s === "returned";
   });
   // shipped = physically sent via carrier (confirmation + shipping fee applies)
   const shipped = filtered.filter(o => {
     const s = String(o.status ?? "").toLowerCase();
     return s === "expédié" || s === "expedie"
       || s === "livré" || s === "livre"
-      || s === "retourné" || s === "retourne";
+      || s === "retourné" || s === "retourne" || s === "shipped" || s === "delivered" || s === "returned";
   });
   const returned = filtered.filter(o => {
     const s = String(o.status ?? "").toLowerCase();
-    return s === "retourné" || s === "retourne" || s === "returned" || s === "annulé" || s === "annule";
+    return s === "retourné" || s === "retourne" || s === "returned";
   });
 
   const revenue = delivered.reduce((s, o) => s + parsePrice(o.totalPrice ?? o.total_price), 0);
@@ -300,8 +306,8 @@ export default function FinancesPage() {
     };
     const status = String(o.status ?? "").toLowerCase();
     const isDelivered = status === "livré" || status === "livre" || status === "delivered";
-    const isConfirmed = ["confirmé", "confirme", "confirmed", "expédié", "expedie", "livré", "livre", "retourné", "retourne"].includes(status);
-    const isShipped = ["expédié", "expedie", "livré", "livre", "retourné", "retourne"].includes(status);
+    const isConfirmed = ["confirmé", "confirme", "confirmed", "expédié", "expedie", "livré", "livre", "retourné", "retourne", "shipped", "delivered", "returned"].includes(status);
+    const isShipped = ["expédié", "expedie", "livré", "livre", "retourné", "retourne", "shipped", "delivered", "returned"].includes(status);
     const isReturned = ["retourné", "retourne", "returned"].includes(status);
     const qty = Number(o.quantity) || 1;
     row.orderCount += 1;
@@ -324,20 +330,27 @@ export default function FinancesPage() {
     const totalProductCosts = row.purchaseCost + productConfirmation + productShipping + productAds + productCommissions;
     return { ...row, productConfirmation, productShipping, productAds, productCommissions, totalProductCosts, profit: row.revenue - totalProductCosts };
   });
-  const roi = totalCost > 0 ? (netProfit / totalCost) * 100 : 0;
   const profitPerDay = netProfit / days;
-  const profitPerWeek = profitPerDay * 7;
 
   // ── Cost per lead ──────────────────────────────────────────────────────────
-  const costPerLead = filtered.length > 0 ? adsCost / filtered.length : 0;
   const avgRevPerDelivery = delivered.length > 0 ? revenue / delivered.length : 0;
 
-  // ── Break-even ─────────────────────────────────────────────────────────────
+  // Estimate using observed delivery economics, including confirmation and commissions.
   const avgPurchasePerOrder = delivered.length > 0 ? productCost / delivered.length : 0;
-  const marginPerDelivery = avgRevPerDelivery - costs.shippingCostPerOrder - avgPurchasePerOrder;
-  const breakEvenOrders = marginPerDelivery > 0 ? Math.ceil(adsCost / marginPerDelivery) : 0;
-  const breakEvenRemaining = Math.max(0, breakEvenOrders - delivered.length);
-  const breakEvenProgress = breakEvenOrders > 0 ? Math.min(100, (delivered.length / breakEvenOrders) * 100) : 100;
+  const commissionPerDelivery = delivered.length > 0 ? commissionCost / delivered.length : 0;
+  const marginPerDelivery = avgRevPerDelivery - costs.shippingCostPerOrder - costs.confirmationCostPerOrder - avgPurchasePerOrder - commissionPerDelivery;
+  const extraDeliveries = delivered.length > 0 && marginPerDelivery > 0 && netProfit < 0
+    ? Math.ceil(-netProfit / marginPerDelivery) : null;
+  const inTransit = shipped.filter(o => ["expédié", "expedie", "shipped"].includes(String(o.status ?? "").toLowerCase()));
+  const deliveryRate = shipped.length > 0 ? delivered.length / shipped.length * 100 : 0;
+  const adCostPerDelivery = delivered.length > 0 ? adsCost / delivered.length : null;
+  const missingPurchasePrices = delivered.filter(o => !(purchaseMap[String(o.product ?? "").toLowerCase().trim()] > 0)).length;
+  const periodLabel = period === "today" ? "Aujourd’hui" : period === "week" ? "7 derniers jours" : period === "month" ? "30 derniers jours" : "Toute la période";
+  const priorities = [
+    ...(missingPurchasePrices > 0 ? [{ title: "Compléter les coûts produits", detail: `${missingPurchasePrices} commande(s) livrée(s) sans coût d’achat renseigné. Le résultat peut être surestimé.`, href: "/produits", action: "Voir les produits" }] : []),
+    ...(inTransit.length > 0 ? [{ title: `Suivre ${inTransit.length} colis en cours`, detail: "Ces commandes ne génèrent du revenu qu’une fois livrées. Vérifiez les blocages avec Eagle Express.", href: "/commandes", action: "Voir les commandes" }] : []),
+    ...(netProfit < 0 && adsCost > 0 ? [{ title: "Vérifier les dépenses publicitaires", detail: `${fmt(adsCost)} MAD de publicité pour ${delivered.length} livraison(s). Comparez les campagnes aux ventes livrées avant d’augmenter le budget.`, href: "/ads", action: "Voir la publicité" }] : []),
+  ].slice(0, 3);
 
   // ── Cash flow ──────────────────────────────────────────────────────────────
   const virementsInPeriod = virements.filter(v => { const d = new Date(v.date); return d >= start && d <= now; });
@@ -350,7 +363,7 @@ export default function FinancesPage() {
     for (const o of filtered) {
       const s = String(o.status ?? "").toLowerCase();
       const city = String((o as Record<string,unknown>).city ?? "").trim() || "Inconnue";
-      const isShipped = s === "expédié" || s === "expedie" || s === "livré" || s === "livre" || s === "retourné" || s === "retourne";
+      const isShipped = s === "expédié" || s === "expedie" || s === "livré" || s === "livre" || s === "retourné" || s === "retourne" || s === "shipped" || s === "delivered" || s === "returned";
       const isReturned = s === "retourné" || s === "retourne";
       if (!isShipped) continue;
       if (!map[city]) map[city] = { shipped: 0, returned: 0 };
@@ -370,7 +383,7 @@ export default function FinancesPage() {
     for (const o of filtered) {
       const s = String(o.status ?? "").toLowerCase();
       const prod = String((o as Record<string,unknown>).product ?? "").trim() || "Inconnu";
-      const isShipped = s === "expédié" || s === "expedie" || s === "livré" || s === "livre" || s === "retourné" || s === "retourne";
+      const isShipped = s === "expédié" || s === "expedie" || s === "livré" || s === "livre" || s === "retourné" || s === "retourne" || s === "shipped" || s === "delivered" || s === "returned";
       const isDelivered = s === "livré" || s === "livre";
       const isReturned = s === "retourné" || s === "retourne";
       if (!isShipped) continue;
@@ -386,32 +399,26 @@ export default function FinancesPage() {
       .slice(0, 8);
   })();
 
-  // Build campaign spend by day for chart
-  const campaignSpendByDay: Record<string, number> = {};
-  for (const c of campaigns) {
-    campaignSpendByDay[c.date] = (campaignSpendByDay[c.date] ?? 0) + c.spend;
-  }
-
-  // ── Daily breakdown for mini chart ────────────────────────────────────
   const dailyMap: Record<string, { revenue: number; cost: number }> = {};
-  for (const o of filtered) {
-    const d = getDate(o);
-    if (isNaN(d.getTime())) continue;
-    const key = d.toISOString().slice(0, 10);
-    if (!dailyMap[key]) dailyMap[key] = { revenue: 0, cost: 0 };
-    const s = String(o.status ?? "").toLowerCase();
-    const isDelivered = s === "livré" || s === "livre" || s === "delivered";
-    if (isDelivered) dailyMap[key].revenue += parsePrice(o.totalPrice ?? o.total_price);
-    const dayAdSpend = campaignSpendByDay[key] !== undefined ? 0 : costs.dailyAdsBudget;
-    dailyMap[key].cost += dayAdSpend + costs.shippingCostPerOrder;
+  const dayKey = (date: Date) => date.toLocaleDateString("en-CA");
+  const ensureDay = (key: string) => dailyMap[key] ??= { revenue: 0, cost: 0 };
+  for (const o of delivered) {
+    const key = dayKey(getDate(o));
+    const day = ensureDay(key);
+    day.revenue += parsePrice(o.totalPrice ?? o.total_price);
+    day.cost += (purchaseMap[String(o.product ?? "").toLowerCase().trim()] ?? 0) * (Number(o.quantity) || 1)
+      + costs.shippingCostPerOrder + costs.confirmationCostPerOrder;
   }
-  // Add campaign ad spend into chart days (may not overlap with order days)
-  for (const [day, spend] of Object.entries(campaignSpendByDay)) {
-    const d = new Date(day);
-    if (d >= start && d <= now) {
-      if (!dailyMap[day]) dailyMap[day] = { revenue: 0, cost: 0 };
-      dailyMap[day].cost += spend;
-    }
+  if (campaignAdSpend > 0) {
+    for (const c of campaignsInPeriod) ensureDay(dayKey(new Date(c.date))).cost += c.spend;
+  } else if (costs.dailyAdsBudget > 0) {
+    const first = period === "all" ? new Date(Math.min(now.getTime(), ...orders.map(o => getDate(o).getTime()).filter(Number.isFinite))) : new Date(start);
+    first.setHours(0, 0, 0, 0);
+    for (const date = first; date <= now; date.setDate(date.getDate() + 1)) ensureDay(dayKey(date)).cost += costs.dailyAdsBudget;
+  }
+  for (const request of paymentRequests) {
+    const date = new Date(request.created_at);
+    if (request.status !== "rejected" && date >= start && date <= now) ensureDay(dayKey(date)).cost += request.amount;
   }
   const chartDays = Object.keys(dailyMap).sort().slice(-14);
   const maxVal = Math.max(1, ...chartDays.map(d => Math.max(dailyMap[d].revenue, dailyMap[d].cost)));
@@ -434,19 +441,19 @@ export default function FinancesPage() {
         <header className="sidebar-header-pl bg-white border-b border-slate-100 px-4 lg:px-8 py-4 pl-14 lg:pl-8 flex flex-wrap items-center justify-between gap-3">
           <div>
             <h1 className="text-xl font-bold text-slate-900">{t("finances_title")}</h1>
-            <p className="text-sm text-slate-400">{t("finances_subtitle")}</p>
+            <p className="text-sm text-slate-400">Votre résultat, vos coûts et les prochaines actions</p>
           </div>
           <div className="flex items-center gap-2 flex-wrap">
             {/* Period selector */}
             <div className="flex gap-1 bg-slate-100 rounded-xl p-1">
               {PERIODS.map(p => (
-                <button key={p.key} onClick={() => setPeriod(p.key)}
+                <button key={p.key} aria-pressed={period === p.key} onClick={() => setPeriod(p.key)}
                   className={`text-xs font-semibold px-3 py-1.5 rounded-lg transition-colors ${period === p.key ? "bg-white text-slate-900 shadow-sm" : "text-slate-500 hover:text-slate-700"}`}>
                   {p.label}
                 </button>
               ))}
             </div>
-            <button onClick={sendTelegramReport} disabled={sendingReport}
+            <button onClick={sendTelegramReport} disabled={sendingReport || loading || settingsLoading || loadError}
               className="flex items-center gap-1.5 text-xs font-semibold px-3 py-2 rounded-xl border border-blue-200 text-blue-600 hover:bg-blue-50 bg-white disabled:opacity-50">
               {sendingReport ? t("sending") : `📨 ${t("telegram_report")}`}
             </button>
@@ -459,89 +466,93 @@ export default function FinancesPage() {
         </header>
 
         <main className="flex-1 p-4 lg:p-8 overflow-y-auto">
-          {loading ? (
+          {loading || settingsLoading ? (
             <div className="flex items-center justify-center py-20"><div className="w-8 h-8 border-2 border-blue-600 border-t-transparent rounded-full animate-spin" /></div>
+          ) : loadError ? (
+            <div role="alert" className="rounded-2xl border border-amber-200 bg-amber-50 p-6 text-sm text-slate-700">
+              <h2 className="font-bold">Les données financières n’ont pas pu être chargées.</h2>
+              <p className="mt-2">Actualisez la page pour retrouver un résultat complet.</p>
+              <button onClick={() => window.location.reload()} className="mt-4 rounded-xl bg-blue-600 px-4 py-2 font-semibold text-white">Réessayer</button>
+            </div>
           ) : (
             <>
-              {/* ── Main KPIs ── */}
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4 mb-5">
-                {[
-                  { label: "Chiffre d'affaires", value: `${fmt(revenue)} MAD`, sub: `${delivered.length} cmds livrées`, color: "text-emerald-600", bg: "bg-emerald-50", Icon: Package },
-                  { label: "Total investi", value: `${fmt(totalCost)} MAD`, sub: `produits + pub + conf. + livraison`, color: "text-red-500", bg: "bg-red-50", Icon: TrendingDown },
-                  { label: "Bénéfice net", value: `${netProfit >= 0 ? "+" : ""}${fmt(netProfit)} MAD`, sub: `ROI ${roi >= 0 ? "+" : ""}${roi.toFixed(0)}%`, color: netProfit >= 0 ? "text-blue-600" : "text-red-600", bg: netProfit >= 0 ? "bg-blue-50" : "bg-red-50", Icon: netProfit >= 0 ? Trophy : AlertTriangle },
-                  { label: "Bénéfice / jour", value: `${profitPerDay >= 0 ? "+" : ""}${fmt(profitPerDay)} MAD`, sub: `${profitPerWeek >= 0 ? "+" : ""}${fmt(profitPerWeek)} MAD / semaine`, color: profitPerDay >= 0 ? "text-violet-600" : "text-red-500", bg: profitPerDay >= 0 ? "bg-violet-50" : "bg-red-50", Icon: Calendar },
-                ].map(k => (
-                  <div key={k.label} className="bg-white rounded-2xl p-5 shadow-sm border border-slate-100">
-                    <div className="flex items-center gap-2 mb-3">
-                      <k.Icon size={18} className={k.color} />
-                      <p className="text-xs text-slate-500 font-medium">{k.label}</p>
+              <div className="mb-5 flex flex-wrap items-center justify-between gap-2 text-xs text-slate-500">
+                <span className="flex items-center gap-2"><span className="h-2 w-2 rounded-full bg-blue-500" />{periodLabel} · MAD</span>
+                <span>Commandes créées sur la période · statuts actuels</span>
+              </div>
+
+              <section aria-label="Résultat de la période" className="mb-5 overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm">
+                <div className="grid lg:grid-cols-[1.1fr_1fr]">
+                  <div className={`p-6 sm:p-8 ${netProfit < 0 ? "bg-red-50" : "bg-emerald-50"}`}>
+                    <div className="mb-5 flex items-center gap-2 text-xs font-semibold text-slate-600">
+                      {netProfit < 0 ? <ArrowDownRight size={18} /> : <ArrowUpRight size={18} />}
+                      {filtered.length === 0 && totalCost === 0 ? "Aucune activité sur cette période" : netProfit < 0 ? "Les coûts dépassent les ventes livrées" : "Les ventes livrées couvrent les coûts"}
                     </div>
-                    <p className={`text-xl lg:text-2xl font-black ${k.color}`}>{k.value}</p>
-                    <p className="text-xs text-slate-400 mt-1">{k.sub}</p>
-                  </div>
-                ))}
-              </div>
-
-              {/* ── Cost per lead + Break-even ── */}
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-5">
-                <div className="bg-white rounded-2xl p-5 shadow-sm border border-slate-100">
-                  <div className="flex items-center gap-2 mb-3">
-                    <Target size={18} className="text-orange-500" />
-                    <p className="text-xs text-slate-500 font-medium">Coût par lead</p>
-                  </div>
-                  <p className="text-2xl font-black text-orange-600">{fmt(costPerLead)} MAD</p>
-                  <p className="text-xs text-slate-400 mt-1">{fmt(adsCost)} MAD pub ÷ {filtered.length} commandes</p>
-                  {costPerLead > 0 && avgRevPerDelivery > 0 && (
-                    <p className="text-xs mt-2">
-                      {costPerLead < avgRevPerDelivery * 0.2
-                        ? <span className="text-emerald-600 font-semibold flex items-center gap-1"><CheckCircle2 size={13} /> CPL excellent</span>
-                        : costPerLead < avgRevPerDelivery * 0.4
-                        ? <span className="text-amber-600 font-semibold flex items-center gap-1"><AlertTriangle size={13} /> CPL acceptable</span>
-                        : <span className="text-red-600 font-semibold flex items-center gap-1"><XCircle size={13} /> CPL élevé — réduire pub</span>
-                      }
+                    <h2 className="text-sm font-semibold text-slate-600">{netProfit < 0 ? "Perte estimée" : "Bénéfice estimé"}</h2>
+                    <p className={`mt-2 text-4xl sm:text-5xl font-black tracking-tight tabular-nums ${netProfit < 0 ? "text-red-600" : "text-emerald-600"}`}>
+                      {netProfit > 0 ? "+" : ""}{fmt(netProfit)} <span className="text-lg font-semibold">MAD</span>
                     </p>
-                  )}
-                  {filtered.length === 0 && <p className="text-xs text-slate-400 mt-2">Aucune commande sur la période</p>}
-                </div>
-
-                <div className="bg-white rounded-2xl p-5 shadow-sm border border-slate-100">
-                  <div className="flex items-center gap-2 mb-3">
-                    <Ruler size={18} className="text-slate-500" />
-                    <p className="text-xs text-slate-500 font-medium">Seuil de rentabilité</p>
+                    <p className="mt-4 text-sm leading-relaxed text-slate-600">{fmt(revenue)} MAD de ventes livrées − {fmt(totalCost)} MAD de coûts.</p>
+                    <p className="mt-2 text-xs text-slate-500">D’après les coûts renseignés. Les achats de stock sont suivis séparément.</p>
                   </div>
-                  {marginPerDelivery > 0 && breakEvenOrders > 0 ? (
-                    <>
-                      <p className="text-2xl font-black text-slate-800">{breakEvenOrders} <span className="text-sm font-semibold text-slate-400">livraisons</span></p>
-                      <p className="text-xs text-slate-400 mt-1">pour couvrir {fmt(adsCost)} MAD pub · marge {fmt(marginPerDelivery)} MAD/cmd</p>
-                      <div className="mt-3">
-                        <div className="flex justify-between text-xs mb-1">
-                          <span className="text-slate-500">{delivered.length} livrées</span>
-                          <span className={breakEvenRemaining === 0 ? "text-emerald-600 font-bold" : "text-slate-500"}>
-                            {breakEvenRemaining === 0 ? "Rentable!" : `encore ${breakEvenRemaining}`}
-                          </span>
-                        </div>
-                        <div className="h-2 bg-slate-100 rounded-full overflow-hidden">
-                          <div className={`h-full rounded-full transition-all ${breakEvenRemaining === 0 ? "bg-emerald-500" : "bg-blue-500"}`}
-                            style={{ width: `${breakEvenProgress}%` }} />
-                        </div>
-                      </div>
-                    </>
-                  ) : (
-                    <p className="text-sm text-slate-400 mt-1">Ajoutez les prix d&apos;achat produits et le budget pub pour calculer le seuil.</p>
-                  )}
+                  <div className="flex flex-col justify-center gap-5 p-6 sm:p-8">
+                    <div className="flex items-start justify-between gap-3 border-b border-slate-100 pb-5">
+                      <div><p className="text-sm font-semibold text-slate-700">Ventes livrées</p><p className="mt-1 text-xs text-slate-500">{delivered.length} commandes · revenu réalisé</p></div>
+                      <p className="text-xl font-bold text-slate-900 tabular-nums">{fmt(revenue)} <span className="text-xs font-medium text-slate-400">MAD</span></p>
+                    </div>
+                    <div className="flex items-start justify-between gap-3">
+                      <div><p className="text-sm font-semibold text-slate-700">Coûts de la période</p><p className="mt-1 text-xs text-slate-500">Produits, publicité, livraison et agents</p></div>
+                      <p className="text-xl font-bold text-slate-900 tabular-nums">{fmt(totalCost)} <span className="text-xs font-medium text-slate-400">MAD</span></p>
+                    </div>
+                    <a href="#finance-details" onClick={() => setShowDetails(true)} className="mt-1 inline-flex items-center gap-2 text-xs font-semibold text-blue-600">Comprendre le calcul <ArrowRight size={14} /></a>
+                  </div>
                 </div>
-              </div>
-
-              <section className="mb-5 rounded-2xl border border-slate-100 bg-white p-5">
-                <div className="flex flex-wrap items-baseline justify-between gap-2">
-                  <h2 className="flex items-center gap-2 text-sm font-bold text-slate-700"><Package size={16} aria-hidden /> Achats de stock</h2>
-                  <p className="text-xl font-black text-slate-900">{stockPurchaseTotal.toLocaleString("fr-MA", { maximumFractionDigits: 2 })} MAD</p>
-                </div>
-                <p className="mt-1 text-xs text-slate-500">{stockUnitsReceived} unités reçues sur la période</p>
               </section>
 
+              <div className="mb-5 grid gap-3 sm:grid-cols-3">
+                {[
+                  { label: "Coût pub / vente livrée", value: adCostPerDelivery === null ? "—" : `${fmt(adCostPerDelivery)} MAD`, detail: `${fmt(adsCost)} MAD de pub · ${delivered.length} livraisons`, Icon: Target },
+                  { label: "Colis encore en livraison", value: String(inTransit.length), detail: `${shipped.length} expédiés au total · ${returned.length} retournés`, Icon: Package },
+                  { label: "Résultat moyen / jour", value: `${fmt(profitPerDay)} MAD`, detail: `Moyenne sur ${days} jour(s), pas une prévision`, Icon: Wallet },
+                ].map(item => <div key={item.label} className="rounded-2xl border border-slate-100 bg-white p-5">
+                  <div className="mb-3 flex items-center justify-between gap-2"><p className="text-xs font-medium text-slate-500">{item.label}</p><item.Icon size={16} className="text-slate-400" /></div>
+                  <p className="text-2xl font-bold text-slate-900 tabular-nums">{item.value}</p><p className="mt-2 text-xs text-slate-500">{item.detail}</p>
+                </div>)}
+              </div>
+
+              <div className="mb-5 grid items-start gap-4 lg:grid-cols-[1.15fr_1fr]">
+                <section className="rounded-2xl border border-slate-100 bg-white p-5 sm:p-6">
+                  <h2 className="text-sm font-bold text-slate-800">À faire maintenant</h2>
+                  <p className="mt-1 text-xs text-slate-500">Les priorités tirées de vos résultats.</p>
+                  <div className="mt-5 space-y-4">
+                    {priorities.length ? priorities.map((item, index) => <div key={item.title} className="flex gap-3">
+                      <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-slate-100 text-xs font-bold text-slate-600">{index + 1}</span>
+                      <div><h3 className="text-sm font-semibold text-slate-800">{item.title}</h3><p className="mt-1 text-xs leading-relaxed text-slate-500">{item.detail}</p><a href={item.href} className="mt-2 inline-flex items-center gap-1 text-xs font-semibold text-blue-600">{item.action}<ArrowUpRight size={13} /></a></div>
+                    </div>) : <div className="flex gap-3 text-sm text-slate-600"><CheckCircle2 size={18} className="shrink-0 text-emerald-600" /><p>{filtered.length ? "Aucune priorité détectée. Consultez le détail par produit pour suivre vos marges." : "Ajoutez vos commandes et vos dépenses pour commencer le suivi."}</p></div>}
+                  </div>
+                </section>
+                <section className="rounded-2xl border border-slate-100 bg-white p-5 sm:p-6">
+                  <div className="flex items-center justify-between gap-2"><h2 className="text-sm font-bold text-slate-800">Objectif : couvrir les coûts</h2><Target size={17} className="text-slate-400" /></div>
+                  {delivered.length === 0 ? <p className="mt-5 text-sm leading-relaxed text-slate-500">Une première livraison est nécessaire pour estimer votre marge et le nombre de ventes à atteindre.</p> : marginPerDelivery <= 0 ? <div className="mt-5"><p className="text-lg font-bold text-red-600">Marge par livraison insuffisante</p><p className="mt-2 text-xs leading-relaxed text-slate-500">Le prix de vente ne couvre pas les coûts par livraison. Vérifiez les prix d’achat, de vente et les frais avant d’augmenter le volume.</p></div> : <>
+                    <p className="mt-5 text-3xl font-black text-slate-900">{netProfit >= 0 ? "Objectif atteint" : `${extraDeliveries} livraisons`}</p>
+                    <p className="mt-2 text-xs leading-relaxed text-slate-500">{netProfit >= 0 ? "Vos ventes livrées couvrent les coûts renseignés sur cette période." : "supplémentaires estimées pour couvrir la perte actuelle, sans nouvelle dépense publicitaire."}</p>
+                    <div className="mt-5 rounded-xl bg-slate-50 p-3 text-xs text-slate-600">Marge moyenne avant publicité : <strong>{fmt(marginPerDelivery)} MAD / livraison</strong><p className="mt-1 text-slate-500">Après produit, livraison, confirmation et commissions moyennes.</p></div>
+                  </>}
+                </section>
+              </div>
+
+              <section className="mb-5 rounded-2xl border border-slate-100 bg-white p-5 sm:p-6">
+                <div className="mb-5 flex flex-wrap items-start justify-between gap-2"><div><h2 className="text-sm font-bold text-slate-800">Le parcours de vos commandes</h2><p className="mt-1 text-xs text-slate-500">Chaque étape inclut les suivantes. Les retours sont comptés séparément.</p></div><a href="/commandes" className="inline-flex items-center gap-1 text-xs font-semibold text-blue-600">Voir les commandes <ArrowUpRight size={13} /></a></div>
+                <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+                  {[{ label: "Reçues", value: filtered.length, color: "bg-slate-400" }, { label: "Confirmées", value: confirmed.length, color: "bg-blue-500" }, { label: "Expédiées", value: shipped.length, color: "bg-amber-500" }, { label: "Livrées", value: delivered.length, color: "bg-emerald-500" }].map((step, index) => <div key={step.label} className="rounded-xl bg-slate-50 p-4"><p className="text-xs text-slate-500">{index + 1}. {step.label}</p><p className="mt-2 text-2xl font-bold text-slate-900">{step.value}</p><div className="mt-3 h-1.5 overflow-hidden rounded-full bg-slate-200"><div className={`h-full rounded-full ${step.color}`} style={{ width: `${filtered.length ? step.value / filtered.length * 100 : 0}%` }} /></div></div>)}
+                </div>
+                <p className="mt-4 text-xs text-slate-500">{shipped.length ? `${deliveryRate.toFixed(0)} % des colis expédiés sont livrés (${delivered.length}/${shipped.length}).` : "Aucun colis expédié sur cette période."} {inTransit.length > 0 && `${inTransit.length} colis sont encore en cours : ce taux reste provisoire.`}</p>
+              </section>
+
+              <details id="finance-details" open={showDetails} onToggle={event => setShowDetails(event.currentTarget.open)} className="mb-5 group">
+                <summary className="mb-4 flex cursor-pointer list-none items-center justify-between rounded-2xl border border-slate-200 bg-white p-5 text-sm font-bold text-slate-700">Explorer les détails : coûts, produits et tendances <ChevronDown size={18} className="transition-transform group-open:rotate-180" /></summary>
               {/* ── Cost breakdown ── */}
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-5">
+              <div className="mb-5">
                 {/* Investment breakdown */}
                 <div className="bg-white rounded-2xl p-5 shadow-sm border border-slate-100">
                   <h2 className="text-sm font-bold text-slate-700 mb-4 flex items-center gap-1.5"><TrendingDown size={15} /> Détail des coûts</h2>
@@ -587,53 +598,19 @@ export default function FinancesPage() {
                       );
                     })}
                     <div className="border-t border-slate-100 pt-3 flex justify-between">
-                      <span className="text-sm font-bold text-slate-700">Total investi</span>
+                      <span className="text-sm font-bold text-slate-700">Coûts de la période</span>
                       <span className="text-sm font-black text-red-600">{fmt(totalCost)} MAD</span>
                     </div>
                   </div>
                 </div>
 
-                {/* Orders summary */}
-                <div className="bg-white rounded-2xl p-5 shadow-sm border border-slate-100">
-                  <h2 className="text-sm font-bold text-slate-700 mb-4">📊 Résumé commandes</h2>
-                  <div className="space-y-3 mb-5">
-                    {[
-                      { label: "Total commandes", value: filtered.length, color: "text-slate-800" },
-                      { label: "Confirmées (centre conf.)", value: confirmed.length, color: "text-blue-600" },
-                      { label: "Expédiées (Eagle)", value: shipped.length, color: "text-amber-600" },
-                      { label: "Livrées", value: delivered.length, color: "text-emerald-600" },
-                      { label: "Retournées", value: returned.length, color: "text-red-500" },
-                    ].map(r => (
-                      <div key={r.label} className="flex justify-between items-center py-1.5 border-b border-slate-50 last:border-0">
-                        <span className="text-sm text-slate-500">{r.label}</span>
-                        <span className={`text-sm font-black ${r.color}`}>{r.value}</span>
-                      </div>
-                    ))}
-                  </div>
-
-                  {/* Delivery rate */}
-                  {filtered.length > 0 && (
-                    <div className={`rounded-2xl px-4 py-3 ${delivered.length / filtered.length >= 0.6 ? "bg-emerald-50 border border-emerald-100" : "bg-amber-50 border border-amber-100"}`}>
-                      <div className="flex items-center justify-between mb-1.5">
-                        <span className="text-xs font-semibold text-slate-600">Taux de livraison</span>
-                        <span className={`text-lg font-black ${delivered.length / filtered.length >= 0.6 ? "text-emerald-700" : "text-amber-700"}`}>
-                          {((delivered.length / filtered.length) * 100).toFixed(0)}%
-                        </span>
-                      </div>
-                      <div className="h-2 bg-white rounded-full overflow-hidden">
-                        <div className={`h-full rounded-full ${delivered.length / filtered.length >= 0.6 ? "bg-emerald-500" : "bg-amber-500"}`}
-                          style={{ width: `${(delivered.length / filtered.length) * 100}%` }} />
-                      </div>
-                    </div>
-                  )}
-                </div>
               </div>
 
               {/* ── Daily chart ── */}
               {chartDays.length > 0 && (
                 <div className="bg-white rounded-2xl p-5 shadow-sm border border-slate-100 mb-5">
-                  <h2 className="text-sm font-bold text-slate-700 mb-1 flex items-center gap-1.5"><TrendingUp size={15} /> Revenu vs Coûts (14 derniers jours)</h2>
-                  <p className="text-xs text-slate-400 mb-4">Bleu = revenu livré · Rouge = coûts estimés</p>
+                  <h2 className="text-sm font-bold text-slate-700 mb-1 flex items-center gap-1.5"><TrendingUp size={15} /> Ventes livrées et coûts par jour</h2>
+                  <p className="text-xs text-slate-400 mb-4">14 dernières dates d’activité de la période · bleu : ventes livrées · rouge : coûts renseignés</p>
                   <div className="flex items-end gap-1 h-28">
                     {chartDays.map(day => {
                       const d = dailyMap[day];
@@ -748,30 +725,19 @@ export default function FinancesPage() {
                 </div>
               )}
 
-              {/* ── Profit projection ── */}
-              <div className="bg-gradient-to-br from-blue-600 to-violet-600 rounded-2xl p-5 text-white shadow-lg">
-                <h2 className="text-sm font-bold opacity-80 mb-4 flex items-center gap-1.5"><Target size={15} /> Projection bénéfice</h2>
-                <div className="grid grid-cols-3 gap-2 sm:gap-3">
-                  {[
-                    { label: "/ Jour", value: fmt(profitPerDay) },
-                    { label: "/ Semaine", value: fmt(profitPerWeek) },
-                    { label: "/ Mois (30j)", value: fmt(profitPerDay * 30) },
-                  ].map(p => (
-                    <div key={p.label} className="bg-white/10 rounded-xl p-2 sm:p-3 text-center backdrop-blur-sm">
-                      <p className="text-xs opacity-70 mb-1">{p.label}</p>
-                      <p className="text-lg font-black">{p.value}</p>
-                      <p className="text-xs opacity-60">MAD</p>
-                    </div>
-                  ))}
-                </div>
-              </div>
+              </details>
+
+              <section className="mb-5 rounded-2xl border border-slate-100 bg-white p-5">
+                <div className="flex flex-wrap items-baseline justify-between gap-2"><h2 className="text-sm font-bold text-slate-700">Achats de stock</h2><p className="text-xl font-bold text-slate-900">{fmt(stockPurchaseTotal)} MAD</p></div>
+                <p className="mt-2 text-xs leading-relaxed text-slate-500">{stockUnitsReceived} unités reçues sur la période. Seul le coût des unités livrées entre dans le résultat ci-dessus ; le stock restant servira aux prochaines ventes.</p>
+              </section>
 
               {/* ── Cash flow tracker ── */}
               <div className="bg-white rounded-2xl p-5 shadow-sm border border-slate-100 mt-5">
                 <div className="flex items-center justify-between mb-4">
                   <div>
                     <h2 className="text-sm font-bold text-slate-700 flex items-center gap-1.5"><Bird size={15} /> Suivi des virements Eagle Express</h2>
-                    <p className="text-xs text-slate-400 mt-0.5">Enregistrez les paiements reçus d&apos;Eagle Express</p>
+                    <p className="text-xs text-slate-400 mt-0.5">Ventes brutes et virements reçus sur la période. L’écart n’est pas un solde transporteur : frais déduits et dates de virement peuvent différer.</p>
                   </div>
                   <button onClick={() => setShowAddVirement(v => !v)}
                     className="flex items-center gap-1.5 text-xs font-semibold px-3 py-2 rounded-xl bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border border-emerald-200">
@@ -781,7 +747,7 @@ export default function FinancesPage() {
 
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-4">
                   <div className="bg-emerald-50 rounded-xl p-3 text-center">
-                    <p className="text-xs text-slate-500 mb-1">CA attendu (livré)</p>
+                    <p className="text-xs text-slate-500 mb-1">Ventes livrées (brut)</p>
                     <p className="text-xl font-black text-emerald-700">{fmt(revenue)} MAD</p>
                   </div>
                   <div className="bg-blue-50 rounded-xl p-3 text-center">
@@ -789,7 +755,7 @@ export default function FinancesPage() {
                     <p className="text-xl font-black text-blue-700">{fmt(totalVirements)} MAD</p>
                   </div>
                   <div className={`rounded-xl p-3 text-center ${pendingVirement > 0 ? "bg-amber-50" : "bg-emerald-50"}`}>
-                    <p className="text-xs text-slate-500 mb-1">En attente</p>
+                    <p className="text-xs text-slate-500 mb-1">Écart indicatif</p>
                     <p className={`text-lg font-black ${pendingVirement > 0 ? "text-amber-700" : "text-emerald-700"}`}>{fmt(pendingVirement)} MAD</p>
                   </div>
                 </div>
