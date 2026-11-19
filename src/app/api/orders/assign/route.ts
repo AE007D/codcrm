@@ -28,7 +28,7 @@ export async function PATCH(request: NextRequest) {
   // Compare-and-swap prevents overwriting concurrent settings or assignments.
   const { data, error } = await supabase.from("crm_settings")
     .update({ settings: { ...settings, orderAssignments } })
-    .eq("workspace_id", user.workspaceId).eq("settings", settings).select("workspace_id");
+    .eq("workspace_id", user.workspaceId).eq("settings", JSON.stringify(settings)).select("workspace_id");
   if (error) return NextResponse.json({ error: "Impossible d’enregistrer les affectations." }, { status: 500 });
   if (!data?.length) return NextResponse.json({ error: "Les données ont changé. Réessayez." }, { status: 409 });
   return NextResponse.json({ ok: true, count: new Set(body.orderIds).size, assignment });
