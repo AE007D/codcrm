@@ -12,6 +12,7 @@ import { getSettings } from "@/lib/supabaseSettingsStore";
 import { supabase } from "@/lib/supabase";
 import crypto from "crypto";
 import type { OrderAssignments } from "@/lib/orderAssignment";
+import { commissionId } from "@/lib/orderCommissions";
 
 export const dynamic = "force-dynamic";
 
@@ -107,16 +108,17 @@ export async function PATCH(request: NextRequest) {
         const agentId = assignment?.agentId ?? commission?.agentId;
         const agentName = assignment?.agentName ?? commission?.agentName;
         if (agentId && commission?.commissionAmount > 0) {
-          await supabase.from("crm_payment_requests").insert({
-            id: crypto.randomUUID(),
+          const linked = (settings.orderCommissionRequests as Record<string, string> | undefined)?.[id];
+          await supabase.from("crm_payment_requests").upsert({
+            id: linked ?? commissionId(user.workspaceId, id),
             workspace_id: user.workspaceId,
             agent_id: agentId,
             agent_name: agentName,
             amount: commission.commissionAmount,
-            message: `Commission · ${productName}`,
+            message: `Commission · ${productName} · ${updated.orderNumber}`,
             status: "pending",
             created_at: new Date().toISOString(),
-          });
+          }, { onConflict: "id", ignoreDuplicates: true });
         }
       }
     } catch (e) {

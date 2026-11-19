@@ -4,6 +4,7 @@ import { getUsersByWorkspace } from "@/lib/authStore";
 import { getOrdersByWorkspace } from "@/lib/supabaseOrderStore";
 import { assignManualOrders, type OrderAssignments } from "@/lib/orderAssignment";
 import { supabase } from "@/lib/supabase";
+import { planCommissionReassignment } from "@/lib/orderCommissions";
 
 export async function PATCH(request: NextRequest) {
   const user = await getRequestUser();
@@ -14,22 +15,34 @@ export async function PATCH(request: NextRequest) {
     || !body.orderIds.every((id: unknown) => typeof id === "string") || typeof body.agentId !== "string") {
     return NextResponse.json({ error: "Sélection invalide." }, { status: 400 });
   }
-  const [users, orders, result] = await Promise.all([
+  const [users, orders, result, payments] = await Promise.all([
     getUsersByWorkspace(user.workspaceId), getOrdersByWorkspace(user.workspaceId),
     supabase.from("crm_settings").select("settings").eq("workspace_id", user.workspaceId).maybeSingle(),
+    supabase.from("crm_payment_requests").select("*").eq("workspace_id", user.workspaceId),
   ]);
   const agent = users.find(member => member.id === body.agentId && member.active && member.role !== "viewer");
   if (!agent) return NextResponse.json({ error: "Agent introuvable dans cette équipe." }, { status: 400 });
-  if (result.error || !result.data) return NextResponse.json({ error: "Impossible de lire les affectations." }, { status: 503 });
+  if (result.error || !result.data || payments.error) return NextResponse.json({ error: "Impossible de lire les affectations et commissions." }, { status: 503 });
   const settings = result.data.settings ?? {};
   const assignment = { agentId: agent.id, agentName: agent.name, assignedAt: new Date().toISOString() };
   const orderAssignments = assignManualOrders(orders, body.orderIds, settings.orderAssignments as OrderAssignments ?? {}, assignment);
   if (!orderAssignments) return NextResponse.json({ error: "Sélectionnez uniquement des commandes MAN de cette équipe." }, { status: 400 });
+  const plan = planCommissionReassignment(user.workspaceId, orders, payments.data ?? [], body.orderIds,
+    orderAssignments, settings.orderCommissionRequests ?? {});
   // Compare-and-swap prevents overwriting concurrent settings or assignments.
   const { data, error } = await supabase.from("crm_settings")
-    .update({ settings: { ...settings, orderAssignments } })
+    .update({ settings: { ...settings, orderAssignments, orderCommissionRequests: plan.links } })
     .eq("workspace_id", user.workspaceId).eq("settings", JSON.stringify(settings)).select("workspace_id");
   if (error) return NextResponse.json({ error: "Impossible d’enregistrer les affectations." }, { status: 500 });
   if (!data?.length) return NextResponse.json({ error: "Les données ont changé. Réessayez." }, { status: 409 });
-  return NextResponse.json({ ok: true, count: new Set(body.orderIds).size, assignment });
+  let commissionsMoved = 0;
+  let unresolved = plan.unresolved;
+  for (const update of plan.updates) {
+    const changed = await supabase.from("crm_payment_requests")
+      .update({ agent_id: update.agentId, agent_name: update.agentName })
+      .eq("workspace_id", user.workspaceId).eq("id", update.requestId).eq("status", "pending").select("id");
+    if (changed.error || !changed.data?.length) unresolved++;
+    else commissionsMoved++;
+  }
+  return NextResponse.json({ ok: true, count: new Set(body.orderIds).size, assignment, commissionsMoved, unresolved });
 }

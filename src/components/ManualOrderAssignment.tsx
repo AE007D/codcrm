@@ -35,7 +35,7 @@ export default function ManualOrderAssignment({ orderIds, onAssigned }: {
         headers: { "Content-Type": "application/json" }, body: JSON.stringify({ orderIds, agentId }) });
       const data = await response.json();
       if (!response.ok) throw new Error(data.error || "Affectation impossible.");
-      setMessage(`${data.count} commandes MAN affectées à ${data.assignment.agentName}.`);
+      setMessage(`${data.count} commandes MAN affectées à ${data.assignment.agentName}. ${data.commissionsMoved ?? 0} commission(s) livrée(s) réaffectée(s).${data.unresolved ? ` ${data.unresolved} commission(s) nécessitent une vérification.` : ""}`);
       onAssigned();
     } catch (error) { setMessage((error as Error).message); }
     finally { setBusy(false); }
