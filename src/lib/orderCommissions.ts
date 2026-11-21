@@ -9,6 +9,36 @@ export function commissionId(workspaceId: string, orderId: string) {
 type Order = { id: string; orderNumber: string; product: string; status: string; receivedAt: string };
 type Request = { id: string; message: string; amount: number; status: string; agent_id: string; agent_name: string; created_at: string };
 
+// Repair only commissions with an explicit order link; never guess legacy ownership.
+export function planCommissionReconciliation(
+  workspaceId: string, orders: Order[], requests: Request[], assignments: OrderAssignments,
+  links: Record<string, string>, defaults: Record<string, { agentId: string; agentName: string }>,
+) {
+  const matched = orders.filter(order => order.status === "livré").map(order => ({
+    order,
+    requests: requests.filter(request => request.id === commissionId(workspaceId, order.id)
+      || request.id === links[order.id]),
+    owner: assignments[order.id] ?? defaults[order.product.trim()],
+  }));
+  const uses = new Map<string, number>();
+  for (const row of matched) for (const request of row.requests) uses.set(request.id, (uses.get(request.id) ?? 0) + 1);
+  const updates: { requestId: string; orderNumber: string; previousAgentId: string; previousAgentName: string; agentId: string; agentName: string; amount: number }[] = [];
+  const unresolved: string[] = [];
+  for (const row of matched) {
+    const request = row.requests[0];
+    if (row.requests.length !== 1 || !row.owner?.agentId || uses.get(request.id) !== 1
+      || !request.message.startsWith(`Commission · ${row.order.product.trim()}`)) {
+      unresolved.push(row.order.orderNumber); continue;
+    }
+    if (request.agent_id === row.owner.agentId) continue;
+    if (request.status !== "pending") { unresolved.push(row.order.orderNumber); continue; }
+    updates.push({ requestId: request.id, orderNumber: row.order.orderNumber,
+      previousAgentId: request.agent_id, previousAgentName: request.agent_name,
+      agentId: row.owner.agentId, agentName: row.owner.agentName, amount: Number(request.amount) });
+  }
+  return { updates, unresolved };
+}
+
 export function planCommissionReassignment(
   workspaceId: string, orders: Order[], requests: Request[], selectedIds: string[],
   assignments: OrderAssignments, existingLinks: Record<string, string>,
