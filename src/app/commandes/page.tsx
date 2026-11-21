@@ -1044,7 +1044,7 @@ export default function CommandesPage() {
                 : o.status === "annulé" ? "bg-red-50/40 border-red-100"
                 : "bg-white border-slate-100";
               return (
-                <div key={o.id} className={`rounded-2xl border shadow-sm p-4 ${cardBg}`}>
+                <div key={o.id} className={`rounded-2xl border shadow-sm p-4 overflow-hidden ${cardBg}`}>
                   {/* Top row: order number + status + date */}
                   <div className="flex items-center gap-2 mb-3">
                     <input type="checkbox" checked={isSelected} onChange={() => toggleSelect(o.id)}
@@ -1066,14 +1066,14 @@ export default function CommandesPage() {
                         </span>
                       )}
                     </div>
-                    <span className="text-xs text-slate-400 shrink-0">{o.date}</span>
+
                   </div>
 
                   {/* Customer + phone + repeat badge */}
                   <div className="flex items-start gap-2 mb-2" onClick={() => setDrawer(o)}>
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 flex-wrap">
-                        <p className="font-bold text-slate-900">{o.customer}</p>
+                        <p className="text-base font-semibold text-slate-900">{o.customer}</p>
                         {repeatCount > 1 && (
                           <span className="inline-flex items-center gap-1 text-xs font-semibold bg-indigo-100 text-indigo-700 px-2 py-0.5 rounded-full">
                             <RefreshCw size={11} /> {repeatCount} commandes
@@ -1083,6 +1083,7 @@ export default function CommandesPage() {
                           <span className="text-[10px] font-bold px-1.5 py-0.5 bg-red-100 text-red-600 rounded-lg flex items-center gap-0.5"><AlertTriangle size={10} /> Retour passé</span>
                         )}
                       </div>
+                      <p className="mt-1 text-xs text-slate-400 break-words">{o.city}</p>
                       <a href={`tel:${o.phone}`} onClick={e => { e.stopPropagation(); incrementAttempt(o.id); }}
                         className="flex items-center gap-1 text-blue-600 text-sm font-medium mt-0.5">
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="w-3.5 h-3.5 shrink-0"><path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07 19.5 19.5 0 01-6-6A19.79 19.79 0 012.12 4.18 2 2 0 014.11 2h3a2 2 0 012 1.72c.127.96.361 1.903.7 2.81a2 2 0 01-.45 2.11L8.09 9.91a16 16 0 006 6l1.27-1.27a2 2 0 012.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0122 16.92z"/></svg>
@@ -1102,23 +1103,24 @@ export default function CommandesPage() {
                     </div>
                   </div>
 
-                  {/* City, product, amount */}
-                  <div className="flex items-center gap-2 text-sm text-slate-600 mb-2 flex-wrap" onClick={() => setDrawer(o)}>
-                    {o.city && <span className="text-slate-400">{o.city}</span>}
-                    {o.city && <span className="text-slate-200">·</span>}
+                  {/* Product gets its own row so long names retain readable space. */}
+                  <button type="button" onClick={() => setDrawer(o)} className="my-4 flex w-full items-start gap-3 rounded-xl border border-slate-100 bg-slate-50/50 p-3 text-start">
                     <ProductThumbnail src={productImage(o.product)} name={o.product} />
-                    <span className="min-w-0 flex-1 font-medium">{o.product}</span>
-                    {o.quantity > 1 && (
-                      <span className="inline-flex items-center gap-0.5 text-xs font-bold bg-violet-100 text-violet-700 px-2 py-0.5 rounded-lg shrink-0">
-                        ×{o.quantity}
-                      </span>
-                    )}
-                    <span className="font-black text-slate-900 shrink-0">{o.amount} {o.currency}</span>
+                    <div className="min-w-0 flex-1">
+                      <p dir="auto" className="line-clamp-2 break-words text-sm font-medium leading-5 text-slate-800">{o.product}</p>
+                      <div className="mt-2 flex flex-wrap items-baseline justify-between gap-2">
+                        <span className="text-xs text-slate-400">×{o.quantity || 1}</span>
+                        <span className="text-base font-bold tabular-nums text-slate-900">{o.amount} <span className="text-xs font-medium text-slate-400">{o.currency}</span></span>
+                      </div>
+                    </div>
+                  </button>
+                  <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+                    <SourceBadge source={o.source} />
+                    <span className="text-[11px] tabular-nums text-slate-400">{o.date}</span>
                   </div>
 
-                  {/* Source + action buttons */}
-                  <div className="flex items-center gap-2 flex-wrap mt-2">
-                    <SourceBadge source={o.source} />
+                  {/* Primary actions stay prominent; less common statuses stay in a menu. */}
+                  <div className="grid grid-cols-2 gap-2 border-t border-slate-100 pt-3 [&>button]:min-h-11 [&>a]:min-h-11 [&>button]:justify-center [&>a]:justify-center">
                     {o.status === "nouveau" && (
                       <>
                         <button onClick={() => setStatus(o.id, "confirmé")}
@@ -1130,21 +1132,26 @@ export default function CommandesPage() {
                           onClick={() => incrementAttempt(o.id)}
                           className="flex items-center gap-1 bg-[#25D366] hover:bg-[#1ebe5d] text-white text-xs font-bold px-2.5 py-1.5 rounded-xl transition-colors shadow-sm shadow-green-200">
                           <svg viewBox="0 0 24 24" fill="currentColor" className="w-3 h-3"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z"/><path d="M12 0C5.373 0 0 5.373 0 12c0 2.025.507 3.93 1.395 5.594L0 24l6.545-1.369A11.945 11.945 0 0012 24c6.627 0 12-5.373 12-12S18.627 0 12 0zm0 21.818a9.818 9.818 0 01-5.006-1.371l-.36-.214-3.733.979.996-3.648-.234-.374A9.818 9.818 0 012.182 12C2.182 6.573 6.573 2.182 12 2.182S21.818 6.573 21.818 12 17.427 21.818 12 21.818z"/></svg>
-                          WA
+                          WhatsApp
                         </a>
+                        <details className="col-span-2 rounded-xl border border-slate-100">
+                          <summary className="cursor-pointer px-3 py-3 text-center text-xs font-medium text-slate-500">Autres actions</summary>
+                          <div className="grid grid-cols-3 gap-2 px-2 pb-2 [&>button]:min-h-11 [&>button]:justify-center">
                         <button onClick={() => setStatus(o.id, "annulé")}
-                          className="flex items-center gap-1 bg-red-500 hover:bg-red-600 text-white text-xs font-bold px-2.5 py-1.5 rounded-xl transition-colors shadow-sm shadow-red-200">
+                          className="flex items-center gap-1 bg-slate-50 hover:bg-slate-100 text-red-500 text-xs font-bold px-2.5 py-1.5 rounded-xl transition-colors shadow-sm shadow-red-200">
                           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} className="w-3 h-3"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
                           Annuler
                         </button>
                         <button onClick={() => setStatus(o.id, "injoignable")}
-                          className="flex items-center gap-1 bg-amber-500 hover:bg-amber-600 text-white text-xs font-bold px-2.5 py-1.5 rounded-xl transition-colors shadow-sm shadow-amber-200">
+                          className="flex items-center gap-1 bg-slate-50 hover:bg-slate-100 text-slate-600 text-xs font-bold px-2.5 py-1.5 rounded-xl transition-colors shadow-sm shadow-amber-200">
                           Injoignable
                         </button>
                         <button onClick={() => setStatus(o.id, "fausse")}
-                          className="flex items-center gap-1 bg-purple-500 hover:bg-purple-600 text-white text-xs font-bold px-2.5 py-1.5 rounded-xl transition-colors shadow-sm shadow-purple-200">
+                          className="flex items-center gap-1 bg-slate-50 hover:bg-slate-100 text-slate-600 text-xs font-bold px-2.5 py-1.5 rounded-xl transition-colors shadow-sm shadow-purple-200">
                           Fausse
                         </button>
+                          </div>
+                        </details>
                       </>
                     )}
                     {o.status === "injoignable" && (
@@ -1182,13 +1189,13 @@ export default function CommandesPage() {
                       </button>
                     )}
                     <button onClick={() => setDrawer(o)}
-                      className="ml-auto text-slate-400 hover:text-slate-600 border border-slate-200 hover:bg-slate-50 p-1.5 rounded-xl transition-colors">
-                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="w-3.5 h-3.5"><path d="M9 18l6-6-6-6"/></svg>
+                      aria-label="Voir la commande" className="flex items-center gap-2 text-slate-500 hover:text-slate-600 border border-slate-200 hover:bg-slate-50 p-2 rounded-xl text-xs font-medium transition-colors">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="w-3.5 h-3.5"><path d="M9 18l6-6-6-6"/></svg> Détails
                     </button>
                     {isAdmin && (
                       <button onClick={() => deleteOrder(o.id)}
                         className="text-rose-400 hover:text-rose-600 hover:bg-rose-50 p-1.5 rounded-xl transition-colors border border-transparent hover:border-rose-100"
-                        title="Supprimer">
+                        title="Supprimer" aria-label="Supprimer la commande">
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="w-3.5 h-3.5"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/><path d="M10 11v6M14 11v6M9 6V4h6v2"/></svg>
                       </button>
                     )}
