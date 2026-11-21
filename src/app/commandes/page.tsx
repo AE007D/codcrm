@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback, useMemo, useRef } from "react";
-import { AlertTriangle, PhoneOff, RefreshCw, Bird, Plus } from "lucide-react";
+import { AlertTriangle, PhoneOff, RefreshCw, Bird, Plus, Package } from "lucide-react";
 import { AMEEX_CITIES_FALLBACK } from "@/lib/moroccanCities";
 import { cachedFetch, invalidateCache } from "@/lib/clientCache";
 import Sidebar from "@/components/Sidebar";
@@ -129,6 +129,20 @@ type CatalogProduct = {
   stock: number;
 };
 
+function ProductThumbnail({ src, name }: { src?: string; name: string }) {
+  const [failedSrc, setFailedSrc] = useState<string | null>(null);
+  return (
+    <span className="flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-xl border border-slate-200 bg-white">
+      {src && failedSrc !== src ? (
+        // Catalog images may be uploaded data URLs or external shop images.
+        // eslint-disable-next-line @next/next/no-img-element
+        <img src={src} alt={name} width={48} height={48} loading="lazy" decoding="async"
+          className="h-full w-full object-contain p-1" onError={() => setFailedSrc(src)} />
+      ) : <Package size={20} className="text-slate-400" aria-hidden="true" />}
+    </span>
+  );
+}
+
 export default function CommandesPage() {
   const { t } = useLang();
   const STATUS_CONFIG: Record<OrderStatus, { label: string; color: string; bg: string; border: string; dot: string }> = {
@@ -156,6 +170,16 @@ export default function CommandesPage() {
   const [catalog, setCatalog] = useState<CatalogProduct[]>([]);
   const [catalogSearch, setCatalogSearch] = useState("");
   const [showCatalogDrop, setShowCatalogDrop] = useState(false);
+  const productImages = useMemo(() => {
+    const images = new Map<string, string>();
+    for (const product of catalog) {
+      const name = product.name.trim().toLowerCase();
+      if (product.image && !images.has(name)) images.set(name, product.image);
+    }
+    return images;
+  }, [catalog]);
+  const productImage = (name: string) => productImages.get(name.trim().toLowerCase());
+
 
   useEffect(() => {
     Promise.all([
@@ -1082,7 +1106,8 @@ export default function CommandesPage() {
                   <div className="flex items-center gap-2 text-sm text-slate-600 mb-2 flex-wrap" onClick={() => setDrawer(o)}>
                     {o.city && <span className="text-slate-400">{o.city}</span>}
                     {o.city && <span className="text-slate-200">·</span>}
-                    <span className="truncate flex-1">{o.product}</span>
+                    <ProductThumbnail src={productImage(o.product)} name={o.product} />
+                    <span className="min-w-0 flex-1 font-medium">{o.product}</span>
                     {o.quantity > 1 && (
                       <span className="inline-flex items-center gap-0.5 text-xs font-bold bg-violet-100 text-violet-700 px-2 py-0.5 rounded-lg shrink-0">
                         ×{o.quantity}
@@ -1185,7 +1210,7 @@ export default function CommandesPage() {
                         onChange={toggleSelectAll}
                         className="w-4 h-4 rounded accent-blue-600 cursor-pointer" />
                     </th>
-                    {["#", "Client", "Ville", "Téléphone", "Produit", "Montant", "Source", "Statut", "Actions"].map(h => (
+                    {["Client", "Ville", "Téléphone", "Produit", "Montant", "Source", "Statut", "Actions"].map(h => (
                       <th key={h} className="text-left px-5 py-3 font-semibold uppercase tracking-wide whitespace-nowrap">{h}</th>
                     ))}
                   </tr>
@@ -1209,7 +1234,6 @@ export default function CommandesPage() {
                           <input type="checkbox" checked={isSelected} onChange={() => toggleSelect(o.id)}
                             className="w-4 h-4 rounded accent-blue-600 cursor-pointer" />
                         </td>
-                        <td className="px-5 py-3.5 font-mono text-xs text-slate-400 whitespace-nowrap" onClick={() => setDrawer(o)}>{o.orderNumber}{o.assignedAgentName && <span className="block font-sans text-blue-600">{o.assignedAgentName}</span>}</td>
                         <td className="px-5 py-3.5" onClick={() => setDrawer(o)}>
                           <div className="flex items-center gap-2">
                             <p className="font-semibold text-slate-800">{o.customer}</p>
@@ -1219,6 +1243,8 @@ export default function CommandesPage() {
                               </span>
                             )}
                           </div>
+                          <p className="mt-1 font-mono text-xs text-slate-400">#{o.orderNumber}</p>
+                          {o.assignedAgentName && <p className="text-xs text-blue-600">{o.assignedAgentName}</p>}
                           {o.notes && <p className="text-xs text-slate-400 truncate max-w-[140px]">{o.notes}</p>}
                         </td>
                         <td className="px-5 py-3.5 text-slate-500 whitespace-nowrap" onClick={() => setDrawer(o)}>{o.city}</td>
@@ -1234,9 +1260,10 @@ export default function CommandesPage() {
                             </span>
                           )}
                         </td>
-                        <td className="px-5 py-3.5 text-slate-600 max-w-[160px]" onClick={() => setDrawer(o)}>
-                          <div className="flex items-center gap-1.5">
-                            <span className="truncate">{o.product}</span>
+                        <td className="px-5 py-3.5 text-slate-600 max-w-[240px]" onClick={() => setDrawer(o)}>
+                          <div className="flex items-center gap-3">
+                            <ProductThumbnail src={productImage(o.product)} name={o.product} />
+                            <span className="min-w-0 line-clamp-2" title={o.product}>{o.product}</span>
                             {o.quantity > 1 && (
                               <span className="inline-flex items-center text-xs font-bold bg-violet-100 text-violet-700 px-1.5 py-0.5 rounded-lg shrink-0">×{o.quantity}</span>
                             )}
@@ -1726,7 +1753,10 @@ export default function CommandesPage() {
                   <div className="bg-slate-50 rounded-2xl p-4">
                     <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Commande</h3>
                     <div className="flex items-center justify-between">
-                      <p className="font-semibold text-slate-800">{drawer.product}</p>
+                      <div className="flex min-w-0 items-center gap-3">
+                        <ProductThumbnail src={productImage(drawer.product)} name={drawer.product} />
+                        <p className="font-semibold text-slate-800">{drawer.product}</p>
+                      </div>
                       <p className="text-lg font-black text-slate-900">{drawer.amount} {drawer.currency}</p>
                     </div>
                   </div>
